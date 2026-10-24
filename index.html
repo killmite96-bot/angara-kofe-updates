@@ -100,7 +100,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 15;
+const APP_VERSION = 16;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -332,8 +332,9 @@ function parts(list, max = 8) {
 }
 const co = p => p.lat + ',' + p.lon;
 const addrOf = p => p.addr + (CITY ? ', ' + CITY : '');
-// маршрут 2ГИС: одна поездка (формат ссылки 2ГИС: долгота,широта); без точки отправления берётся ваше текущее местоположение
-const gisTo = (to, from) => 'https://2gis.ru/routeSearch/rsType/car' + (from && from.lat ? '/from/' + from.lon + ',' + from.lat : '') + '/to/' + to.lon + ',' + to.lat;
+// маршрут 2ГИС сразу через все точки (формат directions/points, долгота,широта через «|»); пустая первая точка = ваше текущее местоположение
+const GIS_CITY = 'irkutsk';
+const gisRoute = (pts, from) => 'https://2gis.ru/' + GIS_CITY + '/directions/points/' + (from && from.lat ? from.lon + ',' + from.lat : '') + '%7C' + pts.map(p => p.lon + ',' + p.lat).join('%7C');
 // Яндекс получает координаты точек (приложение Яндекс Карт по тексту адреса маршрут не строит); from == null значит «от моего местоположения».
 // 2ГИС ищет по тексту адреса
 const urls = (pts, from) => {
@@ -1276,7 +1277,7 @@ function sheet() {
     return `<h2>Поехали на базу</h2><div class="card"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div><div class="t1">${DEPOT.name}</div><div class="t2">${DEPOT.addr || 'Адрес базы не указан'}</div></div></div></div>
       <div class="tiny">Маршрут построится от вашего текущего местоположения. После загрузки подтвердите её в разделе «Погрузка».</div>
       <div class="btns"><a class="btn sm mapbtn" style="background:#fc3f1d;color:#fff;text-align:center" target="_blank" href="${u.ya}">Яндекс</a>
-      <a class="btn sm mapbtn" style="background:#2ca24a;color:#fff;text-align:center" target="_blank" href="${gisTo(DEPOT, null)}">2ГИС</a></div>
+      <a class="btn sm mapbtn" style="background:#2ca24a;color:#fff;text-align:center" target="_blank" href="${gisRoute([DEPOT], null)}">2ГИС</a></div>
       <button class="btn sec" onclick="go({sheet:'load'})">Открыть погрузку</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
   }
   if (S.sheet === 'base') {
@@ -1336,12 +1337,12 @@ function sheet() {
     const lg = legs(c), one = S.sheet === 'mapone';
     const pr = one ? [[lg.out[0].x]] : parts(lg.out.map(o => o.x));
     let from = null, num = 0;
-    let h = `<h2>${one ? 'Навигатор до следующей точки' : 'Весь маршрут в картах'}</h2><div class="tiny">Точки идут в порядке кратчайшего объезда, первая от вашего текущего местоположения. Яндекс строит маршрут сразу через все точки (в одной ссылке до 8–9 остановок, длинный день делится на части). 2ГИС принимает в ссылке только одну поездку, поэтому для него кнопка у каждой точки: нажимайте по очереди, едете от предыдущей точки к следующей.</div>`;
+    let h = `<h2>${one ? 'Навигатор до следующей точки' : 'Весь маршрут в картах'}</h2><div class="tiny">Точки идут в порядке кратчайшего объезда, первая от вашего текущего местоположения. В одной ссылке до 8–9 остановок, длинный день делится на части. В 2ГИС маршрут начинается от базы или от последней сданной точки: если вы в другом месте, поменяйте первую точку в самом 2ГИС.</div>`;
     pr.forEach((l, i) => {
-      const ps = l.map(x => pt(x.pid)), u = urls(ps, from), start = from; from = ps[ps.length - 1];
-      h += `<div class="card"><div class="t1">${pr.length > 1 ? 'Часть ' + (i + 1) + ' · ' : ''}${l.length} ${l.length === 1 ? 'точка' : 'точек'}</div>
-        <div class="btns"><a class="btn sm mapbtn" style="background:#fc3f1d;color:#fff;text-align:center" target="_blank" href="${u.ya}">Яндекс: ${ps.length > 1 ? 'весь маршрут' : 'маршрут'}</a></div>
-        ${ps.map((p, k) => `<div class="row" style="margin-top:8px"><div class="grow t2">${++num}. ${esc(p.name)}</div><a class="btn sm mapbtn" style="background:#2ca24a;color:#fff;text-align:center" target="_blank" href="${gisTo(p, k ? ps[k - 1] : start)}">2ГИС</a></div>`).join('')}</div>`;
+      const ps = l.map(x => pt(x.pid)), u = urls(ps, from), g = gisRoute(ps, i ? from : posOf(c)); from = ps[ps.length - 1];   // 2ГИС: старт от последней сданной точки или от базы, чтобы маршрут рисовался сразу
+      h += `<div class="card"><div class="t1">${pr.length > 1 ? 'Часть ' + (i + 1) + ' · ' : ''}${l.length} ${l.length === 1 ? 'точка' : 'точек'}</div><div class="t2">${ps.map(p => esc(p.name)).join(' → ')}</div>
+        <div class="btns"><a class="btn sm mapbtn" style="background:#fc3f1d;color:#fff;text-align:center" target="_blank" href="${u.ya}">Яндекс</a>
+        <a class="btn sm mapbtn" style="background:#2ca24a;color:#fff;text-align:center" target="_blank" href="${g}">2ГИС</a></div></div>`;
     });
     return h + '<button class="btn sec" onclick="go({sheet:null})">Закрыть</button>';
   }
