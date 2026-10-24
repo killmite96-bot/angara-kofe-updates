@@ -1,9 +1,9 @@
 {
-    "content":  19,
+    "content":  20,
     "apk":  6,
-    "notes":  "Окна закрываются свайпом вниз с любого места (шторка уведомлений вверх).",
+    "notes":  "Исправлено: окно больше не закрывается само при прокрутке содержимого. Закрывать свайпом можно, когда окно уже у верха.",
     "contentFile":  "index.html",
-    "contentSha256":  "5d58aec1c373a43dc5073993e22fa9b5222dcd845d7339fc01ce98d686dde67a",
+    "contentSha256":  "69141c7cc257839bfc3d5bcc03b8833746f06c94524edda94bbe569730a45cac",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "44fbc8a47cb1412ef470a54d9b8edfc1eead35c22695676f8a6d4abf546bddc7"
+    "apkSha256":  "6db533cd15c1399092a608e435ef399bdfe9579dfd25b22c35bc4310223c74d8"
 }
