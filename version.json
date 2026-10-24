@@ -1,9 +1,9 @@
 {
-    "content":  23,
+    "content":  24,
     "apk":  7,
-    "notes":  "Окно не закрывается самo при прокрутке: закрывать свайпом можно, когда содержимое уже у края.",
+    "notes":  "Погрузка: станции одной точки (например Аэропорт) разделены рамками с цветной полосой и номером.",
     "contentFile":  "index.html",
-    "contentSha256":  "c78f8f58b150aac73e78ccaf2c541c86dd8080fc3fa5ffc8a304e4c128a7bcac",
+    "contentSha256":  "8ebace2be1b20092db0c19203f5b259b0921ba3f54477d177a26ed3b321d9ccb",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "4c6cc9fca0cef79a9f903aca490cac62f69c2c6a0fc8a651670975ec2ed537f2"
+    "apkSha256":  "81c114edf50d91919f6f5018f065f61ba5cc5b5de6fa8f818306025ae6373b63"
 }

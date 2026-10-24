@@ -103,7 +103,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 23;
+const APP_VERSION = 24;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -735,9 +735,12 @@ const ldOpen = pid => { S.ldp = S.ldp === pid ? null : pid; render(true); };
 // остатки на точке сейчас по каждой станции и сколько нужно взять
 function stockRows(p) {
   let h = '';
+  const multi = p.units.length > 1, cols = ['var(--g)', 'var(--b)', 'var(--o)'];
   p.units.forEach((u, i) => {
-    if (p.units.length > 1) h += `<div class="tiny" style="margin-top:6px">Станция ${i + 1} · ${STN[u.st]}</div>`;
+    // если станций несколько, каждая в своей рамке с цветной полосой слева и заголовком
+    if (multi) h += `<div style="margin-top:12px;border:1px solid var(--line);border-left:5px solid ${cols[i % 3]};border-radius:12px;background:var(--card2);padding:8px 10px"><div class="row" style="margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--line)"><span class="badge" style="background:${cols[i % 3]};color:#0e1411;min-width:26px;height:26px;border-radius:50%">${i + 1}</span><div class="t1" style="font-size:14px">Станция ${i + 1}<span class="t2" style="margin-left:6px">${STN[u.st]}</span></div></div>`;
     ING.forEach(g => { const r = rec(u, g); h += `<div class="kv"><span>${g.n}</span><span><b>${fmtCur(u, g)}</b>${r > 0 ? ` <span class="pill warn">взять ${r} ${g.u}</span>` : ''}</span></div>`; });
+    if (multi) h += '</div>';
   });
   return h + `<div class="tiny" style="margin-top:6px">Подтоварка на точке: ${ING.filter(g => p.back[g.id] > 0).map(g => g.n + ' ' + p.back[g.id] + ' ' + g.u).join(', ') || 'пусто'}</div>`;
 }
