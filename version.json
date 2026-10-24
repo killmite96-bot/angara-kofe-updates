@@ -1,9 +1,9 @@
 {
-    "content":  25,
+    "content":  26,
     "apk":  7,
-    "notes":  "В проверке фото «Эталон» переименован в «Пример» и показывает настоящее фото станции; менеджер может заменить фото.",
+    "notes":  "В карточке точки кнопки «Мокрая точка» и «Парковка»: фото и описание, менеджер их добавляет и меняет.",
     "contentFile":  "index.html",
-    "contentSha256":  "a42e7b2651baee9a2b6d4775f3dbbe4e4c17799d5c98fda508b2f9ec39d420c7",
+    "contentSha256":  "cce7339a70757a6cd5b60813793f1cfed0e34b140b985eade47241a856472c0e",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "efb70740816f3a2bccb9000241a3327703ae7996f4fbfcd1d9e792a472949be9"
+    "apkSha256":  "86b86b9a205048a97cdeeeb6be49a3610a1a9c8583004b317213df0866847b09"
 }

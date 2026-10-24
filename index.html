@@ -103,7 +103,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 25;
+const APP_VERSION = 26;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -752,6 +752,36 @@ function mgCur(pid, i, gid, d) {
   u.cur[gid] = g.t === 'count' ? Math.max(0, Math.min(g.cap, u.cur[gid] + d * 10)) : Math.max(0, Math.min(1, +(u.cur[gid] + d * .25).toFixed(2)));
   render(true);
 }
+// «Мокрая точка» (как пройти к уборной) и «Парковка»: фото и описание у каждой точки, правит только менеджер
+const INFO = {};   // id точки -> {wet:{imgs, steps}, park:{imgs, text}}
+const INFO_T = {wet:'Мокрая точка', park:'Парковка'};
+const infoOf = (pid, k) => (INFO[pid] && INFO[pid][k]) || {imgs:[], steps:[], text:''};
+const openInfo = (pid, k) => go({sheet:'info', inf:{pid, k, edit:false, d:null}});
+function infoEdit() { const o = infoOf(S.inf.pid, S.inf.k); S.inf.d = {imgs:o.imgs.slice(), steps:(o.steps || []).slice(), text:o.text || ''}; S.inf.edit = true; render(true); }
+function infoAddImg() { if (S.inf.d.imgs.length >= 6) return go({toast:'Не больше 6 фото'}); pickImage(800, d => { if (S.inf && S.inf.d) { S.inf.d.imgs.push(d); render(true); } }); }
+const infoDelImg = i => { S.inf.d.imgs.splice(i, 1); render(true); };
+const infoAddStep = () => { S.inf.d.steps.push(''); render(true); };
+const infoDelStep = i => { S.inf.d.steps.splice(i, 1); render(true); };
+function infoSave() {
+  const f = S.inf, d = f.d; d.steps = d.steps.map(s => s.trim()).filter(Boolean); d.text = d.text.trim();
+  (INFO[f.pid] = INFO[f.pid] || {})[f.k] = d; go({sheet:null, inf:null, toast:'Сохранено'});
+}
+function infoSheet() {
+  const f = S.inf, p = pt(f.pid), mg = S.role === 'mgr', k = f.k, o = f.edit ? f.d : infoOf(f.pid, k), wet = k === 'wet';
+  let h = `<h2>${INFO_T[k]}</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)} · ${esc(p.addr)}</div>`;
+  const empty = `<div class="card t2">${mg ? 'Пока ничего не добавлено. Нажмите «Изменить», чтобы добавить фото и описание.' : 'Менеджер ещё не добавил описание для этой точки.'}</div>`;
+  if (!f.edit) {
+    if (o.imgs.length) h += `<div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:10px">${o.imgs.map(s => `<div class="photo" style="flex:none;width:150px;height:210px"><img src="${s}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div>`).join('')}</div>`;
+    if (wet) h += o.steps.length ? '<div class="card">' + o.steps.map((s, i) => `<div class="row" style="align-items:flex-start;margin:7px 0"><span class="badge b1" style="min-width:26px;height:26px;border-radius:50%">${i + 1}</span><div class="grow" style="font-size:14px">${esc(s)}</div></div>`).join('') + '</div>' : (o.imgs.length ? '' : empty);
+    else h += o.text ? `<div class="card" style="white-space:pre-wrap;font-size:14px">${esc(o.text)}</div>` : (o.imgs.length ? '' : empty);
+    if (mg) h += `<button class="btn" style="margin-top:8px" onclick="infoEdit()">Изменить</button>`;
+    return h + `<button class="btn sec" style="margin-top:8px" onclick="go({sheet:null,inf:null})">Закрыть</button>`;
+  }
+  h += `<div class="tiny">Фото (до 6): нажмите «+ Фото», чтобы выбрать из галереи</div><div style="display:flex;gap:8px;overflow-x:auto;margin:6px 0 10px">${o.imgs.map((s, i) => `<div style="position:relative;flex:none"><img src="${s}" alt="" style="width:92px;height:120px;object-fit:cover;border-radius:10px;display:block"><button class="btn sm" style="position:absolute;top:4px;right:4px;padding:2px 8px" onclick="infoDelImg(${i})">✕</button></div>`).join('')}<button class="btn sec" style="flex:none;width:92px;height:120px" onclick="infoAddImg()">+ Фото</button></div>`;
+  if (wet) h += '<div class="tiny">Пошаговое описание: куда идти и где сворачивать</div>' + o.steps.map((s, i) => `<div class="row" style="margin:6px 0"><span class="badge b1" style="min-width:26px;height:26px;border-radius:50%">${i + 1}</span><input type="text" class="grow" value="${esc(s)}" placeholder="Например: выйти из зала и повернуть налево" oninput="S.inf.d.steps[${i}]=this.value"><button class="btn sec sm" onclick="infoDelStep(${i})">✕</button></div>`).join('') + `<button class="btn sec sm" style="margin:4px 0 8px" onclick="infoAddStep()">+ Добавить шаг</button>`;
+  else h += `<div class="tiny">Описание: где лучше всего парковаться</div><textarea rows="5" style="width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--tx);font-size:14px;margin:6px 0" oninput="S.inf.d.text=this.value">${esc(o.text)}</textarea>`;
+  return h + `<button class="btn" style="margin-top:8px" onclick="infoSave()">Сохранить</button><button class="btn sec" style="margin-top:8px" onclick="S.inf.edit=false;render(true)">Отмена</button>`;
+}
 const ldOpen = pid => { S.ldp = S.ldp === pid ? null : pid; render(true); };
 // остатки на точке сейчас по каждой станции и сколько нужно взять
 function stockRows(p) {
@@ -775,6 +805,7 @@ function pointCard(id) {
   if (p.win || p.notes.length) h += `<div class="card"><div class="t1" style="font-size:14px">Особенности точки</div>${p.win ? `<div class="t2" style="margin-top:6px">${ic('clock', 13)} Время: ${p.win}</div>` : ''}${p.notes.map(n => `<div class="t2" style="margin-top:4px">• ${n}</div>`).join('')}</div>`;
   h += `<div class="card"><div class="t1" style="font-size:14px">При прибытии на последнем визите</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
     <span class="pill ${CCOL[p.arr.clean]}">Чистота: ${CLEAN[p.arr.clean]}</span><span class="pill ${p.arr.trash >= .75 ? 'warn' : ''}">Урна: ${Math.round(p.arr.trash * 100)}% · ${trashStatus(p.arr.trash)}</span></div></div>`;
+  h += `<div class="row" style="gap:10px;margin:10px 0"><button class="btn sec" style="flex:1 1 0;width:auto;margin:0" onclick="openInfo(${p.id},'wet')">${ic('drop', 16)} Мокрая точка</button><button class="btn sec" style="flex:1 1 0;width:auto;margin:0" onclick="openInfo(${p.id},'park')">${ic('pin', 16)} Парковка</button></div>`;
   h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Генеральная уборка</div><div class="t2">${deepText(p)}</div></div>${deepLeft(p) <= 14 ? `<span class="pill ${deepLeft(p) < 0 ? 'bad' : 'warn'}">${deepLeft(p) < 0 ? 'просрочена' : 'скоро срок'}</span>` : ''}</div></div>`;
   const mg = S.role === 'mgr';
   // у менеджера значения правятся прямо в карточке кнопками − и +
@@ -1281,6 +1312,7 @@ function sheet() {
     h += LOADED[key] ? '<div class="pill ok" style="display:inline-block;margin-bottom:10px">Погрузка подтверждена, склад обновлён</div>' : `<button class="btn" style="margin-bottom:8px" onclick="confirmLoad()">Подтвердить погрузку</button>`;
     return h + '<button class="btn sec" onclick="go({sheet:null})">Закрыть</button>';
   }
+  if (S.sheet === 'info') return infoSheet();
   if (S.sheet === 'take') {
     // по прибытии на точку: что именно нужно взять для наполнения этой точки
     const p = pt(S.tk), item = L(c, TODAY).find(x => x.pid === p.id), fmt = (g, n) => (g.t === 'count' ? n : +(+n).toFixed(1)) + ' ' + g.u;
@@ -1710,7 +1742,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, LOADED, PASS, reviews, NOTIFS, AV, EX,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -1721,7 +1753,7 @@ function restoreData(txt) {
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
-  replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {});
+  replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {});
   nid = d.nid; CITY = d.CITY;
   if (d.sess && d.sess.role && (d.sess.role === 'mgr' || cr(d.sess.me))) Object.assign(S, d.sess, {view:null, sheet:null, cam:null, shade:false});
   return true;
@@ -1834,6 +1866,7 @@ function docsFromState() {
   const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name}}, ld = {};
   Object.keys(AV).forEach(k => { d['av/' + k] = AV[k]; });
   Object.keys(EX).forEach(k => { d['ex/' + k] = EX[k]; });
+  Object.keys(INFO).forEach(k => { d['info/' + k] = INFO[k]; });
   P.forEach(p => { d['pt/' + p.id] = p; });
   Object.keys(sched).forEach(c => { for (let k = 0; k < 7; k++) d['sched/' + c + '/' + k] = sched[c][k]; });
   Object.keys(TEMPLATE).forEach(c => { for (let k = 0; k < 7; k++) d['tpl/' + c + '/' + k] = TEMPLATE[c][k]; });
@@ -1881,6 +1914,8 @@ function applyDoc(k, v, dele) {
     if (dele || !v) delete AV[p[1]]; else AV[p[1]] = v;
   } else if (h === 'ex') {
     if (dele || !v) delete EX[p[1]]; else EX[p[1]] = v;
+  } else if (h === 'info') {
+    if (dele || !v) delete INFO[p[1]]; else INFO[p[1]] = v;
   } else if (h === 'wh') {
     if (v) replaceObj(WH, v);
   } else if (h === 'pt') {
@@ -1905,7 +1940,7 @@ function applyDoc(k, v, dele) {
 }
 function resetFromDocs(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
-  [CHAT, LOADED, PASS, sched, TEMPLATE, AV, EX].forEach(o => replaceObj(o, {}));
+  [CHAT, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO].forEach(o => replaceObj(o, {}));
   SY.mirror = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
     if (d.dele) return;
