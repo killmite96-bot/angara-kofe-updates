@@ -99,7 +99,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 3;
+const APP_VERSION = 4;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -225,7 +225,8 @@ const TEMPLATE = {1:emptyWeek(), 2:emptyWeek()};
 const reviews = [];
 const LOADED = {};
 const PASS = {};   // отметка «пропуск взят» по курьеру и дню
-const WATER = {vk:'', greet:'Здравствуйте! Это Ангара Кофе.'};   // получатель заказов воды во ВКонтакте и приветствие (задаёт менеджер)
+const WATER = {vk:'', greet:'Здравствуйте! Это Ангара Кофе.', by:{}};   // получатель заказов воды во ВКонтакте и приветствие (задаёт менеджер); by[id точки] — свои для каждой точки, vk/greet — запасные
+const waterSet = pid => Object.assign({vk:WATER.vk || '', greet:WATER.greet}, (WATER.by || {})[pid]);
 
 /* ===================== РАСЧЁТЫ ===================== */
 const pt = id => P.find(p => p.id === id);
@@ -322,7 +323,9 @@ function whNeed() {
 
 /* ===================== УВЕДОМЛЕНИЯ ===================== */
 const NOTIFS = []; let nid = 1;
-function notify(to, kind, text, extra) { NOTIFS.unshift(Object.assign({id:nid++, to, kind, text, t:'только что', read:false}, extra || {})); }
+// уникальный номер: нужен, чтобы записи с разных телефонов не пересекались
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function notify(to, kind, text, extra) { NOTIFS.unshift(Object.assign({id:uid(), ts:Date.now(), to, kind, text, t:'только что', read:false}, extra || {})); }
 reviews.forEach((r, i) => r.id = i + 1);
 // недельный график из шаблона: пн–сб, воскресенье выходной; первые дни недели уже выполнены
 (function initWeek() {
@@ -340,18 +343,18 @@ reviews.forEach((r, i) => r.id = i + 1);
     }
     p.last = last; p.last2 = last2;
   });
-  reviews.push({id:1, cid:1, pid:12, when:'вчера 15:40', type:2, status:'pending', ref:null}, {id:2, cid:1, pid:3, when:'вчера 12:10', type:1, status:'pending', ref:null});
+  reviews.push({id:1, cid:1, pid:12, day:1, when:'вчера 15:40', type:2, status:'pending'}, {id:2, cid:1, pid:3, day:1, when:'вчера 12:10', type:1, status:'pending'});
 })();
-notify('mgr', 'photo', 'Алексей сдал точку «' + pt(12).name + '»: подтвердите фото', {rv:reviews[0], t:'вчера 15:40'});
-notify('mgr', 'photo', 'Алексей сдал точку «' + pt(3).name + '»: подтвердите фото', {rv:reviews[1], t:'вчера 12:10'});
+notify('mgr', 'photo', 'Алексей сдал точку «' + pt(12).name + '»: подтвердите фото', {rvId:reviews[0].id, t:'вчера 15:40', ts:1});
+notify('mgr', 'photo', 'Алексей сдал точку «' + pt(3).name + '»: подтвердите фото', {rvId:reviews[1].id, t:'вчера 12:10', ts:2});
 const CHAT = {
-  1:[{from:'mgr', text:'Доброе утро! Сегодня 7 точек, 4 из них с мойкой. Начните с базы.', t:'08:05', pid:null, read:true}, {from:'cour', text:'Принял, выезжаю на базу.', t:'08:07', pid:null, read:true}],
+  1:[{id:'seed1', ts:1, from:'mgr', text:'Доброе утро! Сегодня 7 точек, 4 из них с мойкой. Начните с базы.', t:'08:05', pid:null, read:true}, {id:'seed2', ts:2, from:'cour', text:'Принял, выезжаю на базу.', t:'08:07', pid:null, read:true}],
   2:[]
 };
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 function sendMsg(cid, from, text, pid) {
   const d = new Date(), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  (CHAT[cid] = CHAT[cid] || []).push({from, text, t, pid:pid || null, read:false});
+  (CHAT[cid] = CHAT[cid] || []).push({id:uid(), ts:Date.now(), from, text, t, pid:pid || null, read:false});
   notify(from === 'mgr' ? cid : 'mgr', 'chat', (from === 'mgr' ? 'Менеджер' : cr(cid).name) + ': ' + text, {cid, pid:pid || null});
 }
 
@@ -430,7 +433,7 @@ function shadeHTML() {
     <div class="row" style="margin-bottom:8px"><h2 class="grow" style="margin:0">Уведомления</h2><button class="btn sec sm" onclick="clearNotifs()">Очистить</button><button class="btn sm" onclick="closeShade()">${ic('x', 16)}</button></div>`;
   if (!list.length) h += '<div class="card t2">Новых уведомлений нет.</div>';
   list.forEach(n => {
-    const r = n.rv, p = r ? pt(r.pid) : null;
+    const r = n.rvId ? reviews.find(x => x.id === n.rvId) : null, p = r ? pt(r.pid) : null;
     h += `<div class="card" style="${n.read ? '' : 'border-color:var(--g)'}"><div class="row" style="align-items:flex-start"><div style="color:${n.kind === 'redo' ? 'var(--o)' : 'var(--g)'}">${ic(n.kind === 'photo' ? 'camera' : n.kind === 'ok' ? 'check' : n.kind === 'chat' ? 'chat' : n.kind === 'water' ? 'drop' : 'warn', 24)}</div>
       <div class="grow"><div class="t1" style="font-size:14px">${n.text}</div><div class="t2">${n.t}</div></div></div>`;
     if (r) {
@@ -458,12 +461,31 @@ function loginScreen() {
   <input type="password" placeholder="Пароль" autocomplete="new-password" value="${esc(S.lg.pass)}" oninput="S.lg.pass=this.value" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--tx);font-size:14px;margin:6px 0">
   ${S.lg.err ? `<div style="color:var(--r);font-size:13px">${S.lg.err}</div>` : ''}
   <div class="row" style="cursor:pointer" onclick="S.lg.rem=${!rem};render()"><div class="box ${rem ? 'on' : ''}">${rem ? '✓' : ''}</div><div style="font-size:14px">Запомнить аккаунт на этом телефоне</div></div>
-  <button class="btn" onclick="doLogin()">Войти</button>
-  <div class="tiny" style="margin-top:8px">Демо-доступы: ${MGR.pass === 'admin' ? 'менеджер — manager / admin' : 'менеджер — manager (пароль изменён вами)'}, курьер — alex / 1234 или maria / 1234. Роль определяется аккаунтом, менеджер создаёт курьеров на вкладке «Курьеры».</div></div>`;
+  <button class="btn" onclick="doLogin()" ${S.lg.busy ? 'disabled' : ''}>${S.lg.busy ? 'Входим…' : 'Войти'}</button>
+  <div class="tiny" style="margin-top:8px">${SRV ? 'Логин и пароль выдаёт менеджер. Данные общие для всех телефонов и обновляются сразу.' : 'Демо-доступы: ' + (MGR.pass === 'admin' ? 'менеджер — manager / admin' : 'менеджер — manager (пароль изменён вами)') + ', курьер — alex / 1234 или maria / 1234. Без сервера данные хранятся только на этом телефоне.'}</div>
+  <div class="tiny" style="margin-top:10px">Адрес сервера (оставьте пустым для режима без сервера)</div>
+  <input type="text" placeholder="http://192.168.1.10:8787" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(SRV)}" onchange="setServer(this.value)"></div>`;
 }
-function doLogout() { go({role:null, view:null, sheet:null, shade:false, cam:null, visit:null, viewer:null}); }
+function doLogout() {
+  if (SRV) syncStop();
+  go({role:null, view:null, sheet:null, shade:false, cam:null, visit:null, viewer:null});
+}
 function changePass() {
   const f = S.pw;
+  if (SRV) {
+    if (f.n1.length < 6) f.err = 'Новый пароль должен быть не короче 6 символов';
+    else if (f.n1 === f.old) f.err = 'Новый пароль совпадает со старым';
+    else if (f.n1 !== f.n2) f.err = 'Пароли не совпадают';
+    else {
+      f.err = ''; render();
+      api('/api/password', {old:f.old, new:f.n1}).then(() => {
+        const k = ACCS.findIndex(a => a.login.toLowerCase() === SY.login.toLowerCase()); if (k >= 0) { ACCS[k].pass = f.n1; saveAccs(); }
+        go({sheet:null, pw:null, toast:'Пароль изменён'});
+      }).catch(e => { f.err = e.message; render(); });
+      return;
+    }
+    return render();
+  }
   if (f.old !== MGR.pass) f.err = 'Текущий пароль указан неверно';
   else if (f.n1.length < 6) f.err = 'Новый пароль должен быть не короче 6 символов';
   else if (f.n1 === f.old) f.err = 'Новый пароль совпадает со старым';
@@ -478,6 +500,7 @@ function changePass() {
 function doLogin() {
   const l = S.lg.login.trim().toLowerCase(), p = S.lg.pass;
   const rem = S.lg.rem !== false;
+  if (SRV) return doLoginServer(l, p, rem);
   if (l === MGR.login && p === MGR.pass) { if (rem) rememberAcc(MGR.login, MGR.pass, 'Менеджер', 'mgr'); S.lg = {login:'', pass:'', err:''}; return login('mgr'); }
   const c = COUR.find(x => x.login.toLowerCase() === l && x.pass === p);
   if (!c) { S.lg.err = 'Неверный логин или пароль'; return render(); }
@@ -720,9 +743,9 @@ function finishVisit() {
   applyStock(v); p.last = 0; if (v.type >= 2) p.last2 = 0; if (v.type === 3) p.deep = 0;
   p.arr = {clean:v.arrive.clean, trash:v.arrive.trash};
   item.done = true; item.review = 'pending'; item.redo = false;
-  const rvObj = {id:Date.now(), cid:S.me, pid:v.pid, when:'только что', type:v.type, status:'pending', ref:item, arrive:v.arrive, photo:v.SP[0], nozzle:v.NP[0], photos:v.SP.slice(), nozzles:v.NP.slice()};
+  const rvObj = {id:Date.now(), cid:S.me, pid:v.pid, when:'только что', type:v.type, status:'pending', day:TODAY, arrive:v.arrive, photo:v.SP[0], nozzle:v.NP[0], photos:v.SP.slice(), nozzles:v.NP.slice()};
   reviews.unshift(rvObj);
-  notify('mgr', 'photo', cr(S.me).name + ' сдал(а) точку «' + p.name + '»: подтвердите фото', {rv:rvObj});
+  notify('mgr', 'photo', cr(S.me).name + ' сдал(а) точку «' + p.name + '»: подтвердите фото', {rvId:rvObj.id});
   S.visit = null; go({view:null, tab:'route', toast:'Точка сдана. Фото ушли менеджеру'});
 }
 
@@ -844,7 +867,7 @@ function whScreen() {
   let h = topbar('Склад', 'Количество ингредиентов и потребность недели');
   h += `<div class="body"><div class="card"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${DEPOT.name}</div><div class="t2">${DEPOT.addr || 'Адрес базы не указан'}</div>
     <div class="tiny">Сюда курьеры приезжают в начале смены за погрузкой</div></div><button class="btn sec sm" onclick="openBase()">Изменить</button></div></div>
-    <div class="card"><div class="row"><div style="color:#4fb3ff">${ic('drop', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Заказ воды (Труд, Аэропорт)</div><div class="t2">Получатель во ВКонтакте: ${WATER.vk ? esc(WATER.vk) : '<span style="color:var(--o)">не указан</span>'}</div></div><button class="btn sec sm" onclick="openWaterSet()">Изменить</button></div></div>
+    ${P.filter(p => p.water).map(p => `<div class="card"><div class="row"><div style="color:#4fb3ff">${ic('drop', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Заказ воды: ${esc(p.name)}</div><div class="t2">Получатель во ВКонтакте: ${waterSet(p.id).vk ? esc(waterSet(p.id).vk) : '<span style="color:var(--o)">не указан</span>'}</div></div><button class="btn sec sm" onclick="openWaterSet(${p.id})">Изменить</button></div></div>`).join('')}
     <div class="tiny" style="margin:4px 2px">Потребность считается по всем назначенным адресам до конца недели (с запасом 20%).</div>`;
   ING.forEach(g => {
     const have = WH[g.id], nd = need[g.id] || 0, short = have - nd, ok = short >= 0;
@@ -936,7 +959,7 @@ function togBottle(pid, i) { const w = pt(pid).water; w.full[i] = !w.full[i]; re
 function openWater(pid) { const used = pt(pid).water.full.filter(x => !x).length; go({sheet:'water', wp:pid, wq:Math.max(1, used)}); }
 const wq = d => { S.wq = Math.max(1, Math.min(30, S.wq + d)); render(true); };
 const stamp = () => { const d = new Date(); return d.toLocaleDateString('ru-RU') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
-const waterMsg = (p, qty) => WATER.greet + '\n\nЗаказ воды: ' + qty + ' бут.\nТочка: ' + p.name + ', ' + p.addr + '\nКурьер: ' + cr(S.me).name + '\nДата: ' + stamp();
+const waterMsg = (p, qty) => waterSet(p.id).greet + '\n\nЗаказ воды: ' + qty + ' бут.\nТочка: ' + p.name + ', ' + p.addr + '\nКурьер: ' + cr(S.me).name + '\nДата: ' + stamp();
 function vkLink(v) {
   v = v.trim();
   const m = v.match(/(?:vk\.com|vk\.ru|vk\.me)\/(?:write)?([A-Za-z0-9_.]+)/i);
@@ -955,15 +978,15 @@ function sendWater() {
   copyText(waterMsg(p, qty));
   p.water.orders.push({qty, when:stamp(), by:me.name});
   notify('mgr', 'water', me.name + ' заказал воду: ' + qty + ' бут., ' + p.name, {pid:p.id});
-  openExternal(vkLink(WATER.vk));
+  openExternal(vkLink(waterSet(p.id).vk));
   go({sheet:null, toast:'Текст заказа скопирован. В диалоге ВКонтакте вставьте его и отправьте'});
 }
-function openWaterSet() { go({sheet:'waterset', ws:{vk:WATER.vk, greet:WATER.greet, err:''}}); }
+function openWaterSet(pid) { const w = waterSet(pid); go({sheet:'waterset', ws:{pid, vk:w.vk, greet:w.greet, err:''}}); }
 function saveWaterSet() {
   const f = S.ws;
   if (!f.vk.trim()) f.err = 'Укажите получателя: ссылку на страницу ВКонтакте или её id';
   else if (!f.greet.trim()) f.err = 'Напишите приветствие';
-  else { WATER.vk = f.vk.trim(); WATER.greet = f.greet.trim(); return go({sheet:null, ws:null, toast:'Настройки заказа воды сохранены'}); }
+  else { WATER.by = WATER.by || {}; WATER.by[f.pid] = {vk:f.vk.trim(), greet:f.greet.trim()}; return go({sheet:null, ws:null, toast:'Настройки заказа воды сохранены'}); }
   render();
 }
 
@@ -992,7 +1015,7 @@ function teamScreen() {
 const genPass = () => Array.from({length:6}, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join('');
 function openCF(id) {
   const c = id ? cr(id) : null;
-  go({sheet:'cform', cf:c ? {id, name:c.name, login:c.login, pass:c.pass, r1:c.r1, r2:c.r2, r3:c.r3, err:''} : {id:null, name:'', login:'', pass:genPass(), r1:600, r2:1100, r3:2000, err:''}});
+  go({sheet:'cform', cf:c ? {id, name:c.name, login:c.login, pass:c.pass || '', r1:c.r1, r2:c.r2, r3:c.r3, err:''} : {id:null, name:'', login:'', pass:genPass(), r1:600, r2:1100, r3:2000, err:''}});
 }
 const cfRate = (k, d) => { S.cf[k] = Math.max(0, S.cf[k] + d); render(); };
 function saveCF() {
@@ -1000,7 +1023,16 @@ function saveCF() {
   if (!name) f.err = 'Укажите имя курьера';
   else if (!/^[A-Za-z0-9_.-]{3,}$/.test(login)) f.err = 'Логин: от 3 символов, латиница, цифры, . _ -';
   else if (COUR.some(c => c.id !== f.id && c.login.toLowerCase() === login.toLowerCase()) || login.toLowerCase() === MGR.login) f.err = 'Такой логин уже занят';
-  else if (f.pass.length < 4) f.err = 'Пароль: минимум 4 символа';
+  else if ((!f.id || !SRV) && f.pass.length < 4 || f.id && SRV && f.pass && f.pass.length < 4) f.err = 'Пароль: минимум 4 символа';
+  else if (SRV) {
+    f.err = ''; render();
+    api('/api/users', {action:f.id ? 'update' : 'create', cid:f.id, name, login, password:f.pass, r1:f.r1, r2:f.r2, r3:f.r3}).then(j => {
+      applyDoc('cour', j.cour, false); pushChanges();
+      if (!f.id) S.mc = Math.max(...COUR.map(c => c.id));
+      go({sheet:null, cf:null, toast:f.id ? 'Данные курьера сохранены' : 'Курьер создан: логин ' + login});
+    }).catch(e => { f.err = e.message; render(); });
+    return;
+  }
   else {
     if (f.id) Object.assign(cr(f.id), {name, login, pass:f.pass, r1:f.r1, r2:f.r2, r3:f.r3});
     else { const id = Math.max(...COUR.map(c => c.id)) + 1; COUR.push({id, name, login, pass:f.pass, active:true, r1:f.r1, r2:f.r2, r3:f.r3}); sched[id] = emptyWeek(); TEMPLATE[id] = emptyWeek(); S.mc = id; }
@@ -1011,6 +1043,13 @@ function saveCF() {
 function toggleCour(id) {
   const c = cr(id);
   if (c.active && COUR.filter(x => x.active).length === 1) return go({toast:'Нельзя отключить последнего активного курьера'});
+  if (SRV) {
+    return api('/api/users', {action:'update', cid:id, active:!c.active}).then(j => {
+      applyDoc('cour', j.cour, false);
+      if (!cr(S.mc) || !cr(S.mc).active) S.mc = COUR.find(x => x.active).id;
+      go({toast:cr(id).active ? 'Курьер включён' : 'Курьер отключён'});
+    }).catch(e => go({toast:e.message}));
+  }
   c.active = !c.active;
   if (!cr(S.mc).active) S.mc = COUR.find(x => x.active).id;
   go({toast:c.active ? 'Курьер включён' : 'Курьер отключён'});
@@ -1034,7 +1073,8 @@ function mgrScreen() {
 }
 function rv(id, s, reason) {
   const r = reviews.find(x => x.id === id); r.status = s; r.reason = reason || '';
-  if (r.ref) { r.ref.review = s; if (s === 'redo') { r.ref.done = false; r.ref.redo = true; } }
+  const it = (L(r.cid, r.day === undefined ? TODAY : r.day) || []).find(x => x.pid === r.pid);   // визит в графике курьера
+  if (it) { it.review = s; if (s === 'redo') { it.done = false; it.redo = true; } }
   const p = pt(r.pid);
   notify(r.cid, s === 'ok' ? 'ok' : 'redo', s === 'ok' ? 'Менеджер принял фото: ' + p.name : 'Переснять фото: ' + p.name + '. Причина: ' + reason, {pid:r.pid});
   go({sheet:null, redo:null, toast:s === 'ok' ? 'Принято, визит пошёл в зарплату' : 'Курьеру отправлено уведомление'});
@@ -1057,9 +1097,10 @@ function sheet() {
     return h + '<button class="btn sec" onclick="go({sheet:null})">Закрыть</button>';
   }
   if (S.sheet === 'profile') {
-    const mgr = S.role === 'mgr', name = mgr ? 'Менеджер' : cr(S.me).name, login = mgr ? MGR.login : cr(S.me).login, f = S.pw || {old:'', n1:'', n2:'', err:''};
+    const mgr = S.role === 'mgr', name = mgr ? 'Менеджер' : cr(S.me).name, login = SRV && SY.login ? SY.login : mgr ? MGR.login : cr(S.me).login, f = S.pw || {old:'', n1:'', n2:'', err:''};
     let h = `<h2>Профиль</h2><div class="card"><div class="row"><div class="badge b1" style="min-width:44px;height:44px;border-radius:50%;font-size:18px">${name[0]}</div><div class="grow"><div class="t1">${name}</div><div class="t2">${mgr ? 'Менеджер' : 'Курьер'} · логин: ${login}</div></div></div></div>`;
     h += `<button class="btn sec" style="margin-top:10px" onclick="toggleAcc()">${isRemembered(login) ? 'Открепить аккаунт' : 'Запомнить аккаунт'}</button><div class="tiny" style="margin-top:6px">${isRemembered(login) ? 'Аккаунт сохранён на этом телефоне и предлагается на экране входа.' : 'Запомнить, чтобы он предлагался на экране входа этого телефона.'}</div>`;
+    if (SRV) h += `<h3>Синхронизация</h3><div class="card"><div class="kv"><span>Сервер</span><b style="font-size:12px">${esc(SRV)}</b></div><div class="tiny" style="margin-top:6px;color:${SY.net ? 'var(--g)' : 'var(--o)'}">${SY.net ? 'Онлайн: изменения видны всем сразу.' : 'Нет связи с сервером. Изменения сохранены на телефоне и уйдут, когда связь появится.'}</div></div>`;
     if (mgr) h += `<h3>Смена пароля</h3>
       <input type="password" placeholder="Текущий пароль" autocomplete="off" value="${esc(f.old)}" oninput="S.pw.old=this.value">
       <input type="password" placeholder="Новый пароль (не короче 6 символов)" autocomplete="off" value="${esc(f.n1)}" oninput="S.pw.n1=this.value">
@@ -1074,14 +1115,14 @@ function sheet() {
     return `<h2>Заказ воды</h2><div class="t2" style="margin-bottom:8px">${p.name} · ${p.addr}</div>
       <div class="card"><div class="row"><div class="grow t1" style="font-size:14px">Сколько бутылей заказать</div><div class="step"><button onclick="wq(-1)">−</button><span>${S.wq}</span><button onclick="wq(1)">+</button></div></div></div>
       <div class="tiny">Сообщение, которое уйдёт во ВКонтакте:</div><div class="card" style="white-space:pre-wrap;font-size:13px">${esc(msg)}</div>
-      ${WATER.vk ? `<div class="tiny">Получатель: ${esc(WATER.vk)}</div>` : `<div class="card" style="border-color:var(--o)"><div class="t1" style="font-size:14px">Получатель не указан</div><div class="t2">Менеджер задаёт получателя на вкладке «Склад». Напишите ему в чате.</div></div>`}
-      <button class="btn" style="margin-top:8px" ${WATER.vk ? '' : 'disabled'} onclick="sendWater()">Заказать и открыть ВКонтакте</button>
+      ${waterSet(p.id).vk ? `<div class="tiny">Получатель: ${esc(waterSet(p.id).vk)}</div>` : `<div class="card" style="border-color:var(--o)"><div class="t1" style="font-size:14px">Получатель не указан</div><div class="t2">Менеджер задаёт получателя на вкладке «Склад». Напишите ему в чате.</div></div>`}
+      <button class="btn" style="margin-top:8px" ${waterSet(p.id).vk ? '' : 'disabled'} onclick="sendWater()">Заказать и открыть ВКонтакте</button>
       <div class="tiny" style="margin:8px 0">Текст копируется, открывается диалог с получателем: останется вставить и нажать «Отправить».</div>
       <button class="btn sec" onclick="go({sheet:null})">Отмена</button>`;
   }
   if (S.sheet === 'waterset') {
     const f = S.ws;
-    return `<h2>Заказ воды</h2><div class="tiny">Кому во ВКонтакте уходит заказ и с каким приветствием. Количество бутылей подставляет приложение.</div>
+    return `<h2>Заказ воды: ${esc(pt(f.pid).name)}</h2><div class="tiny">Кому во ВКонтакте уходит заказ и с каким приветствием. Количество бутылей подставляет приложение.</div>
       <div class="tiny" style="margin-top:8px">Получатель (ссылка или id)</div><input type="text" placeholder="vk.com/id123456 или короткое имя" value="${esc(f.vk)}" oninput="S.ws.vk=this.value">
       <div class="tiny">Приветствие</div><input type="text" value="${esc(f.greet)}" oninput="S.ws.greet=this.value">
       ${f.err ? `<div style="color:var(--r);font-size:13px;margin:8px 0">${f.err}</div>` : ''}
@@ -1426,15 +1467,12 @@ function bindViewer() {
 /* ===================== СОХРАНЕНИЕ ДАННЫХ И СЕССИИ ===================== */
 // данные и вход хранятся в памяти приложения, поэтому после сворачивания и закрытия вход не слетает.
 // DATA_VER нужно увеличивать при каждом изменении структуры данных, иначе сохранённые старые данные не подойдут.
-const DATA_VER = 1, STORE_KEY = 'angara_kofe_data';
+const DATA_VER = 2, STORE_KEY = 'angara_kofe_data';
 const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.assign(t, s); };
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
-  const refOf = item => { for (const c of COUR) for (let d = 0; d < 7; d++) { const i = L(c.id, d).indexOf(item); if (i >= 0) return [c.id, d, i]; } return null; };
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, LOADED, PASS,
-    reviews:reviews.map(r => Object.assign({}, r, {ref:r.ref ? refOf(r.ref) : null})),
-    NOTIFS:NOTIFS.map(n => Object.assign({}, n, {rv:n.rv ? n.rv.id : undefined})),
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, LOADED, PASS, reviews, NOTIFS,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -1445,15 +1483,14 @@ function restoreData(txt) {
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
-  reviews.length = 0; d.reviews.forEach(r => { const f = r.ref; r.ref = f ? L(f[0], f[1])[f[2]] : null; reviews.push(r); });
-  NOTIFS.length = 0; d.NOTIFS.forEach(n => { n.rv = n.rv !== undefined && n.rv !== null ? reviews.find(r => r.id === n.rv) : undefined; NOTIFS.push(n); });
+  replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS);
   nid = d.nid; CITY = d.CITY;
   if (d.sess && d.sess.role && (d.sess.role === 'mgr' || cr(d.sess.me))) Object.assign(S, d.sess, {view:null, sheet:null, cam:null, shade:false});
   return true;
 }
-function saveAll() { try { localStorage.setItem(STORE_KEY, snapshotData()); } catch (e) {} }
+function saveAll() { try { localStorage.setItem(STORE_KEY, snapshotData()); } catch (e) {} if (SY.on) saveSync(); }
 let saveT = 0;
-function saveSoon() { clearTimeout(saveT); saveT = setTimeout(saveAll, 400); }
+function saveSoon() { clearTimeout(saveT); saveT = setTimeout(saveAll, 400); if (typeof SY !== 'undefined' && SY.on) pushSoon(); }
 window.appSave = saveAll;
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveAll(); });
 addEventListener('pagehide', saveAll);
@@ -1497,11 +1534,235 @@ function updBanner() {
 // после обновления сообщаем об этом при первом запуске новой версии
 try { const lv = +(localStorage.getItem('angara_kofe_ver') || 0); if (lv && lv < APP_VERSION) S.toast = 'Приложение обновлено до версии ' + APP_VERSION; localStorage.setItem('angara_kofe_ver', String(APP_VERSION)); } catch (e) {}
 
+/* ===================== СИНХРОНИЗАЦИЯ С СЕРВЕРОМ ===================== */
+// Данные разбиты на документы (ключ -> JSON): pt/<id>, sched/<курьер>/<день>, tpl/<курьер>/<день>, ntf/<кому>/<id>, msg/<курьер>/<id>,
+// rev/<id>, ld/<курьер>, wh, core, cour. Телефон отправляет только то, что изменилось (сравнение отпечатков с последним известным
+// состоянием сервера), а чужие изменения приходят потоком (SSE) и сразу рисуются. При обрыве связи изменения остаются на телефоне.
+const SRV_KEY = 'angara_kofe_server', SYNC_KEY = 'angara_kofe_sync';
+let SRV = '';   // адрес сервера; пусто = режим без сервера, данные только на этом телефоне
+try { SRV = localStorage.getItem(SRV_KEY) || ''; } catch (e) {}
+if (!SRV) { try { SRV = window.AndroidBridge && AndroidBridge.serverUrl ? String(AndroidBridge.serverUrl() || '') : ''; } catch (e) {} }
+if (!SRV && /^https?:$/.test(location.protocol)) SRV = location.origin;
+SRV = SRV.trim().replace(/\/+$/, '');
+const SY = {token:'', role:'', cid:0, login:'', seq:0, mirror:{}, on:false, net:false, pend:{}, pushing:false, es:null};
+try { const t = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (t && t.url === SRV && t.token) Object.assign(SY, {token:t.token, role:t.role, cid:t.cid, login:t.login || '', seq:t.seq || 0, mirror:t.mirror || {}}); } catch (e) {}
+function saveSync() { try { localStorage.setItem(SYNC_KEY, JSON.stringify({url:SRV, token:SY.token, role:SY.role, cid:SY.cid, login:SY.login, seq:SY.seq, mirror:SY.mirror})); } catch (e) {} }
+function setServer(v) {
+  v = (v || '').trim().replace(/\/+$/, '');
+  if (v && !/^https?:\/\//i.test(v)) v = 'http://' + v;
+  try { if (v) localStorage.setItem(SRV_KEY, v); else localStorage.removeItem(SRV_KEY); localStorage.removeItem(SYNC_KEY); } catch (e) {}
+  SRV = v; Object.assign(SY, {token:'', mirror:{}, seq:0}); S.lg.err = ''; render();
+}
+const jstr = v => JSON.stringify(v, (k, x) => k === 'loc' ? undefined : x);
+function hsh(s) { let a = 5381, b = 52711; for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); a = ((a * 33) ^ c) | 0; b = ((b * 31) ^ c) | 0; } return (a >>> 0).toString(36) + (b >>> 0).toString(36) + s.length; }
+function api(path, body) {
+  const opt = body === undefined ? {headers:{}} : {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)};
+  if (SY.token) opt.headers.Authorization = 'Bearer ' + SY.token;
+  return fetch(SRV + path, opt).then(r => r.json().catch(() => ({})).then(j => {
+    if (r.status === 401 && SY.token) { syncAuthLost(); throw new Error('Сессия истекла, войдите снова'); }
+    if (!r.ok) throw new Error(j.error || 'Ошибка сервера (' + r.status + ')');
+    return j;
+  }), () => { throw new Error('Нет связи с сервером'); });
+}
+function docsFromState() {
+  const d = {wh:WH, core:{CITY, DEPOT, WATER}}, ld = {};
+  P.forEach(p => { d['pt/' + p.id] = p; });
+  Object.keys(sched).forEach(c => { for (let k = 0; k < 7; k++) d['sched/' + c + '/' + k] = sched[c][k]; });
+  Object.keys(TEMPLATE).forEach(c => { for (let k = 0; k < 7; k++) d['tpl/' + c + '/' + k] = TEMPLATE[c][k]; });
+  Object.keys(LOADED).forEach(k => { const c = k.split(':')[0]; (ld[c] = ld[c] || {L:{}, P:{}}).L[k] = LOADED[k]; });
+  Object.keys(PASS).forEach(k => { const c = k.split(':')[0]; (ld[c] = ld[c] || {L:{}, P:{}}).P[k] = PASS[k]; });
+  Object.keys(ld).forEach(c => { d['ld/' + c] = ld[c]; });
+  NOTIFS.forEach(n => { d['ntf/' + n.to + '/' + n.id] = n; });
+  Object.keys(CHAT).forEach(c => CHAT[c].forEach(m => { d['msg/' + c + '/' + m.id] = m; }));
+  reviews.forEach(r => { d['rev/' + r.id] = r; });
+  return d;
+}
+// те же правила, что на сервере: сервер всё равно перепроверит
+function canWriteKey(k, v) {
+  if (SY.role === 'mgr') return k !== 'cour';
+  const p = k.split('/'), h = p[0], me = String(SY.cid);
+  if (h === 'pt' || h === 'wh') return true;
+  if (h === 'sched' || h === 'ld' || h === 'msg') return p[1] === me;
+  if (h === 'ntf') return p[1] === 'mgr' || p[1] === me;
+  if (h === 'rev') return !v || String(v.cid) === me;
+  return false;
+}
+const sameId = (a, b) => String(a) === String(b);
+function upsert(arr, item, dele, order) {
+  const i = arr.findIndex(x => sameId(x.id, item.id));
+  if (dele) { if (i >= 0) arr.splice(i, 1); return; }
+  if (i >= 0) arr[i] = item; else arr.push(item);
+  arr.sort(order);
+}
+const byTsDesc = (a, b) => (b.ts || 0) - (a.ts || 0), byTsAsc = (a, b) => (a.ts || 0) - (b.ts || 0);
+function ensureCour(c) {
+  if (!sched[c]) sched[c] = emptyWeek();
+  if (!TEMPLATE[c]) TEMPLATE[c] = emptyWeek();
+  if (!CHAT[c]) CHAT[c] = [];
+}
+function applyDoc(k, v, dele) {
+  const p = k.split('/'), h = p[0];
+  if (h === 'cour') {
+    if (!Array.isArray(v)) return;
+    const old = COUR.slice(); replaceArr(COUR, v.map(c => Object.assign({}, old.find(o => o.id === c.id) || {}, c)));
+    COUR.forEach(c => ensureCour(c.id));
+    if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
+  } else if (h === 'core') {
+    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT); Object.assign(WATER, v.WATER); }
+  } else if (h === 'wh') {
+    if (v) replaceObj(WH, v);
+  } else if (h === 'pt') {
+    const id = +p[1], i = P.findIndex(x => x.id === id);
+    if (dele) { if (i >= 0) P.splice(i, 1); return; }
+    v.units.forEach(u => { u.loc = v; });
+    if (i >= 0) P[i] = v; else { P.push(v); P.sort((a, b) => a.id - b.id); }
+  } else if (h === 'sched' || h === 'tpl') {
+    const T = h === 'sched' ? sched : TEMPLATE, c = +p[1]; ensureCour(c); T[c][+p[2]] = dele ? [] : v;
+  } else if (h === 'ld') {
+    const c = p[1];
+    [LOADED, PASS].forEach(o => Object.keys(o).forEach(x => { if (x.split(':')[0] === c) delete o[x]; }));
+    if (!dele && v) { Object.assign(LOADED, v.L); Object.assign(PASS, v.P); }
+  } else if (h === 'ntf') {
+    upsert(NOTIFS, dele ? {id:p[2]} : v, dele, byTsDesc);
+  } else if (h === 'msg') {
+    const c = +p[1]; ensureCour(c); upsert(CHAT[c], dele ? {id:p[2]} : v, dele, byTsAsc);
+  } else if (h === 'rev') {
+    upsert(reviews, dele ? {id:p[1]} : v, dele, (a, b) => String(b.id).length - String(a.id).length || b.id - a.id);
+  }
+}
+function resetFromDocs(docs) {
+  replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
+  [CHAT, LOADED, PASS, sched, TEMPLATE].forEach(o => replaceObj(o, {}));
+  SY.mirror = {};
+  docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
+    if (d.dele) return;
+    applyDoc(d.key, d.v, false); SY.mirror[d.key] = hsh(jstr(d.v));
+  });
+}
+function afterRemote() {
+  if (!S.role) return;
+  if (S.role === 'cour' && !cr(S.me)) return doLogout();
+  if (S.cam || S.sheet === 'level' || S.sheet === 'trash') return;   // не перерисовываем под пальцем
+  render(true);
+}
+function onRemote(list) {
+  let changed = false;
+  list.forEach(d => {
+    if (d.seq > SY.seq) SY.seq = d.seq;
+    const s = d.dele ? null : hsh(jstr(d.v));
+    if (SY.mirror[d.key] === s || SY.pend[d.key] === s) { if (s !== null) SY.mirror[d.key] = s; return; }   // это наше же изменение
+    applyDoc(d.key, d.v, d.dele);
+    if (s === null) delete SY.mirror[d.key]; else SY.mirror[d.key] = s;
+    changed = true;
+  });
+  saveSync();
+  if (changed) afterRemote();
+}
+function setNet(ok) {
+  if (SY.net === ok) return;
+  SY.net = ok;
+  if (S.sheet === 'profile') render(true);
+}
+let pushT = 0;
+function pushSoon() { clearTimeout(pushT); pushT = setTimeout(pushChanges, 350); }
+function pushChanges() {
+  if (!SY.on || SY.pushing) return;
+  const cur = docsFromState(), ch = [], sig = {};
+  Object.keys(cur).forEach(k => {
+    const v = cur[k];
+    if (!canWriteKey(k, v)) return;
+    if (Array.isArray(v) && !v.length && !(k in SY.mirror)) return;
+    if (SY.role === 'cour' && k.indexOf('rev/') === 0 && k in SY.mirror) return;   // решение менеджера курьер не перезаписывает
+    const s = hsh(jstr(v));
+    if (SY.mirror[k] === s) return;
+    ch.push({key:k, value:JSON.parse(jstr(v))}); sig[k] = s;
+  });
+  Object.keys(SY.mirror).forEach(k => {
+    if (!(k in cur) && canWriteKey(k, null)) { ch.push({key:k, value:null, del:true}); sig[k] = null; }
+  });
+  if (!ch.length) return;
+  SY.pushing = true; SY.pend = sig;
+  api('/api/push', {changes:ch}).then(() => {
+    Object.keys(sig).forEach(k => { if (sig[k] === null) delete SY.mirror[k]; else SY.mirror[k] = sig[k]; });
+    SY.pushing = false; SY.pend = {}; setNet(true); saveSync(); pushSoon();
+  }).catch(e => {
+    SY.pushing = false; SY.pend = {};
+    if (SY.on) { setNet(false); clearTimeout(pushT); pushT = setTimeout(pushChanges, 5000); }
+  });
+}
+function openStream() {
+  closeStream();
+  if (!SY.on || !window.EventSource) return;
+  const es = new EventSource(SRV + '/api/stream?since=' + SY.seq + '&token=' + encodeURIComponent(SY.token));
+  SY.es = es;
+  es.onopen = () => setNet(true);
+  es.onmessage = ev => { let d; try { d = JSON.parse(ev.data); } catch (e) { return; } setNet(true); onRemote([d]); };
+  es.onerror = () => {
+    setNet(false); es.close();
+    if (SY.es === es) { SY.es = null; clearTimeout(SY.rt); SY.rt = setTimeout(syncResume, 3000); }
+  };
+}
+function closeStream() { clearTimeout(SY.rt); if (SY.es) { SY.es.close(); SY.es = null; } }
+// догоняем пропущенное и заново открываем поток
+function syncResume() {
+  if (!SY.on) return;
+  closeStream();
+  api('/api/state?since=' + SY.seq).then(j => {
+    onRemote(j.docs.map(d => ({key:d.key, v:d.v, seq:d.seq, dele:d.dele})));
+    if (j.seq > SY.seq) SY.seq = j.seq;
+    setNet(true); openStream(); pushChanges();
+  }).catch(() => { setNet(false); clearTimeout(SY.rt); if (SY.on) SY.rt = setTimeout(syncResume, 4000); });
+}
+function syncStop() {
+  SY.on = false; closeStream(); clearTimeout(pushT);
+  Object.assign(SY, {token:'', mirror:{}, seq:0, pend:{}, pushing:false, net:false});
+  try { localStorage.removeItem(SYNC_KEY); } catch (e) {}
+}
+function syncAuthLost() {
+  if (!SY.on && !SY.token) return;
+  syncStop(); S.lg.err = 'Сессия истекла или аккаунт отключён, войдите снова';
+  go({role:null, view:null, sheet:null, shade:false, cam:null, visit:null, viewer:null});
+}
+function doLoginServer(l, p, rem) {
+  if (!l || !p) { S.lg.err = 'Введите логин и пароль'; return render(); }
+  S.lg.busy = true; S.lg.err = ''; render();
+  syncStop();
+  let seed = false;
+  return api('/api/login', {login:l, password:p}).then(j => {
+    Object.assign(SY, {token:j.token, role:j.role, cid:j.cid, login:l});
+    return api('/api/state?since=0').then(st => {
+      if (st.empty) {
+        if (j.role !== 'mgr') throw new Error('Менеджер ещё не заполнил данные на сервере, зайдите позже');
+        seed = true;
+        const c = st.docs.find(d => d.key === 'cour'); if (c) applyDoc('cour', c.v, false);
+      } else resetFromDocs(st.docs);
+      if (j.role === 'cour' && !cr(j.cid)) throw new Error('Курьер не найден на сервере');
+      SY.seq = st.seq; SY.on = true; saveSync();
+      if (rem) rememberAcc(l, p, j.name, j.role);
+      S.lg = {login:'', pass:'', err:''};
+      login(j.role, j.cid);
+      openStream(); setNet(true);
+      pushChanges();   // первый вход менеджера на пустой сервер: загружаем начальные данные
+    });
+  }).catch(e => { syncStop(); S.lg.busy = false; S.lg.err = e.message; render(); });
+}
+// после перезапуска приложения продолжаем сессию без повторного ввода пароля
+function syncBoot() {
+  if (!SRV) return;
+  if (!SY.token) { S.role = null; return; }
+  S.role = SY.role; S.me = SY.role === 'cour' ? SY.cid : S.me;
+  if (SY.role === 'cour' && !cr(S.me)) { S.role = null; return; }
+  SY.on = true; syncResume();
+}
+window.addEventListener('online', () => { if (SY.on) syncResume(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && SY.on) syncResume(); });
+
 const ACC_KEY = 'angara_kofe_accounts';
 let ACCS = [];
 try { ACCS = JSON.parse(localStorage.getItem(ACC_KEY) || '[]'); if (!Array.isArray(ACCS)) ACCS = []; } catch (e) { ACCS = []; }
 function saveAccs() { try { localStorage.setItem(ACC_KEY, JSON.stringify(ACCS)); } catch (e) {} }
 try { const txt = localStorage.getItem(STORE_KEY); if (txt && !restoreData(txt)) localStorage.removeItem(STORE_KEY); } catch (e) { try { localStorage.removeItem(STORE_KEY); } catch (e2) {} }
+syncBoot();
 render();
 </script>
 </body>

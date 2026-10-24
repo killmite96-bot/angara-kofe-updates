@@ -1,9 +1,9 @@
 {
-    "content":  3,
-    "apk":  2,
-    "notes":  "Обновление приложения по интернету. Исправлено повторное предложение уже установленного обновления.",
+    "content":  4,
+    "apk":  3,
+    "notes":  "Общий сервер: график, остатки, чат и фото видны менеджеру и курьерам сразу. Заказ воды для Труда и Аэропорта настраивается отдельно.",
     "contentFile":  "index.html",
-    "contentSha256":  "9d7a4596932d60b69d2801b063db5c0aed02ca91b4ba35860a0c1560a1a08e1d",
+    "contentSha256":  "507df6bebf30d643e977868e6c494589a54d02e99aefe34090758e55c81a5ff8",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "62ee9780156aacaa91c4aac9dd45af8cd45cec0f7bda718392c9775778d0cf51"
+    "apkSha256":  "7d1dfb33b8a96d7aeeb18ebb8a2aedb7a6901e9dd789ed9fda8de8a392ff06e5"
 }
