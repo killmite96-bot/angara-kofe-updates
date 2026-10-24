@@ -1,9 +1,9 @@
 {
-    "content":  34,
+    "content":  35,
     "apk":  8,
-    "notes":  "Одновременные правки менеджера и курьера сливаются по полям: ничего не теряется.",
+    "notes":  "Веб-версия для iPhone: иконка на экране «Домой», запуск без адресной строки, отступы под нижнюю полосу.",
     "contentFile":  "index.html",
-    "contentSha256":  "1783b8fb2e462e74b29a70d04a367ddfae1e0634a633dde0a39255cf5c958285",
+    "contentSha256":  "194aaaa4dfff24786d5718d118e0060d1778e54d2f13340a6874894e46142197",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "c8639524037021d644068ed34ebe37512b0f9334ad6e7b228e7e655e640ad4eb"
+    "apkSha256":  "e0e84fed02c6e64c5ded76db1911a5918250df17d5d50b06c7707b8323a1e2e7"
 }

@@ -2,15 +2,25 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ангара Кофе — прототип</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Ангара Кофе">
+<meta name="theme-color" content="#0e1411">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>Ангара Кофе</title>
 <style>
 :root{--bg:#0e1411;--card:#17201b;--card2:#1e2a23;--line:#2a3a30;--tx:#e9f1eb;--mut:#8ea396;--g:#35c26a;--g2:#1f7a45;--o:#ffb02e;--r:#ff5d5d;--y:#f2c94c;--b:#4aa3ff}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:#070a08;color:var(--tx);font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 body{display:flex;align-items:center;justify-content:center}
 #app{position:relative;width:390px;height:min(820px,100vh);background:var(--bg);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 0 8px #151a17,0 20px 60px #000}
-@media(max-width:430px){#app{width:100vw;height:100vh;border-radius:0;box-shadow:none}}
+@media(max-width:430px){#app{width:100vw;height:100vh;height:100dvh;border-radius:0;box-shadow:none}}
+/* iPhone и вырезы экрана: отступ под полосу «Домой» внизу; на iOS поля ввода не меньше 16px, иначе Safari приближает страницу при вводе */
+.tabs{padding-bottom:env(safe-area-inset-bottom)}html,body{overscroll-behavior:none}
+@supports(-webkit-touch-callout:none){input,textarea,select{font-size:16px !important}}
 .top{padding:16px 16px 10px;background:linear-gradient(#17261e,var(--bg));position:relative}
 .trow{display:flex;align-items:flex-start;gap:10px}
 .top h1{margin:0;font-size:20px;line-height:1.2;flex:1;min-width:0;padding-top:5px}.top .sub{color:var(--mut);font-size:13px;margin-top:2px}
@@ -79,6 +89,7 @@ input[type=text],input[type=password]{width:100%;background:var(--card);border:1
 .grab{display:flex;justify-content:center;padding:6px 0 14px;margin:-6px 0 0}.grab i{width:46px;height:5px;border-radius:3px;background:#4a5a51}
 .grab.up{position:sticky;bottom:-16px;background:var(--bg);margin:6px -16px -16px;padding:12px 0 12px}
 .sheet{background:var(--bg);width:100%;max-height:88%;overflow-y:auto;border-radius:20px 20px 0 0;padding:16px;border-top:1px solid var(--line)}
+.sheet{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
 .sheet h2{margin:0 0 8px;font-size:18px}
 .prog{display:flex;gap:6px;padding:0 14px 6px}.prog i{flex:1;height:4px;border-radius:3px;background:var(--line)}.prog i.on{background:var(--g)}
 .cam{position:absolute;inset:0;background:#000;z-index:8;display:flex;flex-direction:column}
@@ -104,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 34;
+const APP_VERSION = 35;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
