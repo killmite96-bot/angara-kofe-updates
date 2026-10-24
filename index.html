@@ -99,7 +99,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 7;
+const APP_VERSION = 8;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -473,16 +473,57 @@ function loginScreen() {
 }
 const avKey = () => S.role === 'mgr' ? 'mgr' : String(S.me);
 // фото выбирается из галереи, обрезается по центру до квадрата 160x160 и хранится как маленькая картинка
+let CROP = null;   // окно выбора области: s — масштаб, x/y — смещение центра картинки от центра рамки
 function avPicked(inp) {
-  const f = inp.files && inp.files[0]; if (!f) return;
+  const f = inp.files && inp.files[0]; inp.value = ''; if (!f) return;
   const img = new Image(), url = URL.createObjectURL(f);
-  img.onload = () => {
-    const s = 160, c = document.createElement('canvas'), m = Math.min(img.width, img.height);
-    c.width = c.height = s; c.getContext('2d').drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, s, s);
-    URL.revokeObjectURL(url); AV[avKey()] = c.toDataURL('image/jpeg', .82); go({toast:'Фото профиля обновлено'});
-  };
+  img.onload = () => { const V = 280, s0 = V / Math.min(img.width, img.height); CROP = {url, img, V, s:s0, min:s0, x:0, y:0}; render(true); };
   img.onerror = () => { URL.revokeObjectURL(url); go({toast:'Не удалось открыть изображение'}); };
   img.src = url;
+}
+function cropHTML() {
+  const c = CROP;
+  return `<div id="crop" style="position:absolute;inset:0;background:#000;z-index:25;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;touch-action:none">
+    <div class="t1" style="font-size:16px">Выберите область для аватарки</div>
+    <div class="tiny">Двигайте фото пальцем, приближайте щипком или ползунком</div>
+    <div id="cropbox" style="position:relative;width:${c.V}px;height:${c.V}px;overflow:hidden;background:#111;touch-action:none"><img id="cropimg" src="${c.url}" draggable="false" style="position:absolute;left:50%;top:50%;max-width:none;user-select:none;pointer-events:none"><div style="position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 400px rgba(0,0,0,.62);border:2px solid #fff;pointer-events:none"></div></div>
+    <input id="cropz" type="range" min="${c.min}" max="${c.min * 4}" step="0.0005" value="${c.s}" style="width:${c.V}px" oninput="cropZoom(+this.value)">
+    <div class="btns" style="margin:0"><button class="btn sec" onclick="cropCancel()">Отмена</button><button class="btn" onclick="cropDone()">Готово</button></div></div>`;
+}
+function cropFit() {   // держим фото так, чтобы оно всегда закрывало рамку
+  const c = CROP, mx = Math.max(0, (c.img.width * c.s - c.V) / 2), my = Math.max(0, (c.img.height * c.s - c.V) / 2);
+  c.x = Math.max(-mx, Math.min(mx, c.x)); c.y = Math.max(-my, Math.min(my, c.y));
+  const el = $('cropimg'); if (!el) return;
+  el.style.width = c.img.width * c.s + 'px'; el.style.height = c.img.height * c.s + 'px';
+  el.style.transform = `translate(calc(-50% + ${c.x}px), calc(-50% + ${c.y}px))`;
+  const z = $('cropz'); if (z) z.value = c.s;
+}
+function cropZoom(s) { CROP.s = Math.max(CROP.min, Math.min(CROP.min * 4, s)); cropFit(); }
+function bindCrop() {
+  const box = $('cropbox'); if (!box || !CROP) return;
+  const ptr = new Map();
+  let d0 = 0;
+  cropFit();
+  box.addEventListener('pointerdown', e => { box.setPointerCapture(e.pointerId); ptr.set(e.pointerId, [e.clientX, e.clientY]); d0 = 0; });
+  box.addEventListener('pointermove', e => {
+    if (!ptr.has(e.pointerId)) return;
+    const p = ptr.get(e.pointerId), nx = [e.clientX, e.clientY];
+    if (ptr.size === 1) { CROP.x += nx[0] - p[0]; CROP.y += nx[1] - p[1]; ptr.set(e.pointerId, nx); cropFit(); return; }
+    ptr.set(e.pointerId, nx);
+    const [a, b] = [...ptr.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (d0) cropZoom(CROP.s * d / d0);
+    d0 = d;
+  });
+  const up = e => { ptr.delete(e.pointerId); d0 = 0; };
+  box.addEventListener('pointerup', up); box.addEventListener('pointercancel', up);
+  box.addEventListener('wheel', e => { e.preventDefault(); cropZoom(CROP.s * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }, {passive:false});
+}
+function cropCancel() { URL.revokeObjectURL(CROP.url); CROP = null; render(true); }
+function cropDone() {
+  const c = CROP, s = 160, cv = document.createElement('canvas'), side = c.V / c.s;
+  cv.width = cv.height = s;
+  cv.getContext('2d').drawImage(c.img, c.img.width / 2 - c.x / c.s - side / 2, c.img.height / 2 - c.y / c.s - side / 2, side, side, 0, 0, s, s);
+  URL.revokeObjectURL(c.url); CROP = null; AV[avKey()] = cv.toDataURL('image/jpeg', .82); go({toast:'Фото профиля обновлено'});
 }
 function avClear() { delete AV[avKey()]; go({toast:'Фото убрано'}); }
 function saveProfile() {
@@ -1433,11 +1474,12 @@ function render(keep) {
     + (S.cam ? camScreen() : '')
     + (S.shade ? shadeHTML() : '')
     + viewerHTML()
+    + (CROP ? cropHTML() : '')
     + updBanner()
     + (S.toast ? `<div style="position:absolute;left:16px;right:16px;bottom:${UPD.banner ? 170 : 78}px;background:#1f7a45;color:#fff;border-radius:12px;padding:11px 14px;font-size:13px;z-index:9">${S.toast}</div>` : '');
   const nb = document.querySelector('.body'); if (nb) nb.scrollTop = sc0;
   if (S.sheet === 'level' || S.sheet === 'trash') bindLevel();
-  bindViewer();
+  bindViewer(); bindCrop();
   if (S.tab === 'chat' && !S.view) { if (nb) nb.scrollTop = nb.scrollHeight; if (S.focusChat) { const ci = $('chatin'); if (ci) ci.focus(); S.focusChat = false; } }
   if (refocus >= 0) { const inp = document.querySelector('input[type=text]'); if (inp) { inp.focus(); inp.setSelectionRange(refocus, refocus); } }
   if (S.toast) { clearTimeout(window._t); window._t = setTimeout(() => { S.toast = ''; render(true); }, 2200); }
@@ -1693,7 +1735,7 @@ function resetFromDocs(docs) {
 function afterRemote() {
   if (!S.role) return;
   if (S.role === 'cour' && !cr(S.me)) return doLogout();
-  if (S.cam || S.sheet === 'level' || S.sheet === 'trash') return;   // не перерисовываем под пальцем
+  if (S.cam || CROP || S.sheet === 'level' || S.sheet === 'trash') return;   // не перерисовываем под пальцем
   render(true);
 }
 function onRemote(list) {
