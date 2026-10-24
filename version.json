@@ -1,9 +1,9 @@
 {
-    "content":  16,
+    "content":  17,
     "apk":  6,
-    "notes":  "2ГИС строит маршрут сразу через все точки дня в порядке кратчайшего объезда (раньше открывались отдельные точки).",
+    "notes":  "Погрузка: адреса на сегодня раскрываются и показывают остатки на точке. Перед визитом окно «Что взять для точки».",
     "contentFile":  "index.html",
-    "contentSha256":  "1f259cb9f5a00a505c3a770f091623d58fbef124bc673d4c1e4581bad7c08a3e",
+    "contentSha256":  "c2ef6ae1149e5535be73acf5ebd6a712f40dffcb2c56d925a6fbd60d69119b5e",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "1191d2226754bc5e29ed442dcd5949201492cb8f0c6566d795d2fe15310f07d2"
+    "apkSha256":  "c94ba2effa2b7b4884e7b6bed267605edf176bcd859244c2f67d6f68e55b8877"
 }
