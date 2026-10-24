@@ -1,9 +1,9 @@
 {
-    "content":  8,
+    "content":  9,
     "apk":  5,
-    "notes":  "Аватарка: можно выбрать область фото (двигать и приближать) перед сохранением.",
+    "notes":  "Менеджер может исправлять остатки на точке (кнопка «Исправить остатки» в карточке точки).",
     "contentFile":  "index.html",
-    "contentSha256":  "ab8606551407d1c9d938af66c91122835108122dc3137701fb77020023819168",
+    "contentSha256":  "aa98e64cf5eb57295928d5e695047fccb015ec83afbc833a521bcd334a4f7bdf",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "84c775067029d4499a514a2d5fb3df444192a6d3a38223be25f4ab710ade643b"
+    "apkSha256":  "472823a8b05bad418561aca0223d7cd2e43f17305fcd6f4237595dfa522bc2fe"
 }

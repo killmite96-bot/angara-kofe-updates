@@ -99,7 +99,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 8;
+const APP_VERSION = 9;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -694,7 +694,7 @@ function pointCard(id) {
   if (S.role === 'cour') {
     if (item && !item.done) h += `<button class="btn" style="margin-top:10px" onclick="startVisit(${id},false)">Начать визит · ${item.type === 3 ? 'генеральная уборка' : 'тип ' + item.type}</button>`;
     h += `<button class="btn sec" style="margin-top:8px" onclick="startVisit(${id},true)">Обновить остатки без визита</button>`;
-  }
+  } else h += `<button class="btn" style="margin-top:10px" onclick="startVisit(${id},true)">Исправить остатки</button>`;
   return h + '</div>';
 }
 const openPoint = id => go({view:{type:'point', id}});
@@ -815,7 +815,7 @@ function applyStock(v) {
   }));
   ING.forEach(g => { p.back[g.id] = Math.max(0, +(v.B[g.id] + broughtOf(v, g) - sumD(v, g)).toFixed(1)); });
 }
-function saveQuick() { applyStock(S.visit); S.visit = null; go({view:null, toast:'Остатки обновлены, менеджер их видит'}); }
+function saveQuick() { applyStock(S.visit); S.visit = null; go({view:null, toast:S.role === 'mgr' ? 'Остатки исправлены' : 'Остатки обновлены, менеджер их видит'}); }
 function finishVisit() {
   const v = S.visit, p = pt(v.pid), item = L(S.me, TODAY).find(x => x.pid === v.pid);
   applyStock(v); p.last = 0; if (v.type >= 2) p.last2 = 0; if (v.type === 3) p.deep = 0;
