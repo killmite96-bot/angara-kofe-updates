@@ -99,7 +99,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 5;
+const APP_VERSION = 6;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1546,7 +1546,11 @@ if (!SRV && /^https?:$/.test(location.protocol)) SRV = location.origin;
 SRV = SRV.trim().replace(/\/+$/, '');
 const SY = {token:'', role:'', cid:0, login:'', seq:0, mirror:{}, on:false, net:false, pend:{}, pushing:false, es:null};
 try { const t = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (t && t.url === SRV && t.token) Object.assign(SY, {token:t.token, role:t.role, cid:t.cid, login:t.login || '', seq:t.seq || 0, mirror:t.mirror || {}}); } catch (e) {}
-function saveSync() { try { localStorage.setItem(SYNC_KEY, JSON.stringify({url:SRV, token:SY.token, role:SY.role, cid:SY.cid, login:SY.login, seq:SY.seq, mirror:SY.mirror})); } catch (e) {} }
+// сообщаем оболочке Android данные входа: пока приложение закрыто, она раз в ~15 минут проверяет новые уведомления
+function bgSession(on) {
+  try { if (window.AndroidBridge && AndroidBridge.setSession) { if (on) AndroidBridge.setSession(SRV, SY.token, SY.role, SY.cid | 0, SY.seq | 0); else AndroidBridge.clearSession(); } } catch (e) {}
+}
+function saveSync() { bgSession(true); try { localStorage.setItem(SYNC_KEY, JSON.stringify({url:SRV, token:SY.token, role:SY.role, cid:SY.cid, login:SY.login, seq:SY.seq, mirror:SY.mirror})); } catch (e) {} }
 function setServer(v) {
   v = (v || '').trim().replace(/\/+$/, '');
   if (v && !/^https?:\/\//i.test(v)) v = 'http://' + v;
@@ -1717,6 +1721,7 @@ function syncStop() {
   SY.on = false; closeStream(); clearTimeout(pushT);
   Object.assign(SY, {token:'', mirror:{}, seq:0, pend:{}, pushing:false, net:false});
   try { localStorage.removeItem(SYNC_KEY); } catch (e) {}
+  bgSession(false);
 }
 function syncAuthLost() {
   if (!SY.on && !SY.token) return;
