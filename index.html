@@ -103,7 +103,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 22;
+const APP_VERSION = 23;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1558,14 +1558,15 @@ function bindSwipe(sh, up, close) {
   let y0 = null, x0 = 0, dy = 0, on = false, skip = false;
   const atEdge = () => up ? sh.scrollHeight - sh.scrollTop - sh.clientHeight <= 24 : sh.scrollTop <= 0;
   sh.addEventListener('touchstart', e => {
-    skip = e.touches.length > 1 || !!(e.target.closest && e.target.closest('#lvsvg,input,textarea,select,.photo,#cropbox,.bottles'));
+    // окно тянется закрыванием, только если касание НАЧАЛОСЬ у края содержимого; прокрутка, дошедшая до края посреди жеста, окно не закрывает
+    skip = e.touches.length > 1 || !atEdge() || !!(e.target.closest && e.target.closest('#lvsvg,input,textarea,select,.photo,#cropbox,.bottles'));
     y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; on = false;
   }, {passive:true});
   sh.addEventListener('touchmove', e => {
     if (skip || y0 === null) return;
     const y = e.touches[0].clientY, x = e.touches[0].clientX;
     if (!on) {
-      if (!atEdge()) { y0 = y; x0 = x; return; }   // пока можно прокручивать, это обычная прокрутка
+      if (!atEdge()) { skip = true; return; }
       const d = up ? y0 - y : y - y0;
       if (d > 8 && d > Math.abs(x - x0)) { on = true; sh.style.transition = 'none'; } else return;
     }

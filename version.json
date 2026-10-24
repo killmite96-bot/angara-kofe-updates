@@ -1,9 +1,9 @@
 {
-    "content":  22,
+    "content":  23,
     "apk":  7,
-    "notes":  "Обновления теперь приходят и с сервера на компьютере по Wi-Fi: быстрее и без GitHub.",
+    "notes":  "Окно не закрывается самo при прокрутке: закрывать свайпом можно, когда содержимое уже у края.",
     "contentFile":  "index.html",
-    "contentSha256":  "00a694731cc8992f685422aee2ae90fad9e60238f791dfc0b0f33bbb6d223e8a",
+    "contentSha256":  "c78f8f58b150aac73e78ccaf2c541c86dd8080fc3fa5ffc8a304e4c128a7bcac",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "2da16bc53a6e8fbedcbb902ca46aef185c33f4c097ce3f3dc24b280a0fb3075e"
+    "apkSha256":  "4c6cc9fca0cef79a9f903aca490cac62f69c2c6a0fc8a651670975ec2ed537f2"
 }
