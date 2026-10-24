@@ -1,9 +1,9 @@
 {
-    "content":  17,
+    "content":  18,
     "apk":  6,
-    "notes":  "Погрузка: адреса на сегодня раскрываются и показывают остатки на точке. Перед визитом окно «Что взять для точки».",
+    "notes":  "Окна закрываются свайпом за ручку (шторка уведомлений вверх). В погрузке раскрытие адреса не сбрасывает прокрутку.",
     "contentFile":  "index.html",
-    "contentSha256":  "c2ef6ae1149e5535be73acf5ebd6a712f40dffcb2c56d925a6fbd60d69119b5e",
+    "contentSha256":  "1ade9e29182644076ba4b6e8e7c842be01bfabb3ae72541be40574961ad266f1",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "c94ba2effa2b7b4884e7b6bed267605edf176bcd859244c2f67d6f68e55b8877"
+    "apkSha256":  "192628e979a250690f96c34981604d3e53bfd0051f0d57d5619abf9208f38a35"
 }
