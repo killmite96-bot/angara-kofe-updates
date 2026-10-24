@@ -1,9 +1,9 @@
 {
-    "content":  24,
+    "content":  25,
     "apk":  7,
-    "notes":  "Погрузка: станции одной точки (например Аэропорт) разделены рамками с цветной полосой и номером.",
+    "notes":  "В проверке фото «Эталон» переименован в «Пример» и показывает настоящее фото станции; менеджер может заменить фото.",
     "contentFile":  "index.html",
-    "contentSha256":  "8ebace2be1b20092db0c19203f5b259b0921ba3f54477d177a26ed3b321d9ccb",
+    "contentSha256":  "a42e7b2651baee9a2b6d4775f3dbbe4e4c17799d5c98fda508b2f9ec39d420c7",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "81c114edf50d91919f6f5018f065f61ba5cc5b5de6fa8f818306025ae6373b63"
+    "apkSha256":  "efb70740816f3a2bccb9000241a3327703ae7996f4fbfcd1d9e792a472949be9"
 }
