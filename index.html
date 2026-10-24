@@ -100,7 +100,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 12;
+const APP_VERSION = 13;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -172,7 +172,8 @@ const LV = ['пусто','¼','½','¾','полно'];
 const STN = {A:'«Кофе с собой» (дуб)', B:'«Зерновой кофе» (чёрная)', C:'HERISSON COFFEE', D:'«Кофе с собой» (серая)'};
 const WD = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 const TODAY = 2;
-const DEPOT = {name:'База (склад)', addr:'Красноказачья, 85', lat:52.2750, lon:104.3200};
+const DEPOT = {name:'База (склад)', addr:'Красноказачья, 85', lat:52.2752, lon:104.3246};
+const DEPOT_LL = [DEPOT.lat, DEPOT.lon];
 const COUR = [{id:1, name:'Алексей', login:'alex', pass:'1234', active:true, r1:600, r2:1100, r3:2000}, {id:2, name:'Мария', login:'maria', pass:'1234', active:true, r1:600, r2:1100, r3:2000}];
 const DEEP_DAYS = 90;   // генеральная уборка по всем точкам раз в 3 месяца
 const MGR = {login:'manager', pass:'admin', name:'Менеджер'};
@@ -184,18 +185,18 @@ function avatar(key, name, size) {
 }
 const PTS_SRC = [
   // [название, адрес, [дизайны станций], окно визита, особые задачи, lat, lon] (координаты условные, нужны только для оценки расстояний)
-  ['Смайл молл (банкоматы)', 'Улица Баумана, 233Б', ['B'], '', ['Контроль стаканов', 'У уборщиц всегда стаканы в наличии'], 52.2560, 104.3720],
-  ['Гранд', 'Франк-Каменецкого, 13/1', ['A'], '', [], 52.2330, 104.3480],
-  ['Стройматериалы', 'Рабочая улица, 18д', ['C'], '', [], 52.2800, 104.2450],
-  ['Советский', 'Советская улица, 98', ['D'], '', [], 52.2810, 104.2850],
-  ['Триумф', 'Советская улица, 176Б', ['A'], '', [], 52.2740, 104.3150],
-  ['Аэропорт', 'Улица Ширямова, 13Б', ['C', 'D'], '13:00–22:00', ['Контроль воды', 'Осмотр кофейни на наличие пыли и загрязнений'], 52.2680, 104.3890],
-  ['Труд', 'Карла Маркса, 12', ['B', 'B'], '', [], 52.2890, 104.2850],
-  ['Рынок Новый (x2)', 'Советская, 58 к2', ['B', 'D'], '', [], 52.2820, 104.2750],
-  ['РЖД', 'Академика Курчатова, 7а/2Б', ['C'], '11:00–13:00 (лучшее время заезда)', [], 52.2640, 104.2620],
-  ['Мельниковский', 'Университетский, 43', ['A'], '', [], 52.2400, 104.2800],
-  ['ТЦ Лермонтов', 'Лермонтова, 90/1', ['D'], '', [], 52.2600, 104.2900],
-  ['ТЦ Версаль', 'Академическая улица, 31', ['A'], '', ['Контроль стаканов у уборщиц'], 52.2420, 104.3240]
+  ['Смайл молл (банкоматы)', 'Улица Баумана, 233Б', ['B'], '', ['Контроль стаканов', 'У уборщиц всегда стаканы в наличии'], 52.3514, 104.1497],
+  ['Гранд', 'Франк-Каменецкого, 13/1', ['A'], '', [], 52.2926, 104.2940],
+  ['Стройматериалы', 'Рабочая улица, 18д', ['C'], '', [], 52.2953, 104.2945],
+  ['Советский', 'Советская улица, 98', ['D'], '', [], 52.2784, 104.3176],
+  ['Триумф', 'Советская улица, 176Б', ['A'], '', [], 52.2795, 104.3390],
+  ['Аэропорт', 'Улица Ширямова, 13Б', ['C', 'D'], '13:00–22:00', ['Контроль воды', 'Осмотр кофейни на наличие пыли и загрязнений'], 52.2727, 104.3534],
+  ['Труд', 'Карла Маркса, 12', ['B', 'B'], '', [], 52.2769, 104.2835],
+  ['Рынок Новый (x2)', 'Советская, 58 к2', ['B', 'D'], '', [], 52.2749, 104.3060],
+  ['РЖД', 'Академика Курчатова, 7а/2Б', ['C'], '11:00–13:00 (лучшее время заезда)', [], 52.2548, 104.2647],
+  ['Мельниковский', 'Университетский, 43', ['A'], '', [], 52.2545, 104.2478],
+  ['ТЦ Лермонтов', 'Лермонтова, 90/1', ['D'], '', [], 52.2630, 104.2592],
+  ['ТЦ Версаль', 'Академическая улица, 31', ['A'], '', ['Контроль стаканов у уборщиц'], 52.2336, 104.3023]
 ];
 let seed = 99; const rnd = () => (seed = seed * 16807 % 2147483647) / 2147483647;
 const mkUnit = (st, i) => {
@@ -295,13 +296,14 @@ function parts(list, max = 8) {
 }
 const co = p => p.lat + ',' + p.lon;
 const addrOf = p => p.addr + (CITY ? ', ' + CITY : '');
-// ссылки строятся по тексту адреса, а не по условным координатам; from == null значит «от моего местоположения»
+// Яндекс и Google получают координаты точек (приложение Яндекс Карт по тексту адреса маршрут не строит); from == null значит «от моего местоположения».
+// 2ГИС ищет по тексту адреса
 const urls = (pts, from) => {
-  const tx = pts.map(p => addrOf(p)), q = s => encodeURIComponent(s);
-  const o = from && from.addr ? addrOf(from) : '';
+  const tx = pts.map(p => addrOf(p)), q = s => encodeURIComponent(s), cs = pts.map(co);
+  const o = from && from.lat ? co(from) : '';
   return {
-    ya:'https://yandex.ru/maps/?rtext=' + q(o) + '~' + tx.map(q).join('~') + '&rtt=auto',
-    g:'https://www.google.com/maps/dir/?api=1' + (o ? '&origin=' + q(o) : '') + '&destination=' + q(tx[tx.length - 1]) + (tx.length > 1 ? '&waypoints=' + tx.slice(0, -1).map(q).join('%7C') : '') + '&travelmode=driving',
+    ya:'https://yandex.ru/maps/?rtext=' + o + '~' + cs.join('~') + '&rtt=auto',
+    g:'https://www.google.com/maps/dir/?api=1' + (o ? '&origin=' + o : '') + '&destination=' + cs[cs.length - 1] + (cs.length > 1 ? '&waypoints=' + cs.slice(0, -1).join('%7C') : '') + '&travelmode=driving',
     gis:'https://2gis.ru/search/' + q(tx[0])
   };
 };
@@ -1585,9 +1587,9 @@ function snapshotData() {
 function restoreData(txt) {
   const d = JSON.parse(txt);
   if (d.v !== DATA_VER) return false;
-  replaceArr(P, d.P); P.forEach(p => p.units.forEach(u => { u.loc = p; }));
+  replaceArr(P, d.P); P.forEach(p => { p.units.forEach(u => { u.loc = p; }); const s = PTS_SRC[p.id - 1]; if (s && s[0] === p.name) { p.lat = s[5]; p.lon = s[6]; } });
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
-  Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT); Object.assign(WATER, d.WATER);
+  Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {});
   nid = d.nid; CITY = d.CITY;
@@ -1743,7 +1745,7 @@ function applyDoc(k, v, dele) {
     COUR.forEach(c => ensureCour(c.id));
     if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
   } else if (h === 'core') {
-    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; }
+    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; }
   } else if (h === 'av') {
     if (dele || !v) delete AV[p[1]]; else AV[p[1]] = v;
   } else if (h === 'wh') {
@@ -1752,6 +1754,7 @@ function applyDoc(k, v, dele) {
     const id = +p[1], i = P.findIndex(x => x.id === id);
     if (dele) { if (i >= 0) P.splice(i, 1); return; }
     v.units.forEach(u => { u.loc = v; });
+    const src = PTS_SRC[id - 1]; if (src && src[0] === v.name) { v.lat = src[5]; v.lon = src[6]; }   // координаты точек берём из приложения, а не из старых данных сервера
     if (i >= 0) P[i] = v; else { P.push(v); P.sort((a, b) => a.id - b.id); }
   } else if (h === 'sched' || h === 'tpl') {
     const T = h === 'sched' ? sched : TEMPLATE, c = +p[1]; ensureCour(c); T[c][+p[2]] = dele ? [] : v;
