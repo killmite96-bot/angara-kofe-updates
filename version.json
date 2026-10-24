@@ -1,9 +1,9 @@
 {
-    "content":  29,
+    "content":  30,
     "apk":  8,
-    "notes":  "Ваше фото станции показывается как «Пример» для всех дизайнов. Полоса уровня остатков стала компактной.",
+    "notes":  "В визите убрана мини-полоска-дубликат у надписи: остаток показывается текстом, как у стаканчиков.",
     "contentFile":  "index.html",
-    "contentSha256":  "cfbcde2e7fc5db4e970567d0d6031e6826296aae5134d3775354453c07b02833",
+    "contentSha256":  "0e0b99bafe03217fc6a65291fcaaedfd6ce224b67dd7fe51adfd1ac0cb1d11b1",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "ab1d25fcd5929f7d29ba2d2ef0f31506c896b25d62c17baa87fc37703a376a50"
+    "apkSha256":  "a533040451454493fc17473f8ce577bcf84008db388ff4cf5dba0a9eb02ad5c2"
 }
