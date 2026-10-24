@@ -99,7 +99,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 10;
+const APP_VERSION = 11;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -420,7 +420,14 @@ function nozzleSVG(ghost) {
 /* ===================== СОСТОЯНИЕ ===================== */
 let S = {role:null, me:1, mc:1, tab:'', day:TODAY, view:null, sheet:null, cam:null, visit:null, q:'', flt:'all', toast:'', sh:null, lg:{login:'', pass:'', err:''}, cf:null, shade:false, redo:null, rc:null, bf:null, chatWith:null, chatDraft:'', ctxOff:false, focusChat:false};
 const $ = id => document.getElementById(id);
-const go = p => { Object.assign(S, p); render(); };
+// отметка уровня пальцем применяется только по кнопке «Готово»: если окно закрыли иначе (нажатием вне окна, кнопкой «Назад»), значение возвращается
+function lvRevert() {
+  const o = S.lvOrig; S.lvOrig = null;
+  if (!o || !S.visit) return;
+  if (o.id === 'trash') S.visit.arrive.trash = o.val; else S.visit.A[o.u][o.id] = o.val;
+}
+function lvDone() { if (S.visit && S.visit.arrive.trash === null && S.sheet === 'trash') S.visit.arrive.trash = 0; S.lvOrig = null; go({sheet:null}); }
+const go = p => { if (p.sheet === null && S.lvOrig) lvRevert(); Object.assign(S, p); render(); };
 const cid = () => S.role === 'cour' ? S.me : S.mc;
 function login(role, id) {
   go({role, me:id || 1, mc:1, tab:role === 'mgr' ? 'plan' : 'route', view:null, sheet:null, day:TODAY});
@@ -756,7 +763,7 @@ function visitScreen() {
       <div class="card"><div class="t1" style="font-size:14px">Чистота станции</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">${CLEAN.map((c, i) => `<button class="btn sm ${a.clean === i ? '' : 'sec'}" style="width:100%" onclick="S.visit.arrive.clean=${i};render(true)">${ic(['smile', 'ok', 'sad', 'sick'][i], 18)} ${c}</button>`).join('')}</div></div>
       <div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Урна</div><div class="t2">${a.trash === null ? 'уровень мусора не отмечен' : Math.round(a.trash * 100) + '% · ' + trashStatus(a.trash)}</div></div>
-      <button class="btn sec sm" onclick="go({sheet:'trash',lv:'trash'})">${ic('trash', 15)} Отметить</button></div></div>
+      <button class="btn sec sm" onclick="openTrash()">${ic('trash', 15)} Отметить</button></div></div>
       <button class="btn" style="margin-top:10px" ${ok ? '' : 'disabled'} onclick="vs(1)">${ok ? 'Далее: остатки ▸' : 'Отметьте чистоту и урну'}</button>`;
   }
   if (v.step === 1) {
@@ -1276,7 +1283,7 @@ function sheet() {
       <div style="text-align:center;margin:8px 0"><div class="big" id="lvpct">${Math.round(f * 100)}%</div><div class="t2" id="lvabs">${trashStatus(f)}</div></div>
       ${trashSVG(f)}
       <div class="seg" style="margin:10px 0">${[0, .25, .5, .75, 1].map((q, i) => `<button onclick="S.visit.arrive.trash=${q};render()">${['пусто', '¼', '½', '¾', 'полная'][i]}</button>`).join('')}</div>
-      <button class="btn" onclick="if(S.visit.arrive.trash===null)S.visit.arrive.trash=0;go({sheet:null})">Готово</button>`;
+      <button class="btn" onclick="lvDone()">Готово</button>`;
   }
   if (S.sheet === 'level') {
     const g = ING.find(x => x.id === S.lv), f = S.visit.after[g.id], cnt = g.t === 'count';
@@ -1284,7 +1291,7 @@ function sheet() {
       <div style="text-align:center;margin:8px 0"><div class="big" id="lvpct">${cnt ? f + ' шт' : Math.round(f * 100) + '%'}</div><div class="t2" id="lvabs">${cnt ? 'из ' + g.cap + ' шт' : '≈ ' + +(f * g.cap).toFixed(2) + ' ' + g.u + ' из ' + g.cap}</div></div>
       ${levelSVG(g.id, f)}
       <div class="seg" style="margin:10px 0">${[0, .25, .5, .75, 1].map((q, i) => `<button onclick="S.visit.after['${g.id}']=${cnt ? q * g.cap : q};render()">${cnt ? q * g.cap : LV[i]}</button>`).join('')}</div>
-      <button class="btn" onclick="go({sheet:null})">Готово</button>`;
+      <button class="btn" onclick="lvDone()">Готово</button>`;
   }
   if (S.sheet === 'mapone' || S.sheet === 'map') {
     const lg = legs(c), one = S.sheet === 'mapone';
@@ -1385,7 +1392,8 @@ function stackRows(id, n) {
   if (rows && id === 'cup') { const w = 58 + (rows - 1) * 1.1, y = 290 - rows * rh; out.push(`<ellipse cx="75" cy="${y}" rx="${w / 2}" ry="4" fill="#2b1d12" stroke="#bdb6a8" stroke-width="1"/>`); }
   return out.join('');
 }
-const openLevel = id => go({sheet:'level', lv:id});
+const openLevel = id => { S.lvOrig = {id, u:S.visit.u, val:S.visit.after[id]}; go({sheet:'level', lv:id}); };
+const openTrash = () => { S.lvOrig = {id:'trash', val:S.visit.arrive.trash}; go({sheet:'trash', lv:'trash'}); };
 function levelSVG(id, f) {
   if (isHopper(id)) return hopperSVG(id, f);
   if (isRows(id)) {

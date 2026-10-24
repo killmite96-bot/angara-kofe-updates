@@ -1,9 +1,9 @@
 {
-    "content":  10,
+    "content":  11,
     "apk":  5,
-    "notes":  "Менеджер правит подтоварку и остатки на станциях прямо в карточке точки кнопками − и +.",
+    "notes":  "Отметка остатков пальцем применяется только по кнопке «Готово»: если закрыть окно иначе, значение не меняется.",
     "contentFile":  "index.html",
-    "contentSha256":  "c8a8787c3e4fe4de8719b5ae57f6cf97ef62615d40baa7b0cbbd77697e0e3d4e",
+    "contentSha256":  "579612b14f22cd9e4fe050d339b0cfcad37f822837a192b8031ac422b5086a19",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "b73749a40007ef9cd513f48c6f7359118961758fb4836c2b3460807f6ba492f7"
+    "apkSha256":  "0be25c38ed4ae29dc5e35f307635c966f16fd5fc5f711d330b773b4b0266774b"
 }
