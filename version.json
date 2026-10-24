@@ -1,9 +1,9 @@
 {
-    "content":  21,
-    "apk":  6,
-    "notes":  "Уровень остатков показывается узкой полоской из 4 секций (зелёная, оранжевая, жёлтая, красная). Жест закрытия окон возвращён к прежнему виду.",
+    "content":  22,
+    "apk":  7,
+    "notes":  "Обновления теперь приходят и с сервера на компьютере по Wi-Fi: быстрее и без GitHub.",
     "contentFile":  "index.html",
-    "contentSha256":  "d605fb966bc96a92f3dc9efc86e899fe01c4c76f3fca76c3626d3e894b3af357",
+    "contentSha256":  "00a694731cc8992f685422aee2ae90fad9e60238f791dfc0b0f33bbb6d223e8a",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "448fa66b2d0c382f7e07b8d0235f10c22c37db4737e618a3b3bfc70844f535d6"
+    "apkSha256":  "2da16bc53a6e8fbedcbb902ca46aef185c33f4c097ce3f3dc24b280a0fb3075e"
 }
