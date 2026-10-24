@@ -1,0 +1,1508 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ангара Кофе — прототип</title>
+<style>
+:root{--bg:#0e1411;--card:#17201b;--card2:#1e2a23;--line:#2a3a30;--tx:#e9f1eb;--mut:#8ea396;--g:#35c26a;--g2:#1f7a45;--o:#ffb02e;--r:#ff5d5d;--y:#f2c94c;--b:#4aa3ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#070a08;color:var(--tx);font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+body{display:flex;align-items:center;justify-content:center}
+#app{position:relative;width:390px;height:min(820px,100vh);background:var(--bg);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 0 8px #151a17,0 20px 60px #000}
+@media(max-width:430px){#app{width:100vw;height:100vh;border-radius:0;box-shadow:none}}
+.top{padding:16px 16px 10px;background:linear-gradient(#17261e,var(--bg));position:relative}
+.trow{display:flex;align-items:flex-start;gap:10px}
+.top h1{margin:0;font-size:20px;line-height:1.2;flex:1;min-width:0;padding-top:5px}.top .sub{color:var(--mut);font-size:13px;margin-top:2px}
+.tact{display:flex;align-items:center;gap:8px;flex:none}
+.bell{position:relative;flex:none;width:38px;height:34px;background:var(--card2);border:1px solid var(--line);border-radius:20px;color:var(--tx);font-size:16px;cursor:pointer;padding:0}
+.bell i{position:absolute;top:-5px;right:-3px;min-width:18px;height:18px;border-radius:9px;background:var(--r);color:#fff;font-size:11px;font-style:normal;font-weight:700;line-height:18px;text-align:center}
+.logout{display:flex;align-items:center;gap:5px;max-width:112px;height:34px;background:var(--card2);border:1px solid var(--line);color:var(--mut);border-radius:20px;padding:0 11px;font-size:12px;cursor:pointer}
+.logout span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.body{flex:1;overflow-y:auto;padding:4px 14px 16px}
+.tabs{display:flex;background:#111a15;border-top:1px solid var(--line);overflow:hidden}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{position:relative;flex:1 1 0;min-width:0;background:none;border:0;color:var(--mut);padding:8px 0 10px;font-size:9.5px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:clip}
+.tabs button b{display:flex;justify-content:center}
+.bottles{display:flex;gap:6px;justify-content:space-between;margin-top:10px}
+.bt{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--mut);cursor:pointer}
+.bt.ro{cursor:default}
+.bt svg{width:100%;max-width:44px;height:auto}
+.tb{position:absolute;top:3px;left:calc(50% + 5px);min-width:15px;height:15px;border-radius:8px;background:var(--r);color:#fff;font-size:9px;font-style:normal;font-weight:700;line-height:15px;text-align:center;padding:0 3px}
+@media(max-width:370px){.tabs button{font-size:8.5px}}
+.msg{max-width:82%;padding:8px 11px;border-radius:14px;margin:7px 0;font-size:14px;line-height:1.35;word-break:break-word}
+.msg.me{background:var(--g2);margin-left:auto;border-bottom-right-radius:4px}.msg.them{background:var(--card2);border-bottom-left-radius:4px}
+.msg .mt{font-size:10.5px;opacity:.65;margin-top:3px}
+.tabs button b{display:block;font-size:18px;margin-bottom:2px}
+.tabs button.on{color:var(--g)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}
+.row{display:flex;align-items:center;gap:10px}
+.grow{flex:1;min-width:0}
+.t1{font-weight:600;font-size:15px}.t2{color:var(--mut);font-size:12.5px;margin-top:2px}
+.dot{width:11px;height:11px;border-radius:50%;flex:none}
+.dg{background:var(--g)}.dy{background:var(--y)}.dr{background:var(--r)}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:8px;font-weight:700;font-size:14px;padding:0 6px;flex:none}
+.b1{background:#24402f;color:#7be3a0}.b2{background:#4a3a14;color:var(--o)}.b3{background:#3a2a55;color:#c9a8ff}
+.pill{font-size:11px;padding:3px 8px;border-radius:20px;background:var(--card2);color:var(--mut);white-space:nowrap}
+.pill.warn{background:#4a2a14;color:var(--o)}.pill.bad{background:#4a1a1a;color:#ff8f8f}.pill.ok{background:#17402a;color:#7be3a0}.pill.blue{background:#16304a;color:#8cc4ff}
+.btn{background:var(--g);color:#06150c;border:0;border-radius:12px;padding:13px 16px;font-size:15px;font-weight:700;width:100%;cursor:pointer}
+.btn.sec{background:var(--card2);color:var(--tx);border:1px solid var(--line)}
+.btn.sm{width:auto;padding:8px 12px;font-size:13px;border-radius:10px}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btns{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.photo:has(svg){cursor:zoom-in}
+input[type=text],input[type=password]{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--tx);font-size:14px;margin:6px 0}
+.bar{height:6px;background:#26342b;border-radius:4px;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%}
+.seg{display:flex;gap:4px;margin-top:6px}
+.seg button{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--mut);border-radius:8px;padding:7px 0;font-size:12px;cursor:pointer}
+.seg button.on{background:var(--g2);color:#fff;border-color:var(--g)}
+.step{display:flex;align-items:center;gap:6px}
+.step button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--card2);color:var(--tx);font-size:17px;cursor:pointer}
+.step span{min-width:44px;text-align:center;font-weight:600}
+.days{display:flex;gap:5px;margin:8px 0}
+.days button{flex:1;background:var(--card);border:1px solid var(--line);color:var(--mut);border-radius:10px;padding:8px 0;font-size:12px;cursor:pointer}
+.days button.on{background:var(--g2);color:#fff;border-color:var(--g)}
+.days button small{display:block;font-size:10px;opacity:.8}
+.days button.today{border-color:var(--o)}
+.chips{display:flex;gap:6px;margin:8px 0;overflow-x:auto}
+.chips button{background:var(--card);border:1px solid var(--line);color:var(--mut);border-radius:20px;padding:7px 14px;font-size:13px;cursor:pointer;white-space:nowrap}
+.chips button.on{background:var(--g2);color:#fff;border-color:var(--g)}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
+.chk:last-child{border:0}
+.box{width:24px;height:24px;border-radius:7px;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;color:#06150c;font-weight:900;cursor:pointer}
+.box.on{background:var(--g);border-color:var(--g)}
+.dis{opacity:.4;pointer-events:none}
+.overlay{position:absolute;inset:0;background:#000b;display:flex;align-items:flex-end;z-index:5}
+.sheet{background:var(--bg);width:100%;max-height:88%;overflow-y:auto;border-radius:20px 20px 0 0;padding:16px;border-top:1px solid var(--line)}
+.sheet h2{margin:0 0 8px;font-size:18px}
+.prog{display:flex;gap:6px;padding:0 14px 6px}.prog i{flex:1;height:4px;border-radius:3px;background:var(--line)}.prog i.on{background:var(--g)}
+.cam{position:absolute;inset:0;background:#000;z-index:8;display:flex;flex-direction:column}
+.vf{flex:1;position:relative;background:radial-gradient(#3b4a42,#101512);display:flex;align-items:center;justify-content:center}
+.vf .hint{position:absolute;top:12px;left:12px;right:12px;background:#000a;border-radius:10px;padding:8px 10px;font-size:12.5px}
+.vf .ref{position:absolute;right:10px;bottom:10px;width:84px;background:#0009;border:1px solid #fff4;border-radius:8px;padding:4px;font-size:10px;text-align:center}
+.shutter{width:68px;height:68px;border-radius:50%;border:5px solid #fff;background:#ddd;margin:14px auto;cursor:pointer}
+.photo{border-radius:10px;overflow:hidden;position:relative;background:#222;border:1px solid var(--line)}
+.stamp{position:absolute;left:6px;bottom:6px;font-size:9.5px;background:#000a;padding:2px 6px;border-radius:6px;color:#cfe}
+h3{margin:16px 2px 4px;font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.back{background:none;border:0;color:var(--g);font-size:14px;padding:0;margin-bottom:6px;cursor:pointer}
+.tiny{font-size:11.5px;color:var(--mut)}
+a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
+.nav{background:linear-gradient(135deg,#17402a,#13261c);border:1px solid var(--g2);border-radius:16px;padding:14px;margin:8px 0}
+.big{font-size:26px;font-weight:800}
+.login{flex:1;display:flex;flex-direction:column;padding:26px;gap:12px;overflow-y:auto}
+.login>:first-child{margin-top:auto}.login>:last-child{margin-bottom:auto}
+.login h1{margin:0 0 4px;font-size:26px}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}.kv:last-child{border:0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
+const APP_VERSION = 3;
+/* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
+// единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
+const ICONS = {
+  route:'<path d="M3 6.5l6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/>',
+  calendar:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="8.5" cy="14.5" r=".9" fill="currentColor"/><circle cx="12" cy="14.5" r=".9" fill="currentColor"/><circle cx="15.5" cy="14.5" r=".9" fill="currentColor"/>',
+  pin:'<path d="M12 21.5s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10.5" r="2.4"/>',
+  chat:'<path d="M5 4.5h14a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5h-8l-5 4v-4H5A2.5 2.5 0 0 1 2.5 15V7A2.5 2.5 0 0 1 5 4.5z"/><path d="M8 9.5h8M8 13h5"/>',
+  pay:'<circle cx="12" cy="12" r="9"/><path d="M9.5 17.5V7h4a2.8 2.8 0 0 1 0 5.6h-4M8 14.5h6"/>',
+  plan:'<rect x="5" y="4.5" width="14" height="17" rx="2.5"/><rect x="9" y="2.5" width="6" height="4" rx="1.2"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/>',
+  box:'<path d="M3 7.8l9-5 9 5v8.4l-9 5-9-5z"/><path d="M3 7.8l9 5 9-5M12 12.8v8.4"/>',
+  shield:'<path d="M12 2.5l8 3v6c0 5-3.4 8.2-8 9.5-4.6-1.3-8-4.5-8-9.5v-6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+  users:'<circle cx="9" cy="8" r="3.2"/><path d="M2.8 20c0-3.4 2.8-6 6.2-6s6.2 2.6 6.2 6"/><circle cx="17.2" cy="9" r="2.6"/><path d="M16 14.3c3 .3 5.2 2.6 5.2 5.7"/>',
+  bell:'<path d="M5.5 17v-6a6.5 6.5 0 0 1 13 0v6l1.7 2H3.8z"/><path d="M10 21.5a2.2 2.2 0 0 0 4 0"/>',
+  base:'<path d="M3 21V10.5l6 3.5v-3.5l6 3.5V6h3.5v15z"/><path d="M3 21h18.5M8 18h2M13 18h2"/>',
+  camera:'<rect x="2.5" y="7" width="19" height="13" rx="2.5"/><path d="M7.5 7l1.5-3h6l1.5 3"/><circle cx="12" cy="13.5" r="3.6"/>',
+  trash:'<path d="M4.5 7h15M9 7V4h6v3M6.5 7l1 13.5h9L17.5 7M10 11v6M14 11v6"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.2 2"/>',
+  send:'<path d="M3.5 11.5l17-8-6.5 17-3-7.5z"/>',
+  drop:'<path d="M12 3c4.2 5 6.5 8.3 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 11.3 7.8 8 12 3z"/><path d="M9 15a3.2 3.2 0 0 0 3 2.5"/>',
+  check:'<path d="M4.5 12.5l5 5 10-11"/>',
+  warn:'<path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.4v.1"/>',
+  x:'<path d="M5 5l14 14M19 5L5 19"/>',
+  pass:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="11" r="2.2"/><path d="M5.5 16.5c.7-2.2 5.3-2.2 7 0M14.5 10h4M14.5 13.5h3"/>',
+  cup:'<path d="M5.5 5h13L17 20.5H7z"/><path d="M6 9.5h12"/>',
+  lid:'<path d="M3.5 12.5a8.5 3.2 0 0 1 17 0"/><path d="M3.5 12.5v1.8c0 1.8 3.8 3.2 8.5 3.2s8.5-1.4 8.5-3.2v-1.8"/><path d="M9 9.2V7.8c0-.9 1.3-1.6 3-1.6s3 .7 3 1.6v1.4"/>',
+  straw:'<path d="M9 21.5V9l6.5-5.5"/><path d="M9 9h6M9 14h6"/>',
+  tray:'<path d="M3 10h18v10H3z"/><path d="M9 10v10M15 10v10M3 10l3-5h12l3 5"/>',
+  holder:'<path d="M6.5 8h11L16.5 20.5h-9z"/><path d="M6.5 8c0-2.2 2.3-3.5 5.5-3.5s5.5 1.3 5.5 3.5"/><path d="M8.5 13h7"/>',
+  bean:'<path d="M12 2.8c4.2 0 7 4.2 7 9.2s-2.8 9.2-7 9.2-7-4.2-7-9.2 2.8-9.2 7-9.2z"/><path d="M10.5 3.5c3 3.2-1.5 5.2 0 8.5s-.5 5.2 2 8.8"/>',
+  mug:'<path d="M4.5 8h12v7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z"/><path d="M16.5 10h1.8a2.2 2.2 0 0 1 0 4.4h-2"/><path d="M8 3.5c-.8 1 .8 1.7 0 2.7M12 3.5c-.8 1 .8 1.7 0 2.7"/>',
+  milk:'<path d="M8 2.5h8l2 4.5v14H6V7z"/><path d="M6 7h12M9.5 12h5v4h-5z"/>',
+  choc:'<rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M5 9h14M5 14.5h14M12 3.5v17"/>',
+  stir:'<path d="M4 20.5L16.5 4M8.5 21L21 7.5M3 15.5L11 5"/>',
+  napkin:'<path d="M5 4.5h14v15H5z"/><path d="M5 4.5l4 4M8.5 12h7M8.5 15.5h5"/>',
+  syrup:'<path d="M10 2.5h4v3.5l2.6 3.2v11a1.6 1.6 0 0 1-1.6 1.6H9a1.6 1.6 0 0 1-1.6-1.6v-11L10 6z"/><path d="M8 14h8"/>',
+  jar:'<path d="M7.5 3.5h9v3h-9z"/><path d="M6.5 6.5h11v13a1.5 1.5 0 0 1-1.5 1.5H8a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M9 12h6"/>',
+  smile:'<circle cx="12" cy="12" r="9"/><path d="M8.5 14.2c.9 1.4 2 2 3.5 2s2.6-.6 3.5-2"/><circle cx="9" cy="10" r=".9" fill="currentColor"/><circle cx="15" cy="10" r=".9" fill="currentColor"/>',
+  ok:'<circle cx="12" cy="12" r="9"/><path d="M8.5 15.3h7"/><circle cx="9" cy="10" r=".9" fill="currentColor"/><circle cx="15" cy="10" r=".9" fill="currentColor"/>',
+  sad:'<circle cx="12" cy="12" r="9"/><path d="M8.5 16.2c.9-1.4 2-2 3.5-2s2.6.6 3.5 2"/><circle cx="9" cy="10" r=".9" fill="currentColor"/><circle cx="15" cy="10" r=".9" fill="currentColor"/>',
+  sick:'<circle cx="12" cy="12" r="9"/><path d="M8 9l2 2M10 9l-2 2M14 9l2 2M16 9l-2 2"/><path d="M8 16c1-1 2-1 3 0s2 1 3 0 1.5-.5 2-.3"/>',
+  user:'<circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5c0-4 3.3-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/>',
+  copy:'<rect x="8" y="8" width="12" height="12.5" rx="2.2"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/>'
+};
+const ic = (n, s = 18) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-${Math.round(s * .17)}px;flex:none">${ICONS[n] || ''}</svg>`;
+// знак бренда: чашка с паром на зелёном круге (тот же, что на иконке приложения)
+const logo = s => `<svg width="${s}" height="${s}" viewBox="0 0 108 108" style="display:block"><circle cx="54" cy="54" r="52" fill="#1F7A45"/><path d="M34 46L72 46L68 76Q67 81 62 81L44 81Q39 81 38 76Z" fill="#fff"/><path d="M72 51Q84 51 83 60Q82 68 70 68" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M44 38Q41 32 45 27M53 38Q50 32 54 27M62 38Q59 32 63 27" fill="none" stroke="#BFEACB" stroke-width="3.5" stroke-linecap="round"/></svg>`;
+
+/* ===================== ДАННЫЕ ===================== */
+const ING = [
+  {id:'coffee', n:'Кофе в зёрнах', t:'level', u:'кг', cap:1.2, r:.5, st:2},
+  {id:'cup', n:'Стаканчики', t:'count', u:'шт', cap:300, r:10, st:100},
+  {id:'lid', n:'Крышки', t:'count', u:'шт', cap:300, r:10, st:100},
+  {id:'straw', n:'Трубочки', t:'count', u:'шт', cap:300, r:10, st:100},
+  {id:'cell', n:'Ячейки для стаканов', t:'count', u:'шт', cap:200, r:10, st:100},
+  {id:'hold', n:'Держатели для горячего', t:'count', u:'шт', cap:200, r:10, st:100},
+  {id:'sugar', n:'Сахар', t:'level', u:'кг', cap:2, r:.5, st:5},
+  {id:'milk', n:'Сухое молоко', t:'level', u:'кг', cap:1.5, r:.5, st:2},
+  {id:'water', n:'Вода', t:'level', u:'л', cap:10, r:1, st:10},
+  {id:'choc', n:'Шоколад', t:'level', u:'кг', cap:1.5, r:.5, st:2},
+  {id:'raf', n:'Раф (растворимый порошок)', t:'level', u:'кг', cap:1.5, r:.5, st:2},
+  {id:'nap', n:'Салфетки', t:'level', u:'уп', cap:4, r:1, st:5},
+  {id:'stir', n:'Размешиватели', t:'level', u:'уп', cap:4, r:1, st:5},
+  {id:'s1', n:'Сироп 1', t:'level', u:'бут', cap:1, r:1, st:1},
+  {id:'s2', n:'Сироп 2', t:'level', u:'бут', cap:1, r:1, st:1},
+  {id:'s3', n:'Сироп 3', t:'level', u:'бут', cap:1, r:1, st:1}
+];
+const WH = {straw:1500, cell:400, hold:900, coffee:18, cup:1400, lid:1300, sugar:14, milk:12, water:90, choc:6, raf:5, nap:18, stir:22, s1:6, s2:5, s3:7};
+const LV = ['пусто','¼','½','¾','полно'];
+const STN = {A:'«Кофе с собой» (дуб)', B:'«Зерновой кофе» (чёрная)', C:'HERISSON COFFEE', D:'«Кофе с собой» (серая)'};
+const WD = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const TODAY = 2;
+const DEPOT = {name:'База (склад)', addr:'Красноказачья, 85', lat:52.2750, lon:104.3200};
+const COUR = [{id:1, name:'Алексей', login:'alex', pass:'1234', active:true, r1:600, r2:1100, r3:2000}, {id:2, name:'Мария', login:'maria', pass:'1234', active:true, r1:600, r2:1100, r3:2000}];
+const DEEP_DAYS = 90;   // генеральная уборка по всем точкам раз в 3 месяца
+const MGR = {login:'manager', pass:'admin'};
+let CITY = '';
+const PTS_SRC = [
+  // [название, адрес, [дизайны станций], окно визита, особые задачи, lat, lon] (координаты условные, нужны только для оценки расстояний)
+  ['Смайл молл (банкоматы)', 'Улица Баумана, 233Б', ['B'], '', ['Контроль стаканов', 'У уборщиц всегда стаканы в наличии'], 52.2560, 104.3720],
+  ['Гранд', 'Франк-Каменецкого, 13/1', ['A'], '', [], 52.2330, 104.3480],
+  ['Стройматериалы', 'Рабочая улица, 18д', ['C'], '', [], 52.2800, 104.2450],
+  ['Советский', 'Советская улица, 98', ['D'], '', [], 52.2810, 104.2850],
+  ['Триумф', 'Советская улица, 176Б', ['A'], '', [], 52.2740, 104.3150],
+  ['Аэропорт', 'Улица Ширямова, 13Б', ['C', 'D'], '13:00–22:00', ['Контроль воды', 'Осмотр кофейни на наличие пыли и загрязнений'], 52.2680, 104.3890],
+  ['Труд', 'Карла Маркса, 12', ['B', 'B'], '', [], 52.2890, 104.2850],
+  ['Рынок Новый (x2)', 'Советская, 58 к2', ['B', 'D'], '', [], 52.2820, 104.2750],
+  ['РЖД', 'Академика Курчатова, 7а/2Б', ['C'], '11:00–13:00 (лучшее время заезда)', [], 52.2640, 104.2620],
+  ['Мельниковский', 'Университетский, 43', ['A'], '', [], 52.2400, 104.2800],
+  ['ТЦ Лермонтов', 'Лермонтова, 90/1', ['D'], '', [], 52.2600, 104.2900],
+  ['ТЦ Версаль', 'Академическая улица, 31', ['A'], '', ['Контроль стаканов у уборщиц'], 52.2420, 104.3240]
+];
+let seed = 99; const rnd = () => (seed = seed * 16807 % 2147483647) / 2147483647;
+const mkUnit = (st, i) => {
+  const cur = {}, rate = {};
+  ING.forEach(g => {
+    const f = rnd() < .22 ? .05 + rnd() * .15 : .3 + rnd() * .65;
+    cur[g.id] = g.t === 'count' ? Math.round(g.cap * f / 10) * 10 : Math.round(f * 4) / 4;
+    rate[g.id] = .09 + rnd() * .11;
+  });
+  return {name:'Станция ' + (i + 1), st, cur, rate};
+};
+const P = PTS_SRC.map((s, i) => {
+  const p = {id:i + 1, name:s[0], addr:s[1], win:s[3], notes:s[4], lat:s[5], lon:s[6], arr:{clean:Math.floor(rnd() * rnd() * 4), trash:Math.round(rnd() * 20) / 20}, last:1, last2:0};
+  p.units = s[2].map((st, k) => Object.assign(mkUnit(st, k), {loc:p}));
+  // подтоварка: запас товара, который лежит на самой точке (в единицах ингредиента)
+  p.back = {};
+  ING.forEach(g => { p.back[g.id] = g.t === 'count' ? Math.round(rnd() * g.cap * 1.5 / 10) * 10 : (g.u === 'бут' || g.u === 'уп' ? Math.floor(rnd() * 3) : Math.round(rnd() * g.cap * 2 * 2) / 2); });
+  p.deep = 15 + Math.floor(rnd() * 95);   // сколько дней назад была генеральная уборка
+  // вода в бутылях заказывается только для «Аэропорта» и «Труд»; на «Аэропорт» нужен пропуск
+  p.water = (p.name === 'Аэропорт' || p.name === 'Труд') ? {n:6, full:Array.from({length:6}, (_, k) => k < (p.name === 'Аэропорт' ? 4 : 2)), orders:[]} : null;
+  p.pass = p.name === 'Аэропорт' ? 'Аэропорт' : '';
+  return p;
+});
+// недельный график: пн вт ср чт пт сб (вс выходной). 1 и 2 — тип визита, '?' — по остаткам, 0 — нет визита
+const TPL_ROWS = {
+  1:[1, 0, 1, 0, 2, 0], 2:[1, 1, 1, 2, 1, 1], 3:[0, 1, 0, 2, 0, 1], 4:[0, 2, 0, 0, 1, 0], 5:[2, 0, 1, 0, 1, 0], 6:[1, 1, 2, 1, 1, 1],
+  7:['?', 2, 0, 0, 1, '?'], 8:[1, 0, 0, 2, 0, 0], 9:[1, 0, 2, 0, 1, 0], 10:[1, 0, 2, 0, 1, 0], 11:[1, 0, 2, 0, 1, 0], 12:[0, 2, 0, 1, 0, 1]
+};
+const mk = (pid, type, done) => ({pid, type, done:!!done, review:done ? 'ok' : null});
+const emptyWeek = () => ({0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[]});
+const sched = {1:emptyWeek(), 2:emptyWeek()};
+const TEMPLATE = {1:emptyWeek(), 2:emptyWeek()};
+const reviews = [];
+const LOADED = {};
+const PASS = {};   // отметка «пропуск взят» по курьеру и дню
+const WATER = {vk:'', greet:'Здравствуйте! Это Ангара Кофе.'};   // получатель заказов воды во ВКонтакте и приветствие (задаёт менеджер)
+
+/* ===================== РАСЧЁТЫ ===================== */
+const pt = id => P.find(p => p.id === id);
+const cr = id => COUR.find(c => c.id === id);
+const L = (cid, d) => sched[cid][d];
+const frac = (u, g) => g.t === 'count' ? u.cur[g.id] / g.cap : u.cur[g.id];
+function gapDays(pid) {
+  for (let k = 1; k <= 7; k++) { const d = (TODAY + k) % 7; if (COUR.some(c => TEMPLATE[c.id] && TEMPLATE[c.id][d].some(x => x.pid === pid && !x.cond))) return k; }
+  return 3;
+}
+function rec(u, g) {
+  const f = frac(u, g);
+  const need = Math.max(0, Math.min(u.rate[g.id] * gapDays(u.loc.id) * 1.2 - f, 1 - f)) * g.cap;
+  if (g.t === 'count') return Math.round(need / 10) * 10;
+  return g.u === 'бут' || g.u === 'уп' ? Math.ceil(need - .001) : Math.round(need * 2) / 2;
+}
+const stepFor = g => g.t === 'count' ? 10 : (g.u === 'бут' || g.u === 'уп' ? 1 : .5);
+// сколько нужно довезти с базы: потребность станций минус то, что уже лежит в подтоварке точки
+const needBase = (p, g) => { const n = Math.max(0, recP(p, g) - (p.back[g.id] || 0)); return g.t === 'count' ? Math.round(n / 10) * 10 : (g.u === 'бут' || g.u === 'уп' ? Math.ceil(n - .001) : Math.round(n * 2) / 2); };
+const deepLeft = p => DEEP_DAYS - p.deep;
+const tl = t => t === 3 ? 'Г' : t;
+const bcls = t => t === 3 ? 'b3' : t === 2 ? 'b2' : 'b1';
+const rateOf = (c, t) => t === 3 ? c.r3 : t === 2 ? c.r2 : c.r1;
+const workMin = t => t === 3 ? 75 : t === 2 ? 35 : 15;
+const recP = (p, g) => { const s = p.units.reduce((a, u) => a + rec(u, g), 0); return g.t === 'count' ? s : +s.toFixed(1); };
+const pst = p => p.units[0].st;
+const unitLabel = (p, i) => p.units.length > 1 ? ' · ст. ' + (i + 1) : '';
+const health = p => { let m = 1; p.units.forEach(u => ING.forEach(g => m = Math.min(m, frac(u, g)))); return m < .2 ? 'r' : m < .4 ? 'y' : 'g'; };
+const needT2 = p => p.last2 >= 7;
+const CLEAN = ['Чисто', 'Нормально', 'Грязно', 'Очень грязно'], CCOL = ['ok', 'warn', 'bad', 'bad'];
+const trashStatus = f => f >= .95 ? 'Переполнена, срочно вынести' : f >= .75 ? 'Почти полная, нужно вынести' : f >= .4 ? 'Наполовину' : f > 0 ? 'Почти пустая' : 'Пустая';
+const arrPills = p => (p.arr.clean >= 2 ? `<span class="pill bad">${CLEAN[p.arr.clean]}</span>` : '') + (p.arr.trash >= .75 ? '<span class="pill warn">Урна полная</span>' : '');
+const ago = d => d === 0 ? 'сегодня' : d === 1 ? 'вчера' : d + ' дн. назад';
+const fmtCur = (u, g) => g.t === 'count' ? u.cur[g.id] + ' ' + g.u : fmtLvl(u.cur[g.id]);
+const fmtLvl = f => Math.abs(f * 4 - Math.round(f * 4)) < .02 ? LV[Math.round(f * 4)] : Math.round(f * 100) + '%';
+function km(a, b) {
+  const R = 6371, dLat = (b.lat - a.lat) * Math.PI / 180, dLon = (b.lon - a.lon) * Math.PI / 180;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x)) * 1.3;
+}
+const eta = k => Math.max(2, Math.round(k / 28 * 60));
+function optimize(list, from) {
+  const rest = list.slice(), out = []; let cur = from;
+  while (rest.length) { rest.sort((x, y) => km(cur, pt(x.pid)) - km(cur, pt(y.pid))); const n = rest.shift(); out.push(n); cur = pt(n.pid); }
+  return out;
+}
+function posOf(cid) {
+  const done = L(cid, TODAY).filter(x => x.done);
+  return done.length ? pt(done[done.length - 1].pid) : DEPOT;
+}
+function legs(cid) {
+  const rem = L(cid, TODAY).filter(x => !x.done); let cur = posOf(cid), tot = 0; const out = [];
+  rem.forEach(x => { const d = km(cur, pt(x.pid)); out.push({x, d}); tot += d; cur = pt(x.pid); });
+  return {out, tot};
+}
+function parts(list, max = 8) {
+  const n = Math.ceil(list.length / max), size = Math.ceil(list.length / n), out = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
+const co = p => p.lat + ',' + p.lon;
+const addrOf = p => p.addr + (CITY ? ', ' + CITY : '');
+// ссылки строятся по тексту адреса, а не по условным координатам; from == null значит «от моего местоположения»
+const urls = (pts, from) => {
+  const tx = pts.map(p => addrOf(p)), q = s => encodeURIComponent(s);
+  const o = from && from.addr ? addrOf(from) : '';
+  return {
+    ya:'https://yandex.ru/maps/?rtext=' + q(o) + '~' + tx.map(q).join('~') + '&rtt=auto',
+    g:'https://www.google.com/maps/dir/?api=1' + (o ? '&origin=' + q(o) : '') + '&destination=' + q(tx[tx.length - 1]) + (tx.length > 1 ? '&waypoints=' + tx.slice(0, -1).map(q).join('%7C') : '') + '&travelmode=driving',
+    gis:'https://2gis.ru/search/' + q(tx[0])
+  };
+};
+function pay(cid) {
+  const c = cr(cid), r = {n1:0, n2:0, n3:0, ok:0, pend:0, plan:0, byDay:[]};
+  for (let d = 0; d < 7; d++) {
+    let day = 0;
+    L(cid, d).forEach(x => {
+      const rate = rateOf(c, x.type);
+      if (x.done && x.review !== 'redo') {
+        r['n' + x.type]++; day += rate;
+        x.review === 'ok' ? r.ok += rate : r.pend += rate;
+      } else if (d >= TODAY) r.plan += rate;
+    });
+    r.byDay.push(day);
+  }
+  r.total = r.ok + r.pend; return r;
+}
+const money = v => v.toLocaleString('ru-RU') + ' ₽';
+function whNeed() {
+  const tot = {};
+  COUR.forEach(c => { for (let d = TODAY; d < 7; d++) L(c.id, d).forEach(x => { if (!x.done) ING.forEach(g => tot[g.id] = (tot[g.id] || 0) + needBase(pt(x.pid), g)); }); });
+  return tot;
+}
+
+/* ===================== УВЕДОМЛЕНИЯ ===================== */
+const NOTIFS = []; let nid = 1;
+function notify(to, kind, text, extra) { NOTIFS.unshift(Object.assign({id:nid++, to, kind, text, t:'только что', read:false}, extra || {})); }
+reviews.forEach((r, i) => r.id = i + 1);
+// недельный график из шаблона: пн–сб, воскресенье выходной; первые дни недели уже выполнены
+(function initWeek() {
+  for (let d = 0; d < 6; d++) {
+    const day = [];
+    Object.entries(TPL_ROWS).forEach(([pid, row]) => { const v = row[d]; if (v) day.push({pid:+pid, type:v === '?' ? 1 : v, cond:v === '?'}); });
+    TEMPLATE[1][d] = day;
+    sched[1][d] = optimize(day.filter(x => !x.cond), DEPOT).map(x => mk(x.pid, x.type, d < TODAY));
+  }
+  P.forEach(p => {
+    let last = 7, last2 = 14;
+    for (let k = 1; k <= 7; k++) {
+      const it = TEMPLATE[1][((TODAY - k) % 7 + 7) % 7].find(x => x.pid === p.id && !x.cond);
+      if (it) { last = Math.min(last, k); if (it.type === 2) last2 = Math.min(last2, k); }
+    }
+    p.last = last; p.last2 = last2;
+  });
+  reviews.push({id:1, cid:1, pid:12, when:'вчера 15:40', type:2, status:'pending', ref:null}, {id:2, cid:1, pid:3, when:'вчера 12:10', type:1, status:'pending', ref:null});
+})();
+notify('mgr', 'photo', 'Алексей сдал точку «' + pt(12).name + '»: подтвердите фото', {rv:reviews[0], t:'вчера 15:40'});
+notify('mgr', 'photo', 'Алексей сдал точку «' + pt(3).name + '»: подтвердите фото', {rv:reviews[1], t:'вчера 12:10'});
+const CHAT = {
+  1:[{from:'mgr', text:'Доброе утро! Сегодня 7 точек, 4 из них с мойкой. Начните с базы.', t:'08:05', pid:null, read:true}, {from:'cour', text:'Принял, выезжаю на базу.', t:'08:07', pid:null, read:true}],
+  2:[]
+};
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+function sendMsg(cid, from, text, pid) {
+  const d = new Date(), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  (CHAT[cid] = CHAT[cid] || []).push({from, text, t, pid:pid || null, read:false});
+  notify(from === 'mgr' ? cid : 'mgr', 'chat', (from === 'mgr' ? 'Менеджер' : cr(cid).name) + ': ' + text, {cid, pid:pid || null});
+}
+
+/* ===================== ИЛЛЮСТРАЦИИ ===================== */
+function stationSVG(type, ghost) {
+  const out = [];
+  const R = (x, y, w, h, fill, rx = 2) => out.push(ghost
+    ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="none" stroke="#fff" stroke-opacity=".75" stroke-dasharray="4 3" stroke-width="1.5"/>`
+    : `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}"/>`);
+  const T = (x, y, s, fill, size = 9) => { if (!ghost) out.push(`<text x="${x}" y="${y}" font-size="${size}" font-weight="700" fill="${fill}" text-anchor="middle" font-family="Arial">${s}</text>`); };
+  const mach = (x, y) => { R(x, y, 56, 78, '#0b0b0d'); R(x + 6, y + 8, 44, 28, '#2d4a6a', 3); R(x + 22, y + 52, 12, 14, '#222'); R(x + 4, y + 70, 48, 5, '#9aa0a5'); };
+  if (!ghost) out.push('<rect width="200" height="320" fill="#d9d5cb"/>');
+  if (type === 'A') {
+    R(40, 14, 120, 26, '#17352a'); T(100, 31, 'КОФЕ С СОБОЙ', '#f1ead6', 11);
+    R(150, 40, 18, 118, '#14391f'); R(46, 74, 36, 84, '#b9a58a'); mach(88, 78); R(38, 160, 130, 8, '#b9a58a'); R(40, 168, 126, 100, '#232b27');
+    R(42, 168, 5, 100, '#e9dcc2'); R(48, 168, 4, 100, '#2f9a4e'); T(110, 225, 'КАК ТЫ ЛЮБИШЬ', '#fff', 9); R(8, 220, 22, 48, '#6a6e72');
+  } else if (type === 'B') {
+    R(60, 80, 40, 80, '#111'); mach(100, 82); R(58, 160, 104, 8, '#0c0c0c'); R(58, 168, 104, 100, '#0d0e10');
+    R(62, 205, 40, 18, '#eee'); T(82, 218, '100% АРАБИКА', '#111', 6); T(138, 215, 'ЗЕРНОВОЙ КОФЕ', '#fff', 8);
+    R(100, 268, 3, 8, '#000'); R(130, 268, 3, 8, '#000'); R(14, 220, 28, 48, '#3d4044'); R(112, 52, 36, 24, '#ffb02e', 12);
+  } else {
+    const leafy = type === 'D';
+    R(36, 14, 128, 26, leafy ? '#16382a' : '#4a4a4d'); T(100, 32, leafy ? 'КОФЕ С СОБОЙ' : 'HERISSON COFFEE', '#fff', 10);
+    R(78, 40, 18, 120, '#4b4b4e'); R(44, 50, 32, 110, '#2e2e31'); mach(104, 82);
+    R(36, 160, 128, 8, '#4b4b4e'); R(38, 168, 124, 100, '#2a2d2b'); R(78, 168, 3, 100, '#ddd'); R(120, 168, 3, 100, '#ddd');
+    T(100, 225, 'КАК ТЫ ЛЮБИШЬ', '#fff', 8); if (leafy) R(162, 220, 22, 48, '#2f3235');
+  }
+  if (!ghost) out.push('<rect y="270" width="200" height="50" fill="#c6c1b6"/>');
+  return `<svg viewBox="0 0 200 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">${out.join('')}</svg>`;
+}
+// Фото «носики опущены»: три ячейки для засыпания с подписями, носики спущены в два чёрных миксера (как на реальном фото при сдаче типа 2)
+function nozzleSVG(ghost) {
+  const gs = 'fill="none" stroke="#fff" stroke-opacity=".8" stroke-dasharray="4 3" stroke-width="1.6"';
+  const hop = [{x:12, c:'#f2edde', l:['Растворимый', 'порошок'], tip:[70, 292], dir:1}, {x:108, c:'#f5f0e3', l:['Сухое', 'молоко'], tip:[190, 292], dir:1}, {x:204, c:'#d8d1cf', l:['Шоколад'], tip:[246, 292], dir:-1}];
+  const o = [];
+  if (!ghost) o.push('<rect width="300" height="400" fill="#202124"/><rect x="0" y="262" width="300" height="12" fill="#8d9094"/>');
+  hop.forEach(h => {
+    const x = h.x, w = 84, pts = `${x},10 ${x + w},10 ${x + w},206 ${x + w - 9},232 ${x + 9},232 ${x},206`;
+    o.push(ghost ? `<polygon points="${pts}" ${gs}/>` : `<polygon points="${pts}" fill="${h.c}" stroke="#bdb6a4" stroke-width="1.5"/>`);
+    // носик: от дна ячейки вниз в сторону миксера
+    const bx = h.dir > 0 ? x + 20 : x + 64, tx = h.tip[0], ty = h.tip[1];
+    const sp = `${bx - 10},228 ${bx + 12},228 ${tx + 9},${ty} ${tx - 9},${ty}`;
+    o.push(ghost ? `<polygon points="${sp}" ${gs}/>` : `<polygon points="${sp}" fill="#e7eef0" fill-opacity=".85" stroke="#aeb9bc" stroke-width="1.2"/>`);
+    if (!ghost) {
+      o.push(`<rect x="${x + 7}" y="146" width="70" height="${h.l.length > 1 ? 34 : 24}" rx="3" fill="#e9eaec" stroke="#9aa0a5" stroke-width=".8"/>`);
+      h.l.forEach((t, i) => o.push(`<text x="${x + 42}" y="${(h.l.length > 1 ? 160 : 162) + i * 13}" font-size="8.6" font-weight="700" fill="#222" text-anchor="middle" font-family="Arial">${t}</text>`));
+    }
+  });
+  // два чёрных миксера
+  [[74, 44, 292], [212, 62, 292]].forEach(b => {
+    const cx = b[0], rx = b[1], y = b[2], body = `M${cx - rx},${y} L${cx - rx + 10},${y + 52} L${cx + rx - 10},${y + 52} L${cx + rx},${y} Z`;
+    o.push(ghost ? `<path d="${body}" ${gs}/><ellipse cx="${cx}" cy="${y}" rx="${rx}" ry="12" ${gs}/>` : `<path d="${body}" fill="#0d0d0f"/><ellipse cx="${cx}" cy="${y}" rx="${rx}" ry="12" fill="#17171a" stroke="#34343a" stroke-width="3"/><ellipse cx="${cx}" cy="${y}" rx="${rx - 9}" ry="8" fill="#050506"/>`);
+  });
+  if (!ghost) o.push('<rect x="52" y="340" width="20" height="5" rx="2" fill="#e02b20"/><rect x="190" y="340" width="20" height="5" rx="2" fill="#e02b20"/><path d="M60 350 Q120 392 200 352" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round"/>');
+  return `<svg viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">${o.join('')}</svg>`;
+}
+
+/* ===================== СОСТОЯНИЕ ===================== */
+let S = {role:null, me:1, mc:1, tab:'', day:TODAY, view:null, sheet:null, cam:null, visit:null, q:'', flt:'all', toast:'', sh:null, lg:{login:'', pass:'', err:''}, cf:null, shade:false, redo:null, rc:null, bf:null, chatWith:null, chatDraft:'', ctxOff:false, focusChat:false};
+const $ = id => document.getElementById(id);
+const go = p => { Object.assign(S, p); render(); };
+const cid = () => S.role === 'cour' ? S.me : S.mc;
+function login(role, id) {
+  go({role, me:id || 1, mc:1, tab:role === 'mgr' ? 'plan' : 'route', view:null, sheet:null, day:TODAY});
+}
+const nkey = () => S.role === 'mgr' ? 'mgr' : S.me;
+const unread = () => NOTIFS.filter(n => n.to === nkey() && !n.read).length;
+const pendCount = () => reviews.filter(r => r.status === 'pending').length;
+const topbar = (t, s) => `<div class="top"><div class="trow"><h1>${t}</h1><div class="tact"><button class="logout" onclick="go({sheet:'profile',pw:{old:'',n1:'',n2:'',err:''}})">${ic('user', 14)}<span>${S.role === 'mgr' ? 'Менеджер' : cr(S.me).name}</span></button><button class="bell" onclick="go({shade:true})">${ic('bell', 20)}${unread() ? `<i>${unread()}</i>` : ''}</button></div></div><div class="sub">${s || ''}</div></div>`;
+function closeShade() { NOTIFS.forEach(n => { if (n.to === nkey()) n.read = true; }); go({shade:false}); }
+function clearNotifs() { const k = nkey(), keep = NOTIFS.filter(n => n.to !== k); NOTIFS.length = 0; NOTIFS.push(...keep); render(); }
+function askRedo(id) { go({shade:false, sheet:'redo', redo:id}); }
+function shadeHTML() {
+  const list = NOTIFS.filter(n => n.to === nkey());
+  let h = `<div class="overlay" style="align-items:flex-start" onclick="if(event.target===this)closeShade()"><div class="sheet" style="border-radius:0 0 20px 20px;border-top:0;border-bottom:1px solid var(--line);max-height:84%">
+    <div class="row" style="margin-bottom:8px"><h2 class="grow" style="margin:0">Уведомления</h2><button class="btn sec sm" onclick="clearNotifs()">Очистить</button><button class="btn sm" onclick="closeShade()">${ic('x', 16)}</button></div>`;
+  if (!list.length) h += '<div class="card t2">Новых уведомлений нет.</div>';
+  list.forEach(n => {
+    const r = n.rv, p = r ? pt(r.pid) : null;
+    h += `<div class="card" style="${n.read ? '' : 'border-color:var(--g)'}"><div class="row" style="align-items:flex-start"><div style="color:${n.kind === 'redo' ? 'var(--o)' : 'var(--g)'}">${ic(n.kind === 'photo' ? 'camera' : n.kind === 'ok' ? 'check' : n.kind === 'chat' ? 'chat' : n.kind === 'water' ? 'drop' : 'warn', 24)}</div>
+      <div class="grow"><div class="t1" style="font-size:14px">${n.text}</div><div class="t2">${n.t}</div></div></div>`;
+    if (r) {
+      h += `<div class="row" style="margin-top:8px;align-items:flex-start"><div class="photo" style="width:64px;height:100px">${r.photo ? r.photo.svg : stationSVG(pst(p))}</div>
+        ${r.type >= 2 ? `<div class="photo" style="width:64px;height:86px">${r.nozzle ? r.nozzle.svg : nozzleSVG(false, true)}</div>` : ''}
+        <div class="grow tiny">${r.arrive ? 'Чистота: ' + CLEAN[r.arrive.clean] + '<br>Урна: ' + Math.round(r.arrive.trash * 100) + '%' : 'Тип визита: ' + tl(r.type)}</div></div>`;
+      h += r.status === 'pending'
+        ? `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="rv(${r.id},'ok')">Принять</button><button class="btn sec sm" onclick="askRedo(${r.id})">Переснять</button><button class="btn sec sm" onclick="askComment(${r.id})">${ic('chat', 15)} Комментарий</button><button class="btn sec sm" onclick="closeShade();go({tab:'mgr',view:null})">Открыть</button></div>`
+        : `<div style="margin-top:8px"><span class="pill ${r.status === 'ok' ? 'ok' : 'bad'}">${r.status === 'ok' ? 'принято' : 'отправлено на пересъёмку'}</span></div>`;
+    }
+    if (n.kind === 'redo') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="closeShade();openPoint(${n.pid})">Открыть точку</button></div>`;
+    if (n.kind === 'chat') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="openChatFrom(${n.cid})">Ответить в чате</button></div>`;
+    h += '</div>';
+  });
+  return h + '</div></div>';
+}
+
+/* ===================== ВХОД ===================== */
+function loginScreen() {
+  const rem = S.lg.rem !== false;
+  const accs = ACCS.length ? `<div class="tiny">Сохранённые аккаунты: нажмите, чтобы подставить данные входа</div>` + ACCS.map((a, i) => `<div class="card" style="margin:0;padding:10px 12px"><div class="row"><div class="row grow" style="cursor:pointer" onclick="useAcc(${i})"><div class="badge b1" style="min-width:38px;height:38px;border-radius:50%;font-size:16px">${esc((a.name || '?')[0])}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(a.name)}</div><div class="t2">${a.role === 'mgr' ? 'Менеджер' : 'Курьер'} · ${esc(a.login)}</div></div></div><button class="btn sec sm" onclick="unpinAcc(${i})">Открепить</button></div></div>`).join('') : '';
+  return `<div class="login"><div style="margin-bottom:6px">${logo(64)}</div><h1>Ангара Кофе</h1><div class="t2" style="margin-bottom:6px">Приложение для курьеров и менеджеров сети</div>
+  ${accs}
+  <input type="text" placeholder="Логин" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(S.lg.login)}" oninput="S.lg.login=this.value" onkeydown="if(event.key==='Enter')doLogin()">
+  <input type="password" placeholder="Пароль" autocomplete="new-password" value="${esc(S.lg.pass)}" oninput="S.lg.pass=this.value" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--tx);font-size:14px;margin:6px 0">
+  ${S.lg.err ? `<div style="color:var(--r);font-size:13px">${S.lg.err}</div>` : ''}
+  <div class="row" style="cursor:pointer" onclick="S.lg.rem=${!rem};render()"><div class="box ${rem ? 'on' : ''}">${rem ? '✓' : ''}</div><div style="font-size:14px">Запомнить аккаунт на этом телефоне</div></div>
+  <button class="btn" onclick="doLogin()">Войти</button>
+  <div class="tiny" style="margin-top:8px">Демо-доступы: ${MGR.pass === 'admin' ? 'менеджер — manager / admin' : 'менеджер — manager (пароль изменён вами)'}, курьер — alex / 1234 или maria / 1234. Роль определяется аккаунтом, менеджер создаёт курьеров на вкладке «Курьеры».</div></div>`;
+}
+function doLogout() { go({role:null, view:null, sheet:null, shade:false, cam:null, visit:null, viewer:null}); }
+function changePass() {
+  const f = S.pw;
+  if (f.old !== MGR.pass) f.err = 'Текущий пароль указан неверно';
+  else if (f.n1.length < 6) f.err = 'Новый пароль должен быть не короче 6 символов';
+  else if (f.n1 === f.old) f.err = 'Новый пароль совпадает со старым';
+  else if (f.n1 !== f.n2) f.err = 'Пароли не совпадают';
+  else {
+    MGR.pass = f.n1; saveAll();
+    const k = ACCS.findIndex(a => a.login.toLowerCase() === MGR.login); if (k >= 0) { ACCS[k].pass = MGR.pass; saveAccs(); }
+    return go({sheet:null, pw:null, toast:'Пароль изменён'});
+  }
+  render();
+}
+function doLogin() {
+  const l = S.lg.login.trim().toLowerCase(), p = S.lg.pass;
+  const rem = S.lg.rem !== false;
+  if (l === MGR.login && p === MGR.pass) { if (rem) rememberAcc(MGR.login, MGR.pass, 'Менеджер', 'mgr'); S.lg = {login:'', pass:'', err:''}; return login('mgr'); }
+  const c = COUR.find(x => x.login.toLowerCase() === l && x.pass === p);
+  if (!c) { S.lg.err = 'Неверный логин или пароль'; return render(); }
+  if (!c.active) { S.lg.err = 'Аккаунт отключён, обратитесь к менеджеру'; return render(); }
+  if (rem) rememberAcc(c.login, c.pass, c.name, 'cour');
+  S.lg = {login:'', pass:'', err:''}; login('cour', c.id);
+}
+// сохранённые аккаунты хранятся только на этом телефоне (отдельно от данных приложения)
+function rememberAcc(login, pass, name, role) {
+  const i = ACCS.findIndex(a => a.login.toLowerCase() === login.toLowerCase()), a = {login, pass, name, role};
+  if (i >= 0) ACCS[i] = a; else ACCS.push(a);
+  saveAccs();
+}
+const isRemembered = login => ACCS.some(a => a.login.toLowerCase() === login.toLowerCase());
+function useAcc(i) { const a = ACCS[i]; S.lg.login = a.login; S.lg.pass = a.pass; S.lg.err = ''; render(); }
+function unpinAcc(i) { ACCS.splice(i, 1); saveAccs(); render(); }
+function toggleAcc() {
+  const mgr = S.role === 'mgr', login = mgr ? MGR.login : cr(S.me).login;
+  const i = ACCS.findIndex(a => a.login.toLowerCase() === login.toLowerCase());
+  if (i >= 0) { ACCS.splice(i, 1); saveAccs(); go({toast:'Аккаунт откреплён'}); }
+  else { rememberAcc(login, mgr ? MGR.pass : cr(S.me).pass, mgr ? 'Менеджер' : cr(S.me).name, S.role); go({toast:'Аккаунт запомнен на этом телефоне'}); }
+}
+
+/* ===================== КУРЬЕР: МАРШРУТ С НАВИГАТОРОМ ===================== */
+function routeScreen() {
+  const c = S.me, list = L(c, TODAY), done = list.filter(x => x.done).length, lg = legs(c);
+  const mins = lg.out.reduce((s, o) => s + workMin(o.x.type) + eta(o.d), 0);
+  let h = topbar('Маршрут на сегодня', `${WD[TODAY]} · ${list.length} точек · выполнено ${done}`);
+  h += '<div class="body">';
+  const loaded = LOADED[S.me + ':' + TODAY];
+  h += `<div class="card" style="border-color:${loaded ? 'var(--line)' : 'var(--o)'}"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${DEPOT.name}</div><div class="t2">${DEPOT.addr || 'Адрес базы не указан'}</div>
+    <div class="t2" style="color:${loaded ? 'var(--g)' : 'var(--o)'}">${loaded ? '✓ Загрузка подтверждена' : 'Начало смены: заедьте за ингредиентами'}</div>
+    ${!loaded && passNeed(S.me).length ? `<div class="t2" style="color:var(--o);margin-top:2px">${ic('pass', 14)} Возьмите пропуск: ${passNeed(S.me).map(p => p.name).join(', ')}</div>` : ''}</div><button class="btn sm" onclick="go({sheet:'tobase'})">На базу ▸</button></div></div>`;
+  if (lg.out.length) {
+    const nearest = lg.out.slice().sort((a, b) => a.d - b.d)[0], p = pt(nearest.x.pid), next = lg.out[0];
+    h += `<div class="nav"><div class="tiny">${next.x === nearest.x ? 'Следующая точка (она же ближайшая)' : 'Следующая по маршруту'}</div>
+      <div class="t1" style="font-size:17px;margin-top:2px">${pt(next.x.pid).name}</div>
+      <div class="row" style="margin-top:6px"><div class="big">${next.d.toFixed(1)} км</div><div class="t2">≈ ${eta(next.d)} мин в пути</div></div>
+      ${next.x !== nearest.x ? `<div class="tiny" style="margin-top:6px;color:var(--o)">Ближе всего: ${p.name} — ${nearest.d.toFixed(1)} км</div>` : ''}
+      <div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="go({sheet:'mapone'})">Навигатор ▸</button>
+      <button class="btn sec sm" onclick="doOpt()">Построить по ближайшим</button></div></div>`;
+    h += `<div class="row" style="margin:6px 2px"><div class="grow tiny">Осталось ${lg.out.length} точек · ${lg.tot.toFixed(1)} км · ≈ ${Math.floor(mins / 60)} ч ${mins % 60} мин</div></div>`;
+    h += `<div class="btns" style="margin-top:0"><button class="btn sec sm" onclick="go({sheet:'load'})">Погрузка</button><button class="btn sec sm" onclick="go({sheet:'map'})">Весь маршрут в картах</button></div>`;
+  } else h += '<div class="card"><div class="t1">Маршрут выполнен</div><div class="t2">Все точки на сегодня сданы.</div></div>';
+  let prev = posOf(c), n = 0;
+  list.forEach(x => {
+    const p = pt(x.pid), d = km(prev, p); if (!x.done) { n++; prev = p; }
+    h += `<div class="card" onclick="openPoint(${p.id})" style="${x.done ? 'opacity:.55' : ''}"><div class="row">
+      <div class="badge ${bcls(x.type)}">${tl(x.type)}</div>
+      <div class="grow"><div class="t1">${p.name}</div><div class="t2">${p.addr}${p.units.length > 1 ? ' · ' + p.units.length + ' станции' : ''}${x.done ? '' : ' · ' + d.toFixed(1) + ' км'}</div>${p.win && !x.done ? `<div class="t2" style="color:var(--o)">${ic('clock', 13)} ${p.win}</div>` : ''}</div>
+      ${x.done ? '<span class="pill ok">сдана</span>' : x.redo ? '<span class="pill bad">переснять</span>' : `<span class="dot d${health(p)}"></span>`}</div>
+      ${!x.done ? `<div class="t2" style="margin-top:8px">${x.type === 3 ? 'Генеральная уборка · ' : x.type === 2 ? 'Промывка миксеров с разбором + носики · ' : ''}везти с базы: ${shortNeed(p)}</div>` : ''}</div>`;
+  });
+  return h + '</div>';
+}
+const shortNeed = p => { const a = ING.map(g => [g, needBase(p, g)]).filter(x => x[1] > 0).slice(0, 4); return a.length ? a.map(x => x[0].n.toLowerCase() + ' ' + x[1]).join(', ') : 'всё в норме'; };
+function doOpt() { const l = L(S.me, TODAY), dn = l.filter(x => x.done), rest = l.filter(x => !x.done); sched[S.me][TODAY] = dn.concat(optimize(rest, posOf(S.me))); go({toast:'Порядок перестроен: сначала ближайшие'}); }
+
+/* ===================== КУРЬЕР: РАСПИСАНИЕ ===================== */
+function scheduleScreen() {
+  const c = S.me, list = L(c, S.day);
+  let h = topbar('Моё расписание', 'Неделя · ' + cr(c).name);
+  h += '<div class="body"><div class="days">' + WD.map((d, i) => `<button class="${i === S.day ? 'on' : ''} ${i === TODAY ? 'today' : ''}" onclick="go({day:${i}})">${d}<small>${L(c, i).length} т.</small></button>`).join('') + '</div>';
+  if (!list.length) h += '<div class="card t2">В этот день точек нет.</div>';
+  list.forEach((x, i) => {
+    const p = pt(x.pid);
+    h += `<div class="card" onclick="openPoint(${p.id})"><div class="row"><div class="badge ${bcls(x.type)}">${tl(x.type)}</div>
+      <div class="grow"><div class="t1">${i + 1}. ${p.name}</div><div class="t2">${p.addr}</div></div>${x.done ? '<span class="pill ok">выполнена</span>' : ''}</div></div>`;
+  });
+  const cnt = t => list.filter(x => x.type === t).length;
+  if (list.length) h += `<div class="tiny" style="margin-top:6px">Тип 1: ${cnt(1)} · Тип 2: ${cnt(2)}${cnt(3) ? ' · Генеральная: ' + cnt(3) : ''} · заработок за день: ${money(list.reduce((s, x) => s + rateOf(cr(c), x.type), 0))}</div>`;
+  return h + '</div>';
+}
+
+/* ===================== ТОЧКИ ===================== */
+function myPointIds() { const s = new Set(); for (let d = 0; d < 7; d++) L(S.me, d).forEach(x => s.add(x.pid)); return s; }
+function pointsScreen() {
+  const mine = S.role === 'cour' ? myPointIds() : null;
+  let h = topbar(S.role === 'mgr' ? 'Остатки по точкам' : 'Мои адреса', S.role === 'mgr' ? P.length + ' точек' : 'Адреса из вашего расписания');
+  h += `<div class="body"><input type="text" placeholder="Поиск по адресу" value="${S.q}" oninput="S.q=this.value;render(true)">`;
+  if (S.role === 'mgr') h += `<div class="chips"><button class="${S.flt === 'all' ? 'on' : ''}" onclick="go({flt:'all'})">Все</button><button class="${S.flt === 'bad' ? 'on' : ''}" onclick="go({flt:'bad'})">Проблемные</button><button class="${S.flt === 't2' ? 'on' : ''}" onclick="go({flt:'t2'})">Пора на тип 2</button><button class="${S.flt === 'deep' ? 'on' : ''}" onclick="go({flt:'deep'})">Генеральная уборка</button></div>`;
+  P.filter(p => (!mine || mine.has(p.id)) && (p.name + p.addr).toLowerCase().includes(S.q.toLowerCase()))
+    .filter(p => S.role !== 'mgr' || S.flt === 'all' || (S.flt === 'bad' && health(p) !== 'g') || (S.flt === 't2' && needT2(p)) || (S.flt === 'deep' && deepLeft(p) <= 14))
+    .forEach(p => {
+      const low = []; p.units.forEach((u, i) => ING.forEach(g => { if (frac(u, g) < .4) low.push({g, u, i}); })); low.length = Math.min(low.length, 3);
+      h += `<div class="card" onclick="openPoint(${p.id})"><div class="row"><span class="dot d${health(p)}"></span>
+        <div class="grow"><div class="t1">${p.name}</div><div class="t2">${p.addr}${p.units.length > 1 ? ' · ' + p.units.length + ' станции' : ''} · визит ${ago(p.last)}</div></div>${needT2(p) ? '<span class="pill warn">тип 2</span>' : ''}</div>
+        ${(low.length || arrPills(p)) ? `<div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">${arrPills(p)}${low.map(o => `<span class="pill bad">${o.g.n}${unitLabel(p, o.i)}: ${fmtCur(o.u, o.g)}</span>`).join('')}</div>` : ''}</div>`;
+    });
+  return h + '</div>';
+}
+function pointCard(id) {
+  const p = pt(id), item = S.role === 'cour' ? L(S.me, TODAY).find(x => x.pid === id) : null;
+  let h = `<div class="top"><button class="back" onclick="go({view:null})">‹ Назад</button><h1>${p.name}</h1><div class="sub">${p.addr}</div></div><div class="body">`;
+  h += `<div class="card"><div class="row">${p.units.map(u => `<div style="width:56px;height:80px" class="photo">${stationSVG(u.st)}</div>`).join('')}
+    <div class="grow"><div class="t1" style="font-size:14px">${p.units.length > 1 ? p.units.length + ' станции' : 'Станция'}</div>${p.units.map((u, i) => `<div class="t2">${p.units.length > 1 ? (i + 1) + '. ' : ''}${STN[u.st]}</div>`).join('')}<div class="t2">Визит: ${ago(p.last)} · мойка (тип 2): ${ago(p.last2)}</div>
+    ${needT2(p) ? '<div style="margin-top:6px"><span class="pill warn">рекомендуем тип 2</span></div>' : ''}</div></div></div>`;
+  if (p.water) h += waterPanel(p, S.role === 'cour');
+  if (p.win || p.notes.length) h += `<div class="card"><div class="t1" style="font-size:14px">Особенности точки</div>${p.win ? `<div class="t2" style="margin-top:6px">${ic('clock', 13)} Время: ${p.win}</div>` : ''}${p.notes.map(n => `<div class="t2" style="margin-top:4px">• ${n}</div>`).join('')}</div>`;
+  h += `<div class="card"><div class="t1" style="font-size:14px">При прибытии на последнем визите</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+    <span class="pill ${CCOL[p.arr.clean]}">Чистота: ${CLEAN[p.arr.clean]}</span><span class="pill ${p.arr.trash >= .75 ? 'warn' : ''}">Урна: ${Math.round(p.arr.trash * 100)}% · ${trashStatus(p.arr.trash)}</span></div></div>`;
+  h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Генеральная уборка</div><div class="t2">${deepText(p)}</div></div>${deepLeft(p) <= 14 ? `<span class="pill ${deepLeft(p) < 0 ? 'bad' : 'warn'}">${deepLeft(p) < 0 ? 'просрочена' : 'скоро срок'}</span>` : ''}</div></div>`;
+  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${g.n}</span><span><b>${p.back[g.id]} ${g.u}</b>${nb > 0 ? ` <span class="pill warn">с базы ${nb}</span>` : ''}</span></div>`; }).join('') + '</div>';
+  h += '<h3>Остатки на последний визит</h3>';
+  p.units.forEach((u, i) => {
+    if (p.units.length > 1) h += `<h3>Станция ${i + 1} · ${STN[u.st]}</h3>`;
+    ING.forEach(g => {
+      const f = frac(u, g), r = rec(u, g), c = f < .2 ? 'var(--r)' : f < .4 ? 'var(--y)' : 'var(--g)';
+      h += `<div class="card" style="padding:9px 12px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${g.n}</div><div class="bar"><i style="width:${Math.round(f * 100)}%;background:${c}"></i></div></div>
+        <div style="text-align:right"><div class="t1" style="font-size:13px">${fmtCur(u, g)}</div><div class="t2" style="color:var(--o)">${r > 0 ? 'взять ' + r + ' ' + g.u : '—'}</div></div></div></div>`;
+    });
+  });
+  if (S.role === 'cour') {
+    if (item && !item.done) h += `<button class="btn" style="margin-top:10px" onclick="startVisit(${id},false)">Начать визит · ${item.type === 3 ? 'генеральная уборка' : 'тип ' + item.type}</button>`;
+    h += `<button class="btn sec" style="margin-top:8px" onclick="startVisit(${id},true)">Обновить остатки без визита</button>`;
+  }
+  return h + '</div>';
+}
+const openPoint = id => go({view:{type:'point', id}});
+
+/* ===================== ВИЗИТ ===================== */
+const CHK1 = ['Вынести мусор, поменять пакет', 'Протереть столешницу, фасад и дверцы', 'Проверить сиропную станцию и дозаторы: сироп льётся спокойно, дозаторы не заедают', 'Промыть миксеры через меню', 'Проверить, что все ингредиенты выложены'];
+const CHK3 = ['Вымыть станцию внутри и снаружи, включая ячейки для засыпания и носики', 'Разобрать и вымыть зону сиропов, дозаторы и поддоны', 'Навести порядок в подтоварке, проверить сроки годности', 'Вымыть пол и пространство вокруг станции', 'Вымыть и обработать урну'];
+const CHK2 = ['Снять миксеры и промыть их с разбором', 'Проверить чистоту кофейни со всех сторон', 'Очистить зону сиропов', 'Собрать миксеры и запустить промывку через меню'];
+function startVisit(id, quick) {
+  const p = pt(id), item = L(S.me, TODAY).find(x => x.pid === id);
+  const v = {pid:id, quick, type:quick ? 0 : item.type, step:quick ? 1 : 0, u:0, arrive:{clean:null, trash:null}, checks:{}, A:[], D:[], NP:[], SP:[], NO:[], B:Object.assign({}, p.back), BR:{}};
+  p.units.forEach(u => { const a = {}, d = {}; ING.forEach(g => { a[g.id] = u.cur[g.id]; d[g.id] = quick ? 0 : rec(u, g); }); v.A.push(a); v.D.push(d); });
+  // для текущей станции (v.u) остатки и фото читаются как v.after / v.nozzlePhoto / v.stationPhoto
+  Object.defineProperties(v, {
+    after:{get() { return this.A[this.u]; }}, deliv:{get() { return this.D[this.u]; }},
+    nozzlePhoto:{get() { return this.NP[this.u] || null; }, set(x) { this.NP[this.u] = x; }},
+    stationPhoto:{get() { return this.SP[this.u] || null; }, set(x) { this.SP[this.u] = x; }},
+    nozzleOk:{get() { return !!this.NO[this.u]; }, set(x) { this.NO[this.u] = x; }}
+  });
+  go({view:{type:'visit'}, visit:v});
+}
+function unitTabs(p, key) {
+  if (p.units.length < 2) return '';
+  return '<div class="chips">' + p.units.map((u, i) => `<button class="${S.visit.u === i ? 'on' : ''}" onclick="S.visit.u=${i};render(true)">Станция ${i + 1}${key && S.visit[key][i] ? ' ✓' : ''}</button>`).join('') + '</div>';
+}
+// подтоварка: B — сколько лежит на точке (по счёту курьера), привезённое с базы по умолчанию = недостающее после использования подтоварки
+const sumD = (v, g) => v.D.reduce((a, d) => a + d[g.id], 0);
+const broughtOf = (v, g) => v.BR[g.id] !== undefined ? v.BR[g.id] : Math.max(0, +(sumD(v, g) - v.B[g.id]).toFixed(1));
+function bdAdj(id, d) { const g = ING.find(x => x.id === id); S.visit.B[id] = Math.max(0, +(S.visit.B[id] + d * stepFor(g)).toFixed(1)); render(true); }
+function brAdj(id, d) { const v = S.visit, g = ING.find(x => x.id === id); v.BR[id] = Math.max(0, +(broughtOf(v, g) + d * stepFor(g)).toFixed(1)); render(true); }
+function backroomHTML(v, quick) {
+  let h = '';
+  ING.forEach(g => {
+    const added = sumD(v, g), fromBack = Math.min(v.B[g.id], added), br = broughtOf(v, g), left = Math.max(0, +(v.B[g.id] + br - added).toFixed(1));
+    h += `<div class="card" style="padding:10px 12px"><div class="row"><div class="grow t1" style="font-size:14px">${g.n}</div><div class="tiny">лежит</div><div class="step"><button onclick="bdAdj('${g.id}',-1)">−</button><span>${v.B[g.id]}</span><button onclick="bdAdj('${g.id}',1)">+</button></div></div>`;
+    if (!quick) h += `<div class="row" style="margin-top:6px"><div class="tiny grow">на станции добавлено ${+added.toFixed(1)} ${g.u}, из подтоварки ${+fromBack.toFixed(1)}<br>останется в подтоварке: ${left} ${g.u}</div><div class="tiny">привёз</div><div class="step"><button onclick="brAdj('${g.id}',-1)">−</button><span>${br}</span><button onclick="brAdj('${g.id}',1)">+</button></div></div>`;
+    h += '</div>';
+  });
+  return h;
+}
+function visitScreen() {
+  const v = S.visit, p = pt(v.pid);
+  let h = `<div class="top"><button class="back" onclick="go({view:{type:'point',id:${p.id}}})">‹ К точке</button><h1>${v.quick ? 'Обновление остатков' : v.type === 3 ? 'Генеральная уборка' : 'Визит · тип ' + v.type}</h1><div class="sub">${p.name}</div></div>`;
+  if (!v.quick) h += `<div class="prog">${[0, 1, 2, 3, 4, 5].map(i => `<i class="${i <= v.step ? 'on' : ''}"></i>`).join('')}</div>`;
+  h += '<div class="body">';
+  if (v.step === 0) {
+    const a = v.arrive, ok = a.clean !== null && a.trash !== null;
+    h += `<h3>По прибытии</h3><div class="tiny">Отметьте, в каком состоянии вы застали станцию, до уборки. Это видит менеджер.</div>
+      <div class="card"><div class="t1" style="font-size:14px">Чистота станции</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">${CLEAN.map((c, i) => `<button class="btn sm ${a.clean === i ? '' : 'sec'}" style="width:100%" onclick="S.visit.arrive.clean=${i};render(true)">${ic(['smile', 'ok', 'sad', 'sick'][i], 18)} ${c}</button>`).join('')}</div></div>
+      <div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Урна</div><div class="t2">${a.trash === null ? 'уровень мусора не отмечен' : Math.round(a.trash * 100) + '% · ' + trashStatus(a.trash)}</div></div>
+      <button class="btn sec sm" onclick="go({sheet:'trash',lv:'trash'})">${ic('trash', 15)} Отметить</button></div></div>
+      <button class="btn" style="margin-top:10px" ${ok ? '' : 'disabled'} onclick="vs(1)">${ok ? 'Далее: остатки ▸' : 'Отметьте чистоту и урну'}</button>`;
+  }
+  if (v.step === 1) {
+    h += `<h3>${v.quick ? 'Остатки на станции' : 'Шаг 1 · Остатки на станции'}</h3><div class="tiny">${v.quick ? 'Отметьте актуальные остатки на станции и в подтоварке: менеджер увидит их сразу.' : 'Отметьте, сколько осталось в ячейках. Сколько добавить на станцию подставлено по расчёту, поправьте, если отличается.'}</div>`;
+    h += unitTabs(p, null);
+    ING.forEach(g => {
+      const isL = true;
+      h += `<div class="card" style="padding:10px 12px"><div class="row"><div class="grow t1" style="font-size:14px;${isL ? 'cursor:pointer' : ''}" ${isL ? `onclick="openLevel('${g.id}')"` : ''}>${g.n}${isL ? ` <span class="pill blue">${lvIcon(g.id)} ${g.t === 'count' ? v.after[g.id] + ' шт' : fmtLvl(v.after[g.id])} · отметить</span>` : ''}</div>${v.quick ? '' : `<div class="tiny">добавил</div><div class="step"><button onclick="dv('${g.id}',-1)">−</button><span>${v.deliv[g.id]}</span><button onclick="dv('${g.id}',1)">+</button></div>`}</div>`;
+      if (g.t === 'level') h += `<div class="seg">${LV.map((l, i) => `<button class="${Math.abs(v.after[g.id] - i / 4) < .02 ? 'on' : ''}" onclick="sl('${g.id}',${i})">${l}</button>`).join('')}</div>`;
+      else h += `<div class="row" style="margin-top:6px"><div class="tiny grow">осталось на станции</div><div class="step"><button onclick="sc('${g.id}',-10)">−</button><span>${v.after[g.id]}</span><button onclick="sc('${g.id}',10)">+</button></div></div>`;
+      h += '</div>';
+    });
+    if (v.quick) h += '<h3>Подтоварка на точке</h3>' + backroomHTML(v, true);
+    h += v.quick ? `<button class="btn" style="margin-top:8px" onclick="saveQuick()">Сохранить остатки</button>` : `<button class="btn" style="margin-top:8px" onclick="vs(2)">Далее: подтоварка ▸</button>`;
+  }
+  if (v.step === 2) {
+    h += `<h3>Шаг 2 · Подтоварка на точке</h3><div class="tiny">Посчитайте, сколько товара лежит в подтоварке, и укажите, сколько привезли с базы. Недостающее считается с учётом подтоварки.</div>` + (p.water ? waterPanel(p, true) : '') + backroomHTML(v, false);
+    h += `<button class="btn" style="margin-top:8px" onclick="vs(3)">Далее: чек-лист ▸</button>`;
+  }
+  if (v.step === 3) {
+    h += '<h3>Шаг 3 · Чек-лист</h3><div class="card">' + CHK1.map((c, i) => chkRow('a' + i, c)).join('') + '</div>';
+    if (p.notes.length) h += '<h3>Особые задачи этой точки</h3><div class="card">' + p.notes.map((c, i) => chkRow('n' + i, c)).join('') + '</div>';
+    if (v.type === 3) h += '<h3>Генеральная уборка</h3><div class="card">' + CHK3.map((c, i) => chkRow('g' + i, c)).join('') + '</div>';
+    if (v.type >= 2) {
+      h += `<h3>Промывка миксеров с разбором${v.type === 3 ? '' : ' (тип 2)'}</h3><div class="card">` + CHK2.map((c, i) => chkRow('b' + i, c)).join('');
+      const prev = CHK2.every((_, i) => v.checks['b' + i]);
+      h += `<div class="tiny" style="margin:10px 0 2px">Фото носиков: ${v.NP.filter(Boolean).length} из ${p.units.length}</div>${unitTabs(p, 'NP')}`;
+      h += `<div class="chk ${prev ? '' : 'dis'}"><div class="box ${v.nozzlePhoto ? 'on' : ''}">${v.nozzlePhoto ? '✓' : ''}</div><div class="grow"><div class="t1" style="font-size:14px">Опустить носики и сфотографировать${unitLabel(p, v.u)}</div><div class="tiny">Обязательно${p.units.length > 1 ? ' для каждой станции' : ''}. Сначала закончите мойку, потом опустите носики.</div>`;
+      h += !v.nozzlePhoto
+        ? `<label class="row" style="margin-top:8px;cursor:pointer"><div class="box ${v.nozzleOk ? 'on' : ''}" onclick="v_()">${v.nozzleOk ? '✓' : ''}</div><span style="font-size:13px">Да, носики опущены</span></label><button class="btn sec sm ${v.nozzleOk ? '' : 'dis'}" style="margin-top:8px" onclick="go({cam:'nozzle'})">${ic('camera', 15)} Сфотографировать носики</button>`
+        : `<div class="photo" style="width:96px;height:128px;margin-top:8px">${v.nozzlePhoto.svg}<div class="stamp">${v.nozzlePhoto.ts}</div></div>`;
+      h += '</div></div></div>';
+    }
+    const ok = checksDone();
+    h += `<button class="btn" style="margin-top:10px" ${ok ? '' : 'disabled'} onclick="vs(4)">${ok ? 'Далее: фото станции ▸' : 'Закройте все пункты'}</button>`;
+  }
+  if (v.step === 4) {
+    h += `<h3>Шаг 4 · Фото станции целиком</h3><div class="tiny">Станция целиком вместе с урной и вывеской, спереди. Сверяйтесь с эталоном.${p.units.length > 1 ? ' Нужно фото каждой станции: ' + v.SP.filter(Boolean).length + ' из ' + p.units.length + '.' : ''}</div>${unitTabs(p, 'SP')}
+      <div class="row" style="margin-top:10px;align-items:flex-start"><div><div class="tiny" style="margin-bottom:4px">Эталон</div><div class="photo" style="width:120px;height:190px">${stationSVG(p.units[v.u].st)}</div></div>
+      <div class="grow"><div class="tiny" style="margin-bottom:4px">Ваше фото</div>${v.stationPhoto ? `<div class="photo" style="width:120px;height:190px">${v.stationPhoto.svg}<div class="stamp">${v.stationPhoto.ts}</div></div>` : '<div class="photo" style="width:120px;height:190px;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:12px">нет фото</div>'}</div></div>
+      <button class="btn ${v.stationPhoto ? 'sec' : ''}" style="margin-top:12px" onclick="go({cam:'station'})">${ic('camera', 15)} ${v.stationPhoto ? 'Переснять' : 'Сфотографировать станцию'}</button>
+      <button class="btn" style="margin-top:8px" ${p.units.every((_, i) => v.SP[i]) ? '' : 'disabled'} onclick="vs(5)">Далее: итог ▸</button>`;
+  }
+  if (v.step === 5) {
+    const okr = t => `<div class="chk"><div class="box on">✓</div><div class="grow t1" style="font-size:14px">${t}</div></div>`;
+    h += `<h3>Шаг 5 · Сдача точки</h3><div class="card"><div class="kv"><span>Чистота по прибытии</span><b>${CLEAN[v.arrive.clean]}</b></div><div class="kv"><span>Мусор в урне по прибытии</span><b>${Math.round(v.arrive.trash * 100)}%</b></div></div>
+      <div class="card">${okr('Остатки внесены')}${okr('Чек-лист выполнен')}${v.type >= 2 ? okr('Фото носиков приложено') : ''}${v.type === 3 ? okr('Генеральная уборка выполнена') : ''}${okr('Подтоварка пересчитана')}${okr('Фото станции приложено')}</div>
+      <div class="tiny">Фото уйдут менеджеру на проверку. Если нужно переснять, придёт уведомление. Визит попадёт в расчёт зарплаты.</div>
+      <button class="btn" style="margin-top:12px" onclick="finishVisit()">Сдать точку</button>`;
+  }
+  return h + '</div>';
+}
+const chkRow = (k, t) => { const on = S.visit.checks[k]; return `<div class="chk" onclick="ck('${k}')"><div class="box ${on ? 'on' : ''}">${on ? '✓' : ''}</div><div class="grow" style="font-size:14px">${t}</div></div>`; };
+const checksDone = () => { const v = S.visit, p = pt(v.pid); return CHK1.every((_, i) => v.checks['a' + i]) && p.notes.every((_, i) => v.checks['n' + i]) && (v.type === 1 || (CHK2.every((_, i) => v.checks['b' + i]) && p.units.every((_, i) => v.NP[i]) && (v.type < 3 || CHK3.every((_, i) => v.checks['g' + i])))); };
+function dv(id, d) { const g = ING.find(x => x.id === id), st = g.t === 'count' ? 10 : (g.u === 'бут' || g.u === 'уп' ? 1 : .5); S.visit.deliv[id] = Math.max(0, +(S.visit.deliv[id] + d * st).toFixed(1)); render(true); }
+const sl = (id, i) => { S.visit.after[id] = i / 4; render(true); };
+const sc = (id, d) => { S.visit.after[id] = Math.max(0, S.visit.after[id] + d); render(true); };
+const vs = n => { S.visit.step = n; render(); };
+const ck = k => { S.visit.checks[k] = !S.visit.checks[k]; render(true); };
+const v_ = () => { S.visit.nozzleOk = !S.visit.nozzleOk; render(true); };
+function applyStock(v) {
+  const p = pt(v.pid);
+  p.units.forEach((u, k) => ING.forEach(g => {
+    const had = g.t === 'count' ? v.A[k][g.id] : v.A[k][g.id] * g.cap, now = Math.min(g.cap, had + v.D[k][g.id]);
+    u.cur[g.id] = g.t === 'count' ? Math.round(now) : Math.round(now / g.cap * 20) / 20;
+  }));
+  ING.forEach(g => { p.back[g.id] = Math.max(0, +(v.B[g.id] + broughtOf(v, g) - sumD(v, g)).toFixed(1)); });
+}
+function saveQuick() { applyStock(S.visit); S.visit = null; go({view:null, toast:'Остатки обновлены, менеджер их видит'}); }
+function finishVisit() {
+  const v = S.visit, p = pt(v.pid), item = L(S.me, TODAY).find(x => x.pid === v.pid);
+  applyStock(v); p.last = 0; if (v.type >= 2) p.last2 = 0; if (v.type === 3) p.deep = 0;
+  p.arr = {clean:v.arrive.clean, trash:v.arrive.trash};
+  item.done = true; item.review = 'pending'; item.redo = false;
+  const rvObj = {id:Date.now(), cid:S.me, pid:v.pid, when:'только что', type:v.type, status:'pending', ref:item, arrive:v.arrive, photo:v.SP[0], nozzle:v.NP[0], photos:v.SP.slice(), nozzles:v.NP.slice()};
+  reviews.unshift(rvObj);
+  notify('mgr', 'photo', cr(S.me).name + ' сдал(а) точку «' + p.name + '»: подтвердите фото', {rv:rvObj});
+  S.visit = null; go({view:null, tab:'route', toast:'Точка сдана. Фото ушли менеджеру'});
+}
+
+/* ===================== КАМЕРА ===================== */
+function camScreen() {
+  const v = S.visit, p = pt(v.pid), n = S.cam === 'nozzle';
+  return `<div class="cam"><div class="vf"><div style="${n ? 'width:230px;height:306px' : 'width:200px;height:320px'}">${n ? nozzleSVG(true) : stationSVG(p.units[v.u].st, true)}</div>
+    <div class="hint">${p.units.length > 1 ? 'Станция ' + (v.u + 1) + '. ' : ''}${n ? 'Все три носика опущены в миксеры, подписи ячеек видны. Совместите с контуром.' : 'Станция целиком, с урной и вывеской. Совместите с контуром.'}</div>
+    ${n ? '' : `<div class="ref"><div style="height:104px">${stationSVG(p.units[v.u].st)}</div>эталон</div>`}</div>
+    <div class="shutter" onclick="shot()"></div><button class="btn sec" style="margin:0 14px 14px;width:auto" onclick="go({cam:null})">Отмена</button></div>`;
+}
+function shot() {
+  const v = S.visit, p = pt(v.pid), n = S.cam === 'nozzle', d = new Date();
+  const ts = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0') + ' · ' + p.lat.toFixed(3) + ', ' + p.lon.toFixed(3) + ' ✓ на точке';
+  const ph = {svg:n ? nozzleSVG(false, true) : stationSVG(p.units[v.u].st), ts};
+  if (n) v.nozzlePhoto = ph; else v.stationPhoto = ph;
+  go({cam:null});
+}
+
+/* ===================== КУРЬЕР / МЕНЕДЖЕР: ЗАРПЛАТА ===================== */
+function payScreen() {
+  if (S.role === 'cour') {
+    const c = cr(S.me), r = pay(S.me);
+    let h = topbar('Моя зарплата', 'Неделя · автоматический расчёт');
+    h += `<div class="body"><div class="nav"><div class="tiny">Начислено за неделю</div><div class="big">${money(r.total)}</div>
+      <div class="t2">подтверждено ${money(r.ok)} · на проверке ${money(r.pend)}</div></div>
+      <div class="card"><div class="kv"><span>Тип 1 × ${r.n1} (${money(c.r1)})</span><b>${money(r.n1 * c.r1)}</b></div>
+      <div class="kv"><span>Тип 2 × ${r.n2} (${money(c.r2)})</span><b>${money(r.n2 * c.r2)}</b></div>
+      <div class="kv"><span>Генеральная уборка × ${r.n3} (${money(c.r3)})</span><b>${money(r.n3 * c.r3)}</b></div>
+      <div class="kv"><span>Запланировано до конца недели</span><b style="color:var(--o)">${money(r.plan)}</b></div></div>
+      <h3>По дням</h3><div class="card">${WD.map((d, i) => `<div class="kv"><span>${d}${i === TODAY ? ' · сегодня' : ''}</span><b>${money(r.byDay[i])}</b></div>`).join('')}</div>
+      <div class="tiny">Визит считается, когда сдан. Если менеджер просит переснять фото, он выпадает из расчёта до повторной сдачи.</div></div>`;
+    return h;
+  }
+  let h = topbar('Зарплата', 'Автоматический расчёт за неделю'), sum = 0;
+  h += '<div class="body">';
+  COUR.forEach(c => {
+    const r = pay(c.id); sum += r.total;
+    h += `<div class="card"><div class="row"><div class="grow t1">${c.name}</div><div class="big" style="font-size:20px">${money(r.total)}</div></div>
+      <div class="t2">подтверждено ${money(r.ok)} · на проверке ${money(r.pend)} · план ${money(r.plan)}</div>
+      <div class="kv" style="margin-top:8px"><span>Тип 1 × ${r.n1}</span><div class="step"><button onclick="rate(${c.id},'r1',-50)">−</button><span style="min-width:64px">${money(c.r1)}</span><button onclick="rate(${c.id},'r1',50)">+</button></div></div>
+      <div class="kv"><span>Тип 2 × ${r.n2}</span><div class="step"><button onclick="rate(${c.id},'r2',-50)">−</button><span style="min-width:64px">${money(c.r2)}</span><button onclick="rate(${c.id},'r2',50)">+</button></div></div>
+      <div class="kv"><span>Генеральная × ${r.n3}</span><div class="step"><button onclick="rate(${c.id},'r3',-100)">−</button><span style="min-width:64px">${money(c.r3)}</span><button onclick="rate(${c.id},'r3',100)">+</button></div></div></div>`;
+  });
+  h += `<div class="nav"><div class="tiny">Итого к выплате за неделю</div><div class="big">${money(sum)}</div></div><div class="tiny">Расценки за тип 1 и тип 2 задаёт менеджер для каждого курьера. Сумма пересчитывается автоматически по сданным визитам.</div></div>`;
+  return h;
+}
+const rate = (id, k, d) => { cr(id)[k] = Math.max(0, cr(id)[k] + d); render(true); };
+
+/* ===================== МЕНЕДЖЕР: ПЛАН ===================== */
+function planScreen() {
+  const c = S.mc, list = L(c, S.day);
+  let h = topbar('Планирование', 'Курьер, день, адреса и тип визита');
+  h += '<div class="body">' + shiftCard() + '<div class="chips">' + COUR.filter(x => x.active).map(x => `<button class="${x.id === c ? 'on' : ''}" onclick="go({mc:${x.id}})">${x.name}</button>`).join('') + '</div>';
+  h += '<div class="days">' + WD.map((d, i) => `<button class="${i === S.day ? 'on' : ''} ${i === TODAY ? 'today' : ''}" onclick="go({day:${i}})">${d}<small>${L(c, i).length} т.</small></button>`).join('') + '</div>';
+  let from = DEPOT, tot = 0;
+  list.forEach(x => { tot += km(from, pt(x.pid)); from = pt(x.pid); });
+  const cnt = t => list.filter(x => x.type === t).length, mins = list.reduce((s, x) => s + workMin(x.type), 0) + Math.round(tot / 28 * 60);
+  if (list.length) h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${list.length} точек · тип 1: ${cnt(1)} · тип 2: ${cnt(2)}${cnt(3) ? ' · генеральная: ' + cnt(3) : ''}</div><div class="t2">≈ ${tot.toFixed(1)} км · ≈ ${Math.floor(mins / 60)} ч ${mins % 60} мин · заработок ${money(list.reduce((s, x) => s + rateOf(cr(c), x.type), 0))}</div></div></div></div>`;
+  const cond = (TEMPLATE[c] ? TEMPLATE[c][S.day] : []).filter(x => x.cond && !list.some(y => y.pid === x.pid));
+  cond.forEach(x => {
+    const p = pt(x.pid), need = health(p) !== 'g';
+    h += `<div class="card" style="border-color:${need ? 'var(--o)' : 'var(--line)'}"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${p.name}: визит по остаткам</div>
+      <div class="t2">${need ? 'Остатки низкие, визит нужен' : 'Остатки в норме, визит можно пропустить'}</div></div><button class="btn sm ${need ? '' : 'sec'}" onclick="togglePt(${p.id})">Добавить</button></div></div>`;
+  });
+  h += deepCard();
+  h += `<div class="btns" style="margin-top:0"><button class="btn sm" onclick="go({sheet:'add'})">+ Добавить адрес</button><button class="btn sec sm" onclick="autoSuggest()">Подобрать срочные</button><button class="btn sec sm" onclick="planOpt()">Оптимизировать порядок</button>
+    <button class="btn sec sm" onclick="dayFromTemplate()">По шаблону</button><button class="btn sec sm" onclick="dayToTemplate()">Сохранить день в шаблон</button><button class="btn sec sm" onclick="weekFromTemplate()">Неделя по шаблону</button></div>`;
+  if (!list.length) h += '<div class="card t2">На этот день адресов нет. Добавьте точки.</div>';
+  list.forEach((x, i) => {
+    const p = pt(x.pid);
+    h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${i + 1}. ${p.name}</div><div class="t2">${p.addr} ${x.done ? '· выполнена' : ''}</div></div>
+      <div class="seg" style="margin:0;width:112px"><button class="${x.type === 1 ? 'on' : ''}" onclick="setType(${i},1)">1</button><button class="${x.type === 2 ? 'on' : ''}" onclick="setType(${i},2)">2</button><button class="${x.type === 3 ? 'on' : ''}" onclick="setType(${i},3)">Г</button></div>
+      <div style="display:flex;flex-direction:column"><button class="step" style="background:none;border:0;color:var(--mut);cursor:pointer;font-size:12px" onclick="mv(${i},-1)">▲</button><button class="step" style="background:none;border:0;color:var(--mut);cursor:pointer;font-size:12px" onclick="mv(${i},1)">▼</button></div>
+      <button style="background:none;border:0;color:var(--r);font-size:18px;cursor:pointer" onclick="rmPt(${i})">✕</button></div></div>`;
+  });
+  return h + '<div class="tiny" style="margin-top:8px">Шаблон повторяется каждую неделю: «Сохранить день в шаблон» запоминает этот день, «По шаблону» собирает его заново. Тип 1: обслуживание по чек-листу. Тип 2: промывка миксеров с разбором, чистота кофейни со всех сторон, зона сиропов и фото носиков. Г: генеральная уборка раз в 3 месяца (включает тип 2).</div></div>';
+}
+const setType = (i, t) => { L(S.mc, S.day)[i].type = t; render(true); };
+const rmPt = i => { L(S.mc, S.day).splice(i, 1); render(true); };
+const mv = (i, d) => { const l = L(S.mc, S.day), j = i + d; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; render(true); };
+const deepText = p => p.deep + ' дн. назад · ' + (deepLeft(p) < 0 ? 'просрочена на ' + (-deepLeft(p)) + ' дн.' : 'срок через ' + deepLeft(p) + ' дн.');
+function deepCard() {
+  const due = P.slice().sort((a, b) => deepLeft(a) - deepLeft(b)), over = due.filter(p => deepLeft(p) < 0).length, soon = due.filter(p => deepLeft(p) >= 0 && deepLeft(p) <= 14).length;
+  let h = `<div class="card"><div class="t1" style="font-size:14px">Генеральная уборка · раз в 3 месяца</div><div class="t2">Просрочено: ${over} · в ближайшие 14 дней: ${soon}</div>`;
+  due.slice(0, 4).forEach(p => { h += `<div class="row" style="margin-top:8px"><div class="grow"><div class="t1" style="font-size:13px">${p.name}</div><div class="t2" style="color:${deepLeft(p) < 0 ? 'var(--r)' : deepLeft(p) <= 14 ? 'var(--o)' : 'var(--mut)'}">${deepText(p)}</div></div><button class="btn sec sm" onclick="addDeep(${p.id})">Г на ${WD[S.day]}</button></div>`; });
+  return h + '</div>';
+}
+function addDeep(pid) {
+  const l = L(S.mc, S.day), it = l.find(x => x.pid === pid);
+  if (!it && takenBy(pid, S.day)) return go({toast:'Эта точка в этот день у другого курьера'});
+  if (it) it.type = 3; else l.push(mk(pid, 3));
+  go({toast:'Генеральная уборка добавлена на ' + WD[S.day]});
+}
+const planOpt = () => { sched[S.mc][S.day] = optimize(L(S.mc, S.day), DEPOT); go({toast:'Порядок оптимизирован по расстоянию'}); };
+const fromTpl = (c, d) => optimize(TEMPLATE[c][d].filter(x => !x.cond), DEPOT).map(x => mk(x.pid, x.type));
+function dayFromTemplate() { sched[S.mc][S.day] = fromTpl(S.mc, S.day); go({toast:'День собран по шаблону'}); }
+function dayToTemplate() {
+  const keep = TEMPLATE[S.mc][S.day].filter(x => x.cond && !L(S.mc, S.day).some(y => y.pid === x.pid));
+  TEMPLATE[S.mc][S.day] = L(S.mc, S.day).map(x => ({pid:x.pid, type:x.type === 3 ? 2 : x.type, cond:false})).concat(keep);
+  go({toast:'День сохранён в шаблон: так будет каждую неделю'});
+}
+function weekFromTemplate() { for (let d = 0; d < 7; d++) sched[S.mc][d] = fromTpl(S.mc, d); go({toast:'Неделя собрана по шаблону'}); }
+function takenBy(pid, day) { for (const c of COUR) if (L(c.id, day).some(x => x.pid === pid)) return c.id; return 0; }
+function autoSuggest() {
+  let n = 0;
+  P.filter(p => health(p) !== 'g' && !takenBy(p.id, S.day)).forEach(p => { L(S.mc, S.day).push(mk(p.id, needT2(p) ? 2 : 1)); n++; });
+  go({toast:n ? 'Добавлено срочных точек: ' + n : 'Свободных срочных точек нет'});
+}
+function togglePt(id) {
+  const l = L(S.mc, S.day), i = l.findIndex(x => x.pid === id);
+  if (i >= 0) l.splice(i, 1); else if (!takenBy(id, S.day)) l.push(mk(id, needT2(pt(id)) ? 2 : 1));
+  render(true);
+}
+
+/* ===================== МЕНЕДЖЕР: СКЛАД ===================== */
+function whScreen() {
+  const need = whNeed();
+  let h = topbar('Склад', 'Количество ингредиентов и потребность недели');
+  h += `<div class="body"><div class="card"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${DEPOT.name}</div><div class="t2">${DEPOT.addr || 'Адрес базы не указан'}</div>
+    <div class="tiny">Сюда курьеры приезжают в начале смены за погрузкой</div></div><button class="btn sec sm" onclick="openBase()">Изменить</button></div></div>
+    <div class="card"><div class="row"><div style="color:#4fb3ff">${ic('drop', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Заказ воды (Труд, Аэропорт)</div><div class="t2">Получатель во ВКонтакте: ${WATER.vk ? esc(WATER.vk) : '<span style="color:var(--o)">не указан</span>'}</div></div><button class="btn sec sm" onclick="openWaterSet()">Изменить</button></div></div>
+    <div class="tiny" style="margin:4px 2px">Потребность считается по всем назначенным адресам до конца недели (с запасом 20%).</div>`;
+  ING.forEach(g => {
+    const have = WH[g.id], nd = need[g.id] || 0, short = have - nd, ok = short >= 0;
+    h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${g.n}</div><div class="t2">нужно на неделю: ${+nd.toFixed(1)} ${g.u}</div></div>
+      <div style="text-align:right"><div class="t1">${+have.toFixed(1)} ${g.u}</div><span class="pill ${ok ? 'ok' : 'bad'}">${ok ? 'хватает' : 'не хватает ' + (+(-short).toFixed(1))}</span></div></div>
+      <div class="row" style="margin-top:8px;justify-content:flex-end"><div class="tiny">приход</div><div class="step"><button onclick="whAdj('${g.id}',-1)">−</button><span>${g.st}</span><button onclick="whAdj('${g.id}',1)">+</button></div></div></div>`;
+  });
+  return h + '<div class="tiny">При подтверждении погрузки курьером нужное количество автоматически списывается со склада.</div></div>';
+}
+const whAdj = (id, d) => { const g = ING.find(x => x.id === id); WH[id] = Math.max(0, +(WH[id] + d * g.st).toFixed(1)); render(true); };
+
+/* ===================== ЧАТ ===================== */
+const chatUnread = () => S.role === 'mgr' ? Object.values(CHAT).flat().filter(m => m.from === 'cour' && !m.read).length : (CHAT[S.me] || []).filter(m => m.from === 'mgr' && !m.read).length;
+const tabBadge = k => { const n = k === 'mgr' ? pendCount() : k === 'chat' ? chatUnread() : 0; return n ? `<i class="tb">${n}</i>` : ''; };
+function openChatFrom(cid) { closeShade(); go({tab:'chat', view:null, chatWith:S.role === 'mgr' ? cid : null}); }
+function chatScreen() {
+  const mgr = S.role === 'mgr', me = mgr ? 'mgr' : 'cour';
+  if (mgr && S.chatWith === null) {
+    let h = topbar('Чат', 'Переписка с курьерами') + '<div class="body">';
+    COUR.filter(c => c.active).forEach(c => {
+      const m = CHAT[c.id] || [], last = m[m.length - 1], un = m.filter(x => x.from === 'cour' && !x.read).length;
+      h += `<div class="card" onclick="go({chatWith:${c.id}})"><div class="row"><div class="badge b1" style="min-width:38px;height:38px;border-radius:50%">${c.name[0]}</div>
+        <div class="grow"><div class="t1">${c.name}</div><div class="t2">${last ? (last.from === 'mgr' ? 'Вы: ' : '') + esc(last.text.slice(0, 46)) : 'Сообщений нет'}</div></div>${un ? `<span class="pill warn">${un}</span>` : ''}</div></div>`;
+    });
+    return h + '</div>';
+  }
+  const cid_ = mgr ? S.chatWith : S.me, msgs = CHAT[cid_] || [];
+  msgs.forEach(m => { if (m.from !== me) m.read = true; });
+  NOTIFS.forEach(n => { if (n.kind === 'chat' && n.to === nkey() && n.cid === cid_) n.read = true; });
+  const inc = msgs.slice().reverse().find(m => m.from !== me && m.pid), ctx = inc && !S.ctxOff ? inc.pid : null;
+  let h = topbar(mgr ? 'Чат · ' + cr(cid_).name : 'Чат с менеджером', mgr ? '<button class="back" style="margin:0" onclick="go({chatWith:null})">‹ Все чаты</button>' : 'Задавайте вопросы и отвечайте на комментарии');
+  h += '<div class="body">';
+  if (!msgs.length) h += '<div class="card t2">Пока сообщений нет.</div>';
+  msgs.forEach(m => h += `<div class="msg ${m.from === me ? 'me' : 'them'}">${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="openPoint(${m.pid})">${ic('pin', 13)} ${pt(m.pid).name}</div>` : ''}<div>${esc(m.text)}</div><div class="mt">${m.t}</div></div>`);
+  h += `</div><div style="background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">Ответ по точке: ${pt(ctx).name} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true})">✕</span></div>` : ''}
+    <div class="row"><input type="text" id="chatin" placeholder="Сообщение" value="${esc(S.chatDraft)}" oninput="S.chatDraft=this.value" onkeydown="if(event.key==='Enter')sendChat()" style="margin:0"><button class="btn sm" onclick="sendChat()">${ic('send', 17)}</button></div></div>`;
+  return h;
+}
+function sendChat() {
+  const t = S.chatDraft.trim(); if (!t) return;
+  const mgr = S.role === 'mgr', cid_ = mgr ? S.chatWith : S.me, me = mgr ? 'mgr' : 'cour';
+  const inc = (CHAT[cid_] || []).slice().reverse().find(m => m.from !== me && m.pid);
+  sendMsg(cid_, me, t, inc && !S.ctxOff ? inc.pid : null);
+  S.chatDraft = ''; S.ctxOff = false; S.focusChat = true; render();
+}
+function askComment(id) { go({shade:false, sheet:'rcomment', rc:{id, text:''}}); }
+function sendRC(accept) {
+  const r = reviews.find(x => x.id === S.rc.id), t = S.rc.text.trim();
+  if (!accept && !t) return go({toast:'Напишите комментарий'});
+  if (t) sendMsg(r.cid, 'mgr', t, r.pid);
+  if (accept) rv(r.id, 'ok'); else go({sheet:null, rc:null, toast:'Комментарий отправлен курьеру'});
+}
+
+/* ===================== СМЕНА СЕГОДНЯ ===================== */
+function shiftStatus(cid) {
+  const l = L(cid, TODAY), n = l.length, done = l.filter(x => x.done).length, loaded = LOADED[cid + ':' + TODAY];
+  if (!n) return {t:'Выходной', cls:'', n, done, info:'нет назначенных точек'};
+  if (done === n) return {t:'Смена закончена', cls:'ok', n, done, info:'все точки сданы'};
+  if (done) return {t:'В пути', cls:'blue', n, done, info:'последняя сдача: ' + pt(l.filter(x => x.done).pop().pid).name};
+  return loaded ? {t:'Загрузился', cls:'warn', n, done, info:'забрал ингредиенты на базе'} : {t:'Ещё на базе', cls:'bad', n, done, info:'погрузка не подтверждена'};
+}
+function shiftCard() {
+  const act = COUR.filter(c => c.active), on = act.filter(c => L(c.id, TODAY).length), off = act.filter(c => !L(c.id, TODAY).length);
+  let h = `<div class="card"><div class="t1" style="font-size:14px">Сегодня на смене · ${WD[TODAY]}</div>`;
+  if (!on.length) h += '<div class="t2" style="margin-top:6px">Сегодня никто не назначен.</div>';
+  on.forEach(c => {
+    const s = shiftStatus(c.id);
+    h += `<div style="margin-top:10px"><div class="row"><div class="badge b1" style="min-width:32px;height:32px;border-radius:50%">${c.name[0]}</div>
+      <div class="grow"><div class="t1" style="font-size:14px">${c.name}</div><div class="t2">${s.done} из ${s.n} точек · ${s.info}</div></div>
+      <span class="pill ${s.cls}">${s.t}</span><button class="btn sec sm" style="padding:5px 9px" onclick="go({tab:'chat',chatWith:${c.id}})">${ic('chat', 16)}</button></div>
+      <div class="bar"><i style="width:${Math.round(s.done / s.n * 100)}%;background:var(--g)"></i></div></div>`;
+  });
+  if (off.length) h += `<div class="tiny" style="margin-top:10px">Выходной: ${off.map(c => c.name).join(', ')}</div>`;
+  return h + '</div>';
+}
+
+/* ===================== ВОДА И ПРОПУСК ===================== */
+const passNeed = cid => L(cid, TODAY).filter(x => !x.done && pt(x.pid).pass).map(x => pt(x.pid));
+const bottleSVG = full => `<svg viewBox="0 0 44 84" width="44" height="84"><rect x="15" y="2" width="14" height="7" rx="2" fill="${full ? '#1d6fd1' : '#5b646b'}"/><path d="M16 9h12v6c0 3 8 5 8 12v47a6 6 0 0 1-6 6H14a6 6 0 0 1-6-6V27c0-7 8-9 8-12z" fill="${full ? '#4fb3ff' : '#3a4249'}" stroke="${full ? '#bfe4ff' : '#6a747c'}" stroke-width="2"/>${full ? '<path d="M14 30v36" stroke="#fff" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/><path d="M12 40h20" stroke="#fff" stroke-opacity=".3" stroke-width="1.5"/>' : ''}</svg>`;
+function waterPanel(p, interactive) {
+  const w = p.water, used = w.full.filter(x => !x).length;
+  let h = `<div class="card"><div class="row"><div style="color:#4fb3ff">${ic('drop', 24)}</div><div class="grow"><div class="t1" style="font-size:14px">Вода в бутылях</div><div class="t2">Есть: ${w.n - used} из ${w.n} · израсходовано: ${used}</div></div></div>`;
+  h += `<div class="bottles">${w.full.map((f, i) => `<div class="bt ${interactive ? '' : 'ro'}" ${interactive ? `onclick="togBottle(${p.id},${i})"` : ''}>${bottleSVG(f)}<span>${f ? 'есть' : 'пусто'}</span></div>`).join('')}</div>`;
+  if (interactive) h += `<div class="tiny" style="margin:6px 0 8px">Нажмите на бутыль: яркая есть, серая израсходована.</div><button class="btn" onclick="openWater(${p.id})">Заказать воду${used ? ' · ' + used + ' бут.' : ''}</button>`;
+  if (w.orders.length) { const o = w.orders[w.orders.length - 1]; h += `<div class="tiny" style="margin-top:8px">Последний заказ: ${o.qty} бут. · ${o.when} · ${o.by}</div>`; }
+  return h + '</div>';
+}
+function togBottle(pid, i) { const w = pt(pid).water; w.full[i] = !w.full[i]; render(true); }
+function openWater(pid) { const used = pt(pid).water.full.filter(x => !x).length; go({sheet:'water', wp:pid, wq:Math.max(1, used)}); }
+const wq = d => { S.wq = Math.max(1, Math.min(30, S.wq + d)); render(true); };
+const stamp = () => { const d = new Date(); return d.toLocaleDateString('ru-RU') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+const waterMsg = (p, qty) => WATER.greet + '\n\nЗаказ воды: ' + qty + ' бут.\nТочка: ' + p.name + ', ' + p.addr + '\nКурьер: ' + cr(S.me).name + '\nДата: ' + stamp();
+function vkLink(v) {
+  v = v.trim();
+  const m = v.match(/(?:vk\.com|vk\.ru|vk\.me)\/(?:write)?([A-Za-z0-9_.]+)/i);
+  let id = m ? m[1] : v.replace(/^@/, '');
+  if (/^\d+$/.test(id)) id = 'id' + id;
+  return 'https://vk.me/' + id;
+}
+function copyText(t) {
+  try { if (window.AndroidBridge) { AndroidBridge.copy(t); return; } } catch (e) {}
+  const a = document.createElement('textarea'); a.value = t; a.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(a); a.select();
+  try { document.execCommand('copy'); } catch (e) {} a.remove();
+}
+function openExternal(u) { try { if (window.AndroidBridge) { AndroidBridge.open(u); return; } } catch (e) {} window.open(u, '_blank'); }
+function sendWater() {
+  const p = pt(S.wp), qty = S.wq, me = cr(S.me);
+  copyText(waterMsg(p, qty));
+  p.water.orders.push({qty, when:stamp(), by:me.name});
+  notify('mgr', 'water', me.name + ' заказал воду: ' + qty + ' бут., ' + p.name, {pid:p.id});
+  openExternal(vkLink(WATER.vk));
+  go({sheet:null, toast:'Текст заказа скопирован. В диалоге ВКонтакте вставьте его и отправьте'});
+}
+function openWaterSet() { go({sheet:'waterset', ws:{vk:WATER.vk, greet:WATER.greet, err:''}}); }
+function saveWaterSet() {
+  const f = S.ws;
+  if (!f.vk.trim()) f.err = 'Укажите получателя: ссылку на страницу ВКонтакте или её id';
+  else if (!f.greet.trim()) f.err = 'Напишите приветствие';
+  else { WATER.vk = f.vk.trim(); WATER.greet = f.greet.trim(); return go({sheet:null, ws:null, toast:'Настройки заказа воды сохранены'}); }
+  render();
+}
+
+/* ===================== БАЗА ===================== */
+function openBase() { go({sheet:'base', bf:{name:DEPOT.name, addr:DEPOT.addr, city:CITY, err:''}}); }
+function saveBase() {
+  const f = S.bf;
+  if (!f.name.trim() || !f.addr.trim()) f.err = 'Укажите название и адрес базы';
+  else { Object.assign(DEPOT, {name:f.name.trim(), addr:f.addr.trim()}); CITY = f.city.trim(); return go({sheet:null, bf:null, toast:'Адрес базы сохранён'}); }
+  render();
+}
+
+/* ===================== МЕНЕДЖЕР: КУРЬЕРЫ ===================== */
+function teamScreen() {
+  let h = topbar('Курьеры', 'Аккаунты, логины и расценки');
+  h += '<div class="body"><button class="btn" style="margin-top:8px" onclick="openCF(null)">+ Новый курьер</button>';
+  COUR.forEach(c => {
+    let n = 0; for (let d = 0; d < 7; d++) n += L(c.id, d).length;
+    h += `<div class="card" style="${c.active ? '' : 'opacity:.6'}"><div class="row"><div class="grow"><div class="t1">${c.name}</div>
+      <div class="t2">Логин: ${c.login} · тип 1 ${money(c.r1)} · тип 2 ${money(c.r2)} · Г ${money(c.r3)}</div></div><span class="pill ${c.active ? 'ok' : 'bad'}">${c.active ? 'активен' : 'отключён'}</span></div>
+      <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div>
+      <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button></div></div>`;
+  });
+  return h + '<div class="tiny" style="margin-top:8px">Отключённый курьер не может войти, но его история и зарплата сохраняются. Пароль курьер получает от менеджера.</div></div>';
+}
+const genPass = () => Array.from({length:6}, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join('');
+function openCF(id) {
+  const c = id ? cr(id) : null;
+  go({sheet:'cform', cf:c ? {id, name:c.name, login:c.login, pass:c.pass, r1:c.r1, r2:c.r2, r3:c.r3, err:''} : {id:null, name:'', login:'', pass:genPass(), r1:600, r2:1100, r3:2000, err:''}});
+}
+const cfRate = (k, d) => { S.cf[k] = Math.max(0, S.cf[k] + d); render(); };
+function saveCF() {
+  const f = S.cf, name = f.name.trim(), login = f.login.trim();
+  if (!name) f.err = 'Укажите имя курьера';
+  else if (!/^[A-Za-z0-9_.-]{3,}$/.test(login)) f.err = 'Логин: от 3 символов, латиница, цифры, . _ -';
+  else if (COUR.some(c => c.id !== f.id && c.login.toLowerCase() === login.toLowerCase()) || login.toLowerCase() === MGR.login) f.err = 'Такой логин уже занят';
+  else if (f.pass.length < 4) f.err = 'Пароль: минимум 4 символа';
+  else {
+    if (f.id) Object.assign(cr(f.id), {name, login, pass:f.pass, r1:f.r1, r2:f.r2, r3:f.r3});
+    else { const id = Math.max(...COUR.map(c => c.id)) + 1; COUR.push({id, name, login, pass:f.pass, active:true, r1:f.r1, r2:f.r2, r3:f.r3}); sched[id] = emptyWeek(); TEMPLATE[id] = emptyWeek(); S.mc = id; }
+    return go({sheet:null, cf:null, toast:f.id ? 'Данные курьера сохранены' : 'Курьер создан: логин ' + login});
+  }
+  render();
+}
+function toggleCour(id) {
+  const c = cr(id);
+  if (c.active && COUR.filter(x => x.active).length === 1) return go({toast:'Нельзя отключить последнего активного курьера'});
+  c.active = !c.active;
+  if (!cr(S.mc).active) S.mc = COUR.find(x => x.active).id;
+  go({toast:c.active ? 'Курьер включён' : 'Курьер отключён'});
+}
+
+/* ===================== МЕНЕДЖЕР: ПРОВЕРКА ФОТО ===================== */
+function mgrScreen() {
+  let h = topbar('Проверка фото', pendCount() ? 'Ждут подтверждения: ' + pendCount() : 'Всё проверено'); h += '<div class="body">';
+  reviews.forEach((r, i) => {
+    const p = pt(r.pid);
+    h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${p.name}</div><div class="t2">${cr(r.cid).name} · ${r.when} · ${r.type === 3 ? 'генеральная уборка' : 'тип ' + r.type}</div></div>
+      <span class="pill ${r.status === 'ok' ? 'ok' : r.status === 'redo' ? 'bad' : 'warn'}">${r.status === 'ok' ? 'принято' : r.status === 'redo' ? 'переснять' : 'ждёт'}</span></div>
+      ${r.arrive ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${CCOL[r.arrive.clean]}">По прибытии: ${CLEAN[r.arrive.clean]}</span><span class="pill ${r.arrive.trash >= .75 ? 'warn' : ''}">Урна ${Math.round(r.arrive.trash * 100)}%</span></div>` : ''}
+      <div class="row" style="margin-top:10px;align-items:flex-start;flex-wrap:wrap"><div><div class="tiny">Эталон</div><div class="photo" style="width:92px;height:146px">${stationSVG(pst(p))}</div></div>
+      ${(r.photos && r.photos.length ? r.photos : [r.photo]).map((ph, k) => `<div><div class="tiny">Сейчас${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:146px">${ph ? ph.svg : stationSVG(p.units[Math.min(k, p.units.length - 1)].st)}</div></div>`).join('')}
+      ${r.type >= 2 ? (r.nozzles && r.nozzles.length ? r.nozzles : [r.nozzle]).map((ph, k) => `<div><div class="tiny">Носики${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:122px">${ph ? ph.svg : nozzleSVG(false)}</div></div>`).join('') : ''}</div>
+      ${r.status === 'pending' ? `<div class="btns"><button class="btn sm" onclick="rv(${r.id},'ok')">Принять</button><button class="btn sec sm" onclick="askRedo(${r.id})">Переснять</button><button class="btn sec sm" onclick="askComment(${r.id})">${ic('chat', 15)} Комментарий</button></div>` : ''}
+      ${r.status === 'redo' && r.reason ? `<div class="t2" style="color:#ff8f8f;margin-top:6px">Причина: ${r.reason}</div>` : ''}</div>`;
+  });
+  return h + '</div>';
+}
+function rv(id, s, reason) {
+  const r = reviews.find(x => x.id === id); r.status = s; r.reason = reason || '';
+  if (r.ref) { r.ref.review = s; if (s === 'redo') { r.ref.done = false; r.ref.redo = true; } }
+  const p = pt(r.pid);
+  notify(r.cid, s === 'ok' ? 'ok' : 'redo', s === 'ok' ? 'Менеджер принял фото: ' + p.name : 'Переснять фото: ' + p.name + '. Причина: ' + reason, {pid:r.pid});
+  go({sheet:null, redo:null, toast:s === 'ok' ? 'Принято, визит пошёл в зарплату' : 'Курьеру отправлено уведомление'});
+}
+
+/* ===================== ЛИСТЫ ===================== */
+function sheet() {
+  const c = S.me;
+  if (S.sheet === 'load') {
+    const tot = {}; let t2 = 0; const key = c + ':' + TODAY;
+    L(c, TODAY).forEach(x => { if (x.done) return; if (x.type >= 2) t2++; ING.forEach(g => tot[g.id] = (tot[g.id] || 0) + needBase(pt(x.pid), g)); });
+    const need = passNeed(c), key2 = c + ':' + TODAY;
+    let h = '<h2>Погрузка со склада</h2>';
+    if (need.length) h += `<div class="card" style="border-color:var(--o)"><div class="row" onclick="PASS['${key2}']=!PASS['${key2}'];render(true)" style="cursor:pointer"><div style="color:var(--o)">${ic('pass', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Возьмите пропуск: ${need.map(p => p.name).join(', ')}</div><div class="t2">Сегодня в вашем графике есть точка с пропуском. Отметьте, когда он у вас.</div></div><div class="box ${PASS[key2] ? 'on' : ''}">${PASS[key2] ? '✓' : ''}</div></div></div>`;
+    h += '<div class="tiny">Сумма по оставшимся точкам с запасом 20%.</div><div class="card">';
+    ING.forEach(g => { const n = tot[g.id] || 0; h += `<div class="chk"><div class="grow t1" style="font-size:14px">${g.n}</div><div class="t1" style="font-size:14px">${g.t === 'count' ? n : +n.toFixed(1)} ${g.u}</div>${WH[g.id] < n ? '<span class="pill bad">на складе мало</span>' : ''}</div>`; });
+    h += '</div>';
+    if (t2) h += `<div class="card"><div class="t1" style="font-size:14px">Для мойки (тип 2 × ${t2})</div><div class="t2">Моющее средство, чистящие таблетки, ветошь, перчатки, запасные комплекты деталей</div></div>`;
+    h += LOADED[key] ? '<div class="pill ok" style="display:inline-block;margin-bottom:10px">Погрузка подтверждена, склад обновлён</div>' : `<button class="btn" style="margin-bottom:8px" onclick="confirmLoad()">Подтвердить погрузку</button>`;
+    return h + '<button class="btn sec" onclick="go({sheet:null})">Закрыть</button>';
+  }
+  if (S.sheet === 'profile') {
+    const mgr = S.role === 'mgr', name = mgr ? 'Менеджер' : cr(S.me).name, login = mgr ? MGR.login : cr(S.me).login, f = S.pw || {old:'', n1:'', n2:'', err:''};
+    let h = `<h2>Профиль</h2><div class="card"><div class="row"><div class="badge b1" style="min-width:44px;height:44px;border-radius:50%;font-size:18px">${name[0]}</div><div class="grow"><div class="t1">${name}</div><div class="t2">${mgr ? 'Менеджер' : 'Курьер'} · логин: ${login}</div></div></div></div>`;
+    h += `<button class="btn sec" style="margin-top:10px" onclick="toggleAcc()">${isRemembered(login) ? 'Открепить аккаунт' : 'Запомнить аккаунт'}</button><div class="tiny" style="margin-top:6px">${isRemembered(login) ? 'Аккаунт сохранён на этом телефоне и предлагается на экране входа.' : 'Запомнить, чтобы он предлагался на экране входа этого телефона.'}</div>`;
+    if (mgr) h += `<h3>Смена пароля</h3>
+      <input type="password" placeholder="Текущий пароль" autocomplete="off" value="${esc(f.old)}" oninput="S.pw.old=this.value">
+      <input type="password" placeholder="Новый пароль (не короче 6 символов)" autocomplete="off" value="${esc(f.n1)}" oninput="S.pw.n1=this.value">
+      <input type="password" placeholder="Повторите новый пароль" autocomplete="off" value="${esc(f.n2)}" oninput="S.pw.n2=this.value">
+      ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${f.err}</div>` : ''}
+      <button class="btn sec" style="margin:8px 0" onclick="changePass()">Сменить пароль</button>`;
+    h += updBlock();
+    return h + `<button class="btn" style="background:#4a1a1a;color:#ffb0b0;margin-top:12px" onclick="doLogout()">Выйти из профиля</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
+  }
+  if (S.sheet === 'water') {
+    const p = pt(S.wp), msg = waterMsg(p, S.wq);
+    return `<h2>Заказ воды</h2><div class="t2" style="margin-bottom:8px">${p.name} · ${p.addr}</div>
+      <div class="card"><div class="row"><div class="grow t1" style="font-size:14px">Сколько бутылей заказать</div><div class="step"><button onclick="wq(-1)">−</button><span>${S.wq}</span><button onclick="wq(1)">+</button></div></div></div>
+      <div class="tiny">Сообщение, которое уйдёт во ВКонтакте:</div><div class="card" style="white-space:pre-wrap;font-size:13px">${esc(msg)}</div>
+      ${WATER.vk ? `<div class="tiny">Получатель: ${esc(WATER.vk)}</div>` : `<div class="card" style="border-color:var(--o)"><div class="t1" style="font-size:14px">Получатель не указан</div><div class="t2">Менеджер задаёт получателя на вкладке «Склад». Напишите ему в чате.</div></div>`}
+      <button class="btn" style="margin-top:8px" ${WATER.vk ? '' : 'disabled'} onclick="sendWater()">Заказать и открыть ВКонтакте</button>
+      <div class="tiny" style="margin:8px 0">Текст копируется, открывается диалог с получателем: останется вставить и нажать «Отправить».</div>
+      <button class="btn sec" onclick="go({sheet:null})">Отмена</button>`;
+  }
+  if (S.sheet === 'waterset') {
+    const f = S.ws;
+    return `<h2>Заказ воды</h2><div class="tiny">Кому во ВКонтакте уходит заказ и с каким приветствием. Количество бутылей подставляет приложение.</div>
+      <div class="tiny" style="margin-top:8px">Получатель (ссылка или id)</div><input type="text" placeholder="vk.com/id123456 или короткое имя" value="${esc(f.vk)}" oninput="S.ws.vk=this.value">
+      <div class="tiny">Приветствие</div><input type="text" value="${esc(f.greet)}" oninput="S.ws.greet=this.value">
+      ${f.err ? `<div style="color:var(--r);font-size:13px;margin:8px 0">${f.err}</div>` : ''}
+      <button class="btn" style="margin:10px 0 8px" onclick="saveWaterSet()">Сохранить</button><button class="btn sec" onclick="go({sheet:null,ws:null})">Отмена</button>`;
+  }
+  if (S.sheet === 'tobase') {
+    if (!DEPOT.addr) return `<h2>Поехали на базу</h2><div class="card"><div class="t1">Адрес базы не указан</div><div class="t2">Менеджер задаёт адрес на вкладке «Склад». Напишите ему в чате.</div></div><button class="btn sec" onclick="go({sheet:null})">Закрыть</button>`;
+    const u = urls([DEPOT], null);
+    return `<h2>Поехали на базу</h2><div class="card"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div><div class="t1">${DEPOT.name}</div><div class="t2">${DEPOT.addr || 'Адрес базы не указан'}</div></div></div></div>
+      <div class="tiny">Маршрут построится от вашего текущего местоположения. После загрузки подтвердите её в разделе «Погрузка».</div>
+      <div class="btns"><a class="btn sm mapbtn" style="background:#fc3f1d;color:#fff;text-align:center" target="_blank" href="${u.ya}">Яндекс</a>
+      <a class="btn sm mapbtn" style="background:#4285f4;color:#fff;text-align:center" target="_blank" href="${u.g}">Google</a>
+      <a class="btn sm mapbtn" style="background:#2ca24a;color:#fff;text-align:center" target="_blank" href="${u.gis}">2ГИС</a></div>
+      <button class="btn sec" onclick="go({sheet:'load'})">Открыть погрузку</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
+  }
+  if (S.sheet === 'base') {
+    const f = S.bf;
+    return `<h2>База (склад)</h2><div class="tiny">Адрес, куда курьеры приезжают в начале смены за погрузкой. От него строятся маршруты.</div>
+      <div class="tiny" style="margin-top:8px">Название</div><input type="text" value="${esc(f.name)}" oninput="S.bf.name=this.value">
+      <div class="tiny">Адрес</div><input type="text" value="${esc(f.addr)}" oninput="S.bf.addr=this.value">
+      <div class="tiny">Город (чтобы карты находили адреса точек и базы точно)</div><input type="text" placeholder="Например, Иркутск" value="${esc(f.city)}" oninput="S.bf.city=this.value">
+      ${f.err ? `<div style="color:var(--r);font-size:13px;margin:8px 0">${f.err}</div>` : ''}
+      <button class="btn" style="margin:10px 0 8px" onclick="saveBase()">Сохранить</button><button class="btn sec" onclick="go({sheet:null,bf:null})">Отмена</button>`;
+  }
+  if (S.sheet === 'rcomment') {
+    const r = reviews.find(x => x.id === S.rc.id), p = pt(r.pid), pend = r.status === 'pending';
+    const presets = ['Проверь чистоту за кофемашиной', 'Протри столешницу и фасад', 'Проверь запас сиропов', 'Вынеси мусор перед уходом', 'Всё отлично, спасибо!'];
+    return `<h2>Комментарий курьеру</h2><div class="tiny">${cr(r.cid).name} · ${p.name}. Курьер увидит сообщение в уведомлениях и чате и сможет ответить, пока он на точке.</div>
+      <div class="chips" style="flex-wrap:wrap;margin-top:10px">${presets.map(t => `<button onclick="S.rc.text='${t}';render()">${t}</button>`).join('')}</div>
+      <input type="text" placeholder="Свой комментарий" value="${esc(S.rc.text)}" oninput="S.rc.text=this.value">
+      ${pend ? '<button class="btn" style="margin:6px 0 8px" onclick="sendRC(true)">Принять и отправить</button>' : ''}
+      <button class="btn ${pend ? 'sec' : ''}" style="margin-bottom:8px" onclick="sendRC(false)">${pend ? 'Отправить, не меняя статус' : 'Отправить комментарий'}</button>
+      <button class="btn sec" onclick="go({sheet:null,rc:null})">Отмена</button>`;
+  }
+  if (S.sheet === 'redo') {
+    const reasons = ['Станция снята не целиком', 'Носики не опущены', 'Фото размытое или тёмное', 'Станция не убрана', 'Другая причина'];
+    return `<h2>Почему переснять?</h2><div class="tiny" style="margin-bottom:10px">Причина придёт курьеру в уведомлении. Визит не будет засчитан в зарплату, пока он не пересдаст.</div>
+      ${reasons.map(t => `<button class="btn sec" style="margin-bottom:8px" onclick="rv(${S.redo},'redo','${t}')">${t}</button>`).join('')}
+      <button class="btn sec" style="margin-top:4px" onclick="go({sheet:null,redo:null})">Отмена</button>`;
+  }
+  if (S.sheet === 'cform') {
+    const f = S.cf;
+    return `<h2>${f.id ? 'Изменить курьера' : 'Новый курьер'}</h2>
+      <div class="tiny">Имя</div><input type="text" placeholder="Например, Иван" value="${f.name}" oninput="S.cf.name=this.value">
+      <div class="tiny">Логин для входа</div><input type="text" placeholder="ivan" autocomplete="off" value="${f.login}" oninput="S.cf.login=this.value">
+      <div class="tiny">Пароль</div><div class="row"><div class="grow"><input type="text" autocomplete="off" value="${f.pass}" oninput="S.cf.pass=this.value"></div><button class="btn sec sm" onclick="S.cf.pass=genPass();render()">Сгенерировать</button></div>
+      <div class="kv" style="margin-top:8px"><span>Тип 1, ₽ за визит</span><div class="step"><button onclick="cfRate('r1',-50)">−</button><span style="min-width:64px">${money(f.r1)}</span><button onclick="cfRate('r1',50)">+</button></div></div>
+      <div class="kv"><span>Тип 2, ₽ за визит</span><div class="step"><button onclick="cfRate('r2',-50)">−</button><span style="min-width:64px">${money(f.r2)}</span><button onclick="cfRate('r2',50)">+</button></div></div>
+      <div class="kv"><span>Генеральная уборка, ₽</span><div class="step"><button onclick="cfRate('r3',-100)">−</button><span style="min-width:64px">${money(f.r3)}</span><button onclick="cfRate('r3',100)">+</button></div></div>
+      ${f.err ? `<div style="color:var(--r);font-size:13px;margin:8px 0">${f.err}</div>` : ''}
+      <button class="btn" style="margin:10px 0 8px" onclick="saveCF()">${f.id ? 'Сохранить' : 'Создать курьера'}</button><button class="btn sec" onclick="go({sheet:null,cf:null})">Отмена</button>`;
+  }
+  if (S.sheet === 'trash') {
+    const f = S.visit.arrive.trash === null ? 0 : S.visit.arrive.trash;
+    return `<h2>Урна</h2><div class="tiny" style="text-align:center">Проведите пальцем по урне, чтобы отметить, насколько она заполнена мусором</div>
+      <div style="text-align:center;margin:8px 0"><div class="big" id="lvpct">${Math.round(f * 100)}%</div><div class="t2" id="lvabs">${trashStatus(f)}</div></div>
+      ${trashSVG(f)}
+      <div class="seg" style="margin:10px 0">${[0, .25, .5, .75, 1].map((q, i) => `<button onclick="S.visit.arrive.trash=${q};render()">${['пусто', '¼', '½', '¾', 'полная'][i]}</button>`).join('')}</div>
+      <button class="btn" onclick="if(S.visit.arrive.trash===null)S.visit.arrive.trash=0;go({sheet:null})">Готово</button>`;
+  }
+  if (S.sheet === 'level') {
+    const g = ING.find(x => x.id === S.lv), f = S.visit.after[g.id], cnt = g.t === 'count';
+    return `<h2>${g.n}</h2><div class="tiny" style="text-align:center">Проведите пальцем по ${lvName(g.id)}, чтобы отметить, сколько осталось</div>
+      <div style="text-align:center;margin:8px 0"><div class="big" id="lvpct">${cnt ? f + ' шт' : Math.round(f * 100) + '%'}</div><div class="t2" id="lvabs">${cnt ? 'из ' + g.cap + ' шт' : '≈ ' + +(f * g.cap).toFixed(2) + ' ' + g.u + ' из ' + g.cap}</div></div>
+      ${levelSVG(g.id, f)}
+      <div class="seg" style="margin:10px 0">${[0, .25, .5, .75, 1].map((q, i) => `<button onclick="S.visit.after['${g.id}']=${cnt ? q * g.cap : q};render()">${cnt ? q * g.cap : LV[i]}</button>`).join('')}</div>
+      <button class="btn" onclick="go({sheet:null})">Готово</button>`;
+  }
+  if (S.sheet === 'mapone' || S.sheet === 'map') {
+    const lg = legs(c), one = S.sheet === 'mapone';
+    const pr = one ? [[lg.out[0].x]] : parts(lg.out.map(o => o.x));
+    let from = null;
+    let h = `<h2>${one ? 'Навигатор до следующей точки' : 'Весь маршрут в картах'}</h2><div class="tiny">Маршрут строится по адресам от вашего текущего местоположения${CITY ? '' : '. Укажите город в настройках базы, чтобы карты находили адреса точнее'}. В одной ссылке до 8–9 остановок, длинный день делится на части.</div>`;
+    pr.forEach((l, i) => {
+      const u = urls(l.map(x => pt(x.pid)), from); from = pt(l[l.length - 1].pid);
+      h += `<div class="card"><div class="t1">${pr.length > 1 ? 'Часть ' + (i + 1) + ' · ' : ''}${l.length} ${l.length === 1 ? 'точка' : 'точек'}</div><div class="t2">${l.map(x => pt(x.pid).name).join(' → ')}</div>
+        <div class="btns"><a class="btn sm mapbtn" style="background:#fc3f1d;color:#fff;text-align:center" target="_blank" href="${u.ya}">Яндекс</a>
+        <a class="btn sm mapbtn" style="background:#4285f4;color:#fff;text-align:center" target="_blank" href="${u.g}">Google</a>
+        ${l.length === 1 ? `<a class="btn sm mapbtn" style="background:#2ca24a;color:#fff;text-align:center" target="_blank" href="${u.gis}">2ГИС</a>` : ''}</div></div>`;
+    });
+    return h + '<button class="btn sec" onclick="go({sheet:null})">Закрыть</button>';
+  }
+  if (S.sheet === 'add') {
+    let h = `<h2>${cr(S.mc).name}: добавить адреса на ${WD[S.day]}</h2>`;
+    P.slice().sort((a, b) => ({r:0, y:1, g:2})[health(a)] - ({r:0, y:1, g:2})[health(b)]).forEach(p => {
+      const by = takenBy(p.id, S.day), on = by === S.mc;
+      h += `<div class="chk ${by && !on ? 'dis' : ''}" onclick="togglePt(${p.id})"><div class="box ${on ? 'on' : ''}">${on ? '✓' : ''}</div><div class="grow"><div class="t1" style="font-size:14px">${p.name}</div><div class="t2">${p.addr}${by && !on ? ' · у ' + cr(by).name : ''}</div></div>
+        <span class="dot d${health(p)}" style="margin-top:6px"></span>${needT2(p) ? '<span class="pill warn">тип 2</span>' : ''}</div>`;
+    });
+    return h + '<button class="btn" style="margin-top:10px" onclick="go({sheet:null})">Готово</button>';
+  }
+  return '';
+}
+/* ----- бутылка / ёмкость: уровень пальцем ----- */
+const LCOL = {coffee:'#7a4524', raf:'#d9bf8a', milk:'#f6f1e3', choc:'#7a4a34', s1:'#d98a1c', s2:'#c0392b', s3:'#2f9a4e', milk:'#f4f1ea', water:'#5aaeea', sugar:'#f1e6c8', choc:'#6b3a1e', raf:'#e8d3a8', nap:'#e9e9e9', stir:'#c9a36a'};
+const isBottle = id => /^s\d$/.test(id);
+const isStack = id => ['cup', 'lid', 'straw', 'cell', 'hold'].includes(id);
+const isRows = id => id === 'stir' || id === 'nap';
+function levelRows(id, q) {
+  const n = Math.round(q * 25), rh = 10, out = [];
+  for (let i = 0; i < n; i++) {
+    const y = 290 - (i + 1) * rh, j = ((i * 37) % 7) - 3;
+    if (id === 'stir') {
+      const c = ['#d9b77e', '#cba466', '#e2c48f'][i % 3];
+      out.push(`<rect x="${24 + j}" y="${y + 1.5}" width="102" height="7" rx="3.5" fill="${c}" stroke="#9c7a48" stroke-width=".7"/>`);
+      out.push(`<line x1="${32 + j}" x2="${118 + j}" y1="${y + 5}" y2="${y + 5}" stroke="#b18c55" stroke-opacity=".5" stroke-width=".8"/>`);
+    } else {
+      out.push(`<rect x="${30 + j / 2}" y="${y + 1}" width="90" height="${rh - 1.2}" rx="1.5" fill="${i % 2 ? '#f1f1ef' : '#fff'}" stroke="#c7c7c2" stroke-width=".6"/>`);
+    }
+  }
+  return out.join('');
+}
+function trashFill(f) {
+  const yB = 288, yT = 72, y = yB - f * (yB - yT), o = [`<rect x="0" y="${y}" width="150" height="${310 - y}" fill="#59603f"/>`];
+  for (let i = 0; i < 9 && f > 0; i++) o.push(`<circle cx="${34 + i * 10.5}" cy="${y + (i % 2 ? 1 : 4)}" r="8" fill="#59603f"/>`);
+  for (let i = 0; i < 8 && f > 0; i++) { const yy = y + 14 + (i * 37) % 60; if (yy < 280) o.push(`<rect x="${42 + (i * 29) % 56}" y="${yy}" width="10" height="13" rx="2" fill="${i % 3 ? '#e9e6dc' : '#b07a4a'}" transform="rotate(${(i * 41) % 60 - 30} ${47 + (i * 29) % 56} ${yy + 6})"/>`); }
+  return o.join('');
+}
+function trashSVG(f) {
+  const ticks = [.25, .5, .75].map(t => { const ty = 288 - t * 216; return `<text x="128" y="${ty + 4}" font-size="11" fill="#9db" font-family="Arial">${t * 100}%</text><line x1="36" x2="44" y1="${ty}" y2="${ty}" stroke="#fff" stroke-opacity=".5" stroke-width="2"/>`; }).join('');
+  return `<svg id="lvsvg" viewBox="0 0 150 310" style="width:170px;height:350px;touch-action:none;cursor:ns-resize;display:block;margin:0 auto">
+    <defs><clipPath id="lvclip"><path d="M28 62 H122 L112 288 H38 Z"/></clipPath></defs>
+    <path d="M28 62 H122 L112 288 H38 Z" fill="#101713"/><g clip-path="url(#lvclip)" id="lvtrash">${trashFill(f)}</g>
+    <path d="M28 62 H122 L112 288 H38 Z" fill="none" stroke="#7d8a84" stroke-width="3"/>
+    <rect x="22" y="50" width="106" height="12" rx="4" fill="#3a3f3c" stroke="#7d8a84" stroke-width="2"/><rect x="62" y="44" width="26" height="8" rx="3" fill="#3a3f3c" stroke="#7d8a84" stroke-width="2"/>
+    <line x1="60" x2="60" y1="100" y2="270" stroke="#7d8a84" stroke-opacity=".4"/><line x1="90" x2="90" y1="100" y2="270" stroke="#7d8a84" stroke-opacity=".4"/>${ticks}</svg>`;
+}
+const isHopper = id => id === 'raf' || id === 'milk' || id === 'choc';
+const HOP_LABEL = {raf:['Растворимый', 'порошок'], milk:['Сухое', 'молоко'], choc:['Шоколад']};
+function hopperSVG(id, f) {
+  const [yB, yT] = lvRange(id), y = yB - f * (yB - yT), body = 'M30 14 H120 V226 L111 252 H39 L30 226 Z', col = LCOL[id];
+  const ticks = [.25, .5, .75].map(t => { const ty = yB - t * (yB - yT); return `<line x1="30" x2="40" y1="${ty}" y2="${ty}" stroke="#fff" stroke-opacity=".5" stroke-width="2"/><text x="123" y="${ty + 4}" font-size="10" fill="#9db" font-family="Arial">${t * 100}%</text>`; }).join('');
+  const lab = HOP_LABEL[id], lh = lab.length > 1 ? 34 : 24;
+  return `<svg id="lvsvg" viewBox="0 0 150 310" style="width:170px;height:350px;touch-action:none;cursor:ns-resize;display:block;margin:0 auto">
+    <defs><clipPath id="lvclip"><path d="${body}"/></clipPath></defs>
+    <path d="${body}" fill="#101713"/><g clip-path="url(#lvclip)"><rect id="lvfill" x="0" y="${y}" width="150" height="${310 - y}" fill="${col}" opacity=".95"/><rect id="lvtop" x="0" y="${y}" width="150" height="4" fill="#fff" opacity=".45"/></g>
+    <path d="${body}" fill="none" stroke="#d6cfbd" stroke-width="3"/>
+    <polygon points="52,250 76,250 108,298 90,304" fill="#e7eef0" fill-opacity=".85" stroke="#aeb9bc" stroke-width="1.5"/>
+    <rect x="46" y="172" width="58" height="${lh}" rx="3" fill="#e9eaec" stroke="#9aa0a5"/>${lab.map((t, i) => `<text x="75" y="${(lab.length > 1 ? 186 : 188) + i * 13}" font-size="9.5" font-weight="700" fill="#222" text-anchor="middle" font-family="Arial">${t}</text>`).join('')}${ticks}</svg>`;
+}
+const lvRange = id => id === 'trash' ? [288, 72] : isHopper(id) ? [248, 24] : isStack(id) || isRows(id) ? [290, 40] : id === 'coffee' ? [258, 50] : isBottle(id) ? [292, 78] : [292, 66];
+const lvIcon = id => ic({raf:'mug', milk:'milk', choc:'choc', cup:'cup', lid:'lid', straw:'straw', cell:'tray', hold:'holder', stir:'stir', nap:'napkin', coffee:'bean', water:'drop', sugar:'jar'}[id] || (isBottle(id) ? 'syrup' : 'jar'), 15);
+const lvName = id => isHopper(id) ? 'ячейке для засыпания' : isStack(id) ? 'стопке' : id === 'stir' ? 'пачке палочек' : id === 'nap' ? 'стопке салфеток' : id === 'coffee' ? 'зёрнышку' : isBottle(id) ? 'бутылке' : 'ёмкости';
+function stackRows(id, n) {
+  const rows = Math.round(n / 10), rh = 250 / (ING.find(x => x.id === id).cap / 10), out = [];
+  for (let i = 0; i < rows; i++) {
+    const y = 290 - (i + 1) * rh;
+    if (id === 'cup') {
+      const w = 58 + i * 1.1;
+      out.push(`<rect x="${75 - w / 2}" y="${y}" width="${w}" height="${rh + .6}" rx="2" fill="${i % 2 ? '#ebe6dc' : '#f7f4ee'}" stroke="#bdb6a8" stroke-width=".6"/>`);
+      if (i % 3 === 1) out.push(`<rect x="${75 - w / 2 + 3}" y="${y + rh * .35}" width="${w - 6}" height="${rh * .3}" fill="#b07a4a" opacity=".55"/>`);
+    } else if (id === 'straw') {
+      const c = ['#e8e4dc', '#6fbf73', '#f2c94c'][i % 3], j = ((i * 37) % 7) - 3;
+      out.push(`<rect x="${24 + j}" y="${y + rh * .3}" width="102" height="${Math.max(3, rh * .4)}" rx="2" fill="${c}" stroke="#8a8a80" stroke-width=".5"/>`);
+    } else if (id === 'cell') {
+      out.push(`<rect x="${75 - 40}" y="${y + 1}" width="80" height="${rh - 1.5}" rx="2" fill="${i % 2 ? '#b98e5e' : '#c79d6d'}" stroke="#7a5a36" stroke-width=".6"/>`);
+      out.push(`<line x1="${75 - 14}" x2="${75 - 14}" y1="${y + 1}" y2="${y + rh - .5}" stroke="#7a5a36" stroke-width=".6"/><line x1="${75 + 14}" x2="${75 + 14}" y1="${y + 1}" y2="${y + rh - .5}" stroke="#7a5a36" stroke-width=".6"/>`);
+    } else if (id === 'hold') {
+      out.push(`<rect x="${75 - 30}" y="${y + 1}" width="60" height="${rh - 1.5}" rx="3" fill="${i % 2 ? '#a9794a' : '#bb8957'}" stroke="#6d4a28" stroke-width=".6"/>`);
+      out.push(`<line x1="${75 - 24}" x2="${75 + 24}" y1="${y + rh / 2}" y2="${y + rh / 2}" stroke="#6d4a28" stroke-opacity=".5" stroke-width=".7" stroke-dasharray="2 2"/>`);
+    } else {
+      out.push(`<rect x="${75 - 36}" y="${y + 1}" width="72" height="${rh - 1.2}" rx="3" fill="${i % 2 ? '#3a3d40' : '#4b4e52'}" stroke="#1d1f21" stroke-width=".6"/>`);
+    }
+  }
+  if (rows && id === 'cup') { const w = 58 + (rows - 1) * 1.1, y = 290 - rows * rh; out.push(`<ellipse cx="75" cy="${y}" rx="${w / 2}" ry="4" fill="#2b1d12" stroke="#bdb6a8" stroke-width="1"/>`); }
+  return out.join('');
+}
+const openLevel = id => go({sheet:'level', lv:id});
+function levelSVG(id, f) {
+  if (isHopper(id)) return hopperSVG(id, f);
+  if (isRows(id)) {
+    const ticks = [.25, .5, .75].map(t => { const ty = 290 - t * 250; return `<line x1="20" x2="130" y1="${ty}" y2="${ty}" stroke="#fff" stroke-opacity=".25" stroke-dasharray="3 3"/><text x="132" y="${ty + 4}" font-size="11" fill="#9db" font-family="Arial">${t * 100}%</text>`; }).join('');
+    return `<svg id="lvsvg" viewBox="0 0 160 310" style="width:180px;height:350px;touch-action:none;cursor:ns-resize;display:block;margin:0 auto">
+      <path d="M18 40 V290 H132 V40" fill="#101713" stroke="#3b5446" stroke-width="2" stroke-dasharray="4 3"/>
+      <g id="lvrows">${levelRows(id, f)}</g><rect x="12" y="290" width="126" height="8" rx="3" fill="#6f8a7a"/>${ticks}</svg>`;
+  }
+  if (isStack(id)) {
+    const cap = ING.find(x => x.id === id).cap;
+    const ticks = [.25, .5, .75, 1].map(t => { const ty = 290 - t * 250; return `<line x1="26" x2="124" y1="${ty}" y2="${ty}" stroke="#fff" stroke-opacity=".25" stroke-dasharray="3 3"/><text x="128" y="${ty + 4}" font-size="11" fill="#9db" font-family="Arial">${t * cap}</text>`; }).join('');
+    return `<svg id="lvsvg" viewBox="0 0 150 310" style="width:170px;height:350px;touch-action:none;cursor:ns-resize;display:block;margin:0 auto">
+      <rect x="22" y="40" width="106" height="250" rx="6" fill="#101713" stroke="#3b5446" stroke-dasharray="4 3"/>
+      <g id="lvstack">${stackRows(id, f)}</g><rect x="14" y="290" width="122" height="8" rx="3" fill="#6f8a7a"/>${ticks}</svg>`;
+  }
+  if (id === 'coffee') {
+    const [yB, yT] = lvRange(id), y = yB - f * (yB - yT);
+    const ticks = [.25, .5, .75].map(t => { const ty = yB - t * (yB - yT); return `<text x="128" y="${ty + 4}" font-size="11" fill="#9db" font-family="Arial">${t * 100}%</text>`; }).join('');
+    return `<svg id="lvsvg" viewBox="0 0 150 310" style="width:170px;height:350px;touch-action:none;cursor:ns-resize;display:block;margin:0 auto">
+      <defs><clipPath id="lvclip"><ellipse cx="68" cy="155" rx="58" ry="108" transform="rotate(14 68 155)"/></clipPath>
+      <linearGradient id="beanG" x1="0" x2="1"><stop offset="0" stop-color="#8a5229"/><stop offset=".6" stop-color="#6b3a1e"/><stop offset="1" stop-color="#4a2712"/></linearGradient></defs>
+      <ellipse cx="68" cy="155" rx="58" ry="108" transform="rotate(14 68 155)" fill="#16110d" stroke="#8a6a50" stroke-width="3"/>
+      <g clip-path="url(#lvclip)"><rect id="lvfill" x="0" y="${y}" width="150" height="${310 - y}" fill="url(#beanG)"/><rect id="lvtop" x="0" y="${y}" width="150" height="4" fill="#fff" opacity=".35"/></g>
+      <path d="M38 52 C 88 100, 36 150, 80 200 S 70 245, 92 262" fill="none" stroke="#1b0f07" stroke-width="7" stroke-linecap="round"/>
+      <path d="M38 52 C 88 100, 36 150, 80 200 S 70 245, 92 262" fill="none" stroke="#a8764c" stroke-opacity=".35" stroke-width="2" stroke-linecap="round" transform="translate(-3 -1)"/>
+      <ellipse cx="68" cy="155" rx="58" ry="108" transform="rotate(14 68 155)" fill="none" stroke="#8a6a50" stroke-width="3"/>${ticks}</svg>`;
+  }
+  const bottle = isBottle(id), col = LCOL[id] || '#ccc';
+  const body = bottle
+    ? 'M48 10 h24 v42 q0 14 18 30 q10 12 10 30 v152 q0 22 -22 22 h-36 q-22 0 -22 -22 v-152 q0 -18 10 -30 q18 -16 18 -30 z'
+    : 'M24 56 h72 q8 0 8 8 v216 q0 12 -12 12 h-64 q-12 0 -12 -12 v-216 q0 -8 8 -8 z';
+  const yB = 292, yT = bottle ? 78 : 66, y = yB - f * (yB - yT);
+  const ticks = [.25, .5, .75].map(t => { const ty = yB - t * (yB - yT); return `<line x1="${bottle ? 24 : 28}" x2="${bottle ? 44 : 46}" y1="${ty}" y2="${ty}" stroke="#fff" stroke-opacity=".6" stroke-width="2"/><text x="${bottle ? 112 : 114}" y="${ty + 4}" font-size="11" fill="#9db" font-family="Arial">${t * 100}%</text>`; }).join('');
+  return `<svg id="lvsvg" viewBox="0 0 150 310" style="width:170px;height:350px;touch-action:none;cursor:ns-resize;display:block;margin:0 auto">
+    <defs><clipPath id="lvclip"><path d="${body}"/></clipPath></defs>
+    <path d="${body}" fill="#101713" stroke="#6f8a7a" stroke-width="3"/>
+    <g clip-path="url(#lvclip)"><rect id="lvfill" x="0" y="${y}" width="150" height="${310 - y}" fill="${col}" opacity=".92"/><rect id="lvtop" x="0" y="${y}" width="150" height="4" fill="#fff" opacity=".45"/></g>
+    ${bottle ? '<rect x="46" y="2" width="28" height="12" rx="3" fill="#2a2d2b" stroke="#6f8a7a" stroke-width="2"/>' : '<rect x="20" y="44" width="80" height="14" rx="4" fill="#2a2d2b" stroke="#6f8a7a" stroke-width="2"/>'}
+    ${ticks}</svg>`;
+}
+function setLevelFromEvent(e) {
+  const svg = $('lvsvg'), r = svg.getBoundingClientRect();
+  const [yB, yT] = lvRange(S.lv), vy = (e.clientY - r.top) / r.height * 310;
+  const f = Math.max(0, Math.min(1, (yB - vy) / (yB - yT))), q = Math.round(f * 20) / 20;
+  if (S.lv === 'trash') {
+    S.visit.arrive.trash = q; $('lvtrash').innerHTML = trashFill(q);
+    $('lvpct').textContent = Math.round(q * 100) + '%'; $('lvabs').textContent = trashStatus(q); return;
+  }
+  if (isStack(S.lv)) {
+    const cap = ING.find(x => x.id === S.lv).cap, n = Math.round(f * cap / 10) * 10;
+    S.visit.after[S.lv] = n; $('lvstack').innerHTML = stackRows(S.lv, n);
+    $('lvpct').textContent = n + ' шт'; $('lvabs').textContent = 'из ' + cap + ' шт'; return;
+  }
+  S.visit.after[S.lv] = q;
+  if (isRows(S.lv)) {
+    $('lvrows').innerHTML = levelRows(S.lv, q); $('lvpct').textContent = Math.round(q * 100) + '%';
+    const g2 = ING.find(x => x.id === S.lv); $('lvabs').textContent = '≈ ' + +(q * g2.cap).toFixed(2) + ' ' + g2.u + ' из ' + g2.cap; return;
+  }
+  const y = yB - q * (yB - yT);
+  $('lvfill').setAttribute('y', y); $('lvfill').setAttribute('height', 310 - y); $('lvtop').setAttribute('y', y);
+  $('lvpct').textContent = Math.round(q * 100) + '%';
+  const g = ING.find(x => x.id === S.lv); $('lvabs').textContent = '≈ ' + +(q * g.cap).toFixed(2) + ' ' + g.u + ' из ' + g.cap;
+}
+function bindLevel() {
+  const svg = $('lvsvg'); if (!svg) return; let down = false;
+  svg.addEventListener('pointerdown', e => { down = true; svg.setPointerCapture(e.pointerId); setLevelFromEvent(e); });
+  svg.addEventListener('pointermove', e => { if (down) setLevelFromEvent(e); });
+  svg.addEventListener('pointerup', () => { down = false; });
+}
+function confirmLoad() {
+  const c = S.me, tot = {};
+  L(c, TODAY).forEach(x => { if (!x.done) ING.forEach(g => tot[g.id] = (tot[g.id] || 0) + needBase(pt(x.pid), g)); });
+  ING.forEach(g => WH[g.id] = Math.max(0, +(WH[g.id] - (tot[g.id] || 0)).toFixed(1)));
+  LOADED[c + ':' + TODAY] = true;
+  if (passNeed(c).length && !PASS[c + ':' + TODAY]) go({toast:'Погрузка подтверждена. Не забудьте пропуск: ' + passNeed(c).map(p => p.name).join(', ')}); else render(true);
+}
+
+/* ===================== ОТРИСОВКА ===================== */
+const TABS = {
+  cour:[['route', 'route', 'Маршрут'], ['sched', 'calendar', 'График'], ['points', 'pin', 'Адреса'], ['chat', 'chat', 'Чат'], ['pay', 'pay', 'Зарплата']],
+  mgr:[['plan', 'plan', 'План'], ['wh', 'box', 'Склад'], ['points', 'pin', 'Точки'], ['pay', 'pay', 'Зарплата'], ['mgr', 'shield', 'Фото'], ['team', 'users', 'Курьеры'], ['chat', 'chat', 'Чат']]
+};
+const SCR = {route:routeScreen, sched:scheduleScreen, points:pointsScreen, pay:payScreen, plan:planScreen, wh:whScreen, mgr:mgrScreen, team:teamScreen, chat:chatScreen};
+function render(keep) {
+  saveSoon();
+  const body = document.querySelector('.body'), sc0 = keep && body ? body.scrollTop : 0;
+  const ae = document.activeElement, refocus = ae && ae.tagName === 'INPUT' ? ae.selectionStart : -1;
+  if (!S.role) { $('app').innerHTML = loginScreen(); return; }
+  let main;
+  if (S.view && S.view.type === 'point') main = pointCard(S.view.id);
+  else if (S.view && S.view.type === 'visit') main = visitScreen();
+  else main = SCR[S.tab]();
+  const tabs = !S.view ? `<div class="tabs">${TABS[S.role].map(t => `<button class="${S.tab === t[0] ? 'on' : ''}" onclick="go({tab:'${t[0]}'})"><b>${ic(t[1], 22)}</b>${t[2]}${tabBadge(t[0])}</button>`).join('')}</div>` : '';
+  $('app').innerHTML = main + tabs
+    + (S.sheet ? `<div class="overlay" onclick="if(event.target===this)go({sheet:null})"><div class="sheet">${sheet()}</div></div>` : '')
+    + (S.cam ? camScreen() : '')
+    + (S.shade ? shadeHTML() : '')
+    + viewerHTML()
+    + updBanner()
+    + (S.toast ? `<div style="position:absolute;left:16px;right:16px;bottom:${UPD.banner ? 170 : 78}px;background:#1f7a45;color:#fff;border-radius:12px;padding:11px 14px;font-size:13px;z-index:9">${S.toast}</div>` : '');
+  const nb = document.querySelector('.body'); if (nb) nb.scrollTop = sc0;
+  if (S.sheet === 'level' || S.sheet === 'trash') bindLevel();
+  bindViewer();
+  if (S.tab === 'chat' && !S.view) { if (nb) nb.scrollTop = nb.scrollHeight; if (S.focusChat) { const ci = $('chatin'); if (ci) ci.focus(); S.focusChat = false; } }
+  if (refocus >= 0) { const inp = document.querySelector('input[type=text]'); if (inp) { inp.focus(); inp.setSelectionRange(refocus, refocus); } }
+  if (S.toast) { clearTimeout(window._t); window._t = setTimeout(() => { S.toast = ''; render(true); }, 2200); }
+}
+// кнопка «Назад» на телефоне (вызывается из Android-оболочки): закрывает окно, шторку, экран и т. д.
+window.appBack = () => {
+  if (S.viewer) { go({viewer:null}); return true; }
+  if (S.cam) { go({cam:null}); return true; }
+  if (S.shade) { closeShade(); return true; }
+  if (S.sheet) { go({sheet:null}); return true; }
+  if (S.view) { go({view:null}); return true; }
+  if (S.role === 'mgr' && S.tab === 'chat' && S.chatWith !== null) { go({chatWith:null}); return true; }
+  return false;
+};
+
+/* ===================== ФОТО НА ВЕСЬ ЭКРАН С ПРИБЛИЖЕНИЕМ ===================== */
+// любое фото (.photo с рисунком внутри) открывается по нажатию; щипок, двойное касание или кнопки +/− приближают, одним пальцем двигаем
+document.addEventListener('click', e => {
+  const ph = e.target.closest && e.target.closest('.photo');
+  if (!ph || S.viewer) return;
+  const sv = ph.querySelector('svg');
+  if (sv) go({viewer:sv.outerHTML, vz:{s:1, x:0, y:0}});
+});
+function viewerHTML() {
+  if (!S.viewer) return '';
+  return `<div id="vwr" style="position:absolute;inset:0;background:#000;z-index:20;touch-action:none;overflow:hidden">
+    <div id="vwrimg" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform-origin:50% 50%;padding:70px 0">${S.viewer}</div>
+    <div style="position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:14px;pointer-events:none"><div class="tiny" style="color:#cfd8d2">Щипок или двойное касание: приблизить</div><button class="btn sm" style="pointer-events:auto" onclick="go({viewer:null})">${ic('x', 18)}</button></div>
+    <div style="position:absolute;bottom:20px;left:0;right:0;display:flex;gap:10px;justify-content:center"><button class="btn sec sm" onclick="vzoom(1/1.5)">−</button><button class="btn sec sm" onclick="vzoomReset()">1:1</button><button class="btn sec sm" onclick="vzoom(1.5)">+</button></div></div>`;
+}
+function applyVz() {
+  const im = $('vwrimg'), el = $('vwr'); if (!im || !el) return;
+  const mx = (S.vz.s - 1) * el.clientWidth / 2, my = (S.vz.s - 1) * el.clientHeight / 2;
+  S.vz.x = Math.max(-mx, Math.min(mx, S.vz.x)); S.vz.y = Math.max(-my, Math.min(my, S.vz.y));
+  im.style.transform = `translate(${S.vz.x}px,${S.vz.y}px) scale(${S.vz.s})`;
+}
+function vzoom(f) { S.vz.s = Math.min(8, Math.max(1, S.vz.s * f)); if (S.vz.s === 1) { S.vz.x = 0; S.vz.y = 0; } applyVz(); }
+function vzoomReset() { S.vz = {s:1, x:0, y:0}; applyVz(); }
+function bindViewer() {
+  const el = $('vwr'); if (!el) return;
+  applyVz();
+  const pts = new Map(); let base = null, lastTap = 0;
+  const snap = () => ({s:S.vz.s, x:S.vz.x, y:S.vz.y, pts:[...pts.values()].map(p => ({x:p.x, y:p.y}))});
+  el.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    el.setPointerCapture(e.pointerId); pts.set(e.pointerId, {x:e.clientX, y:e.clientY}); base = snap();
+    if (pts.size === 1) {
+      const t = Date.now();
+      if (t - lastTap < 300) { S.vz = S.vz.s > 1.2 ? {s:1, x:0, y:0} : {s:2.5, x:0, y:0}; applyVz(); base = snap(); }
+      lastTap = t;
+    }
+  });
+  el.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId) || !base) return;
+    pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    const cur = [...pts.values()];
+    if (cur.length >= 2 && base.pts.length >= 2) {
+      const d0 = Math.hypot(base.pts[0].x - base.pts[1].x, base.pts[0].y - base.pts[1].y) || 1, d1 = Math.hypot(cur[0].x - cur[1].x, cur[0].y - cur[1].y);
+      S.vz.s = Math.min(8, Math.max(1, base.s * d1 / d0));
+    } else if (cur.length === 1 && base.pts.length === 1 && S.vz.s > 1) {
+      S.vz.x = base.x + cur[0].x - base.pts[0].x; S.vz.y = base.y + cur[0].y - base.pts[0].y;
+    }
+    if (S.vz.s === 1) { S.vz.x = 0; S.vz.y = 0; }
+    applyVz();
+  });
+  const up = e => { pts.delete(e.pointerId); base = snap(); };
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  el.addEventListener('wheel', e => { e.preventDefault(); vzoom(e.deltaY < 0 ? 1.2 : 1 / 1.2); }, {passive:false});
+}
+
+/* ===================== СОХРАНЕНИЕ ДАННЫХ И СЕССИИ ===================== */
+// данные и вход хранятся в памяти приложения, поэтому после сворачивания и закрытия вход не слетает.
+// DATA_VER нужно увеличивать при каждом изменении структуры данных, иначе сохранённые старые данные не подойдут.
+const DATA_VER = 1, STORE_KEY = 'angara_kofe_data';
+const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.assign(t, s); };
+const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
+function snapshotData() {
+  const refOf = item => { for (const c of COUR) for (let d = 0; d < 7; d++) { const i = L(c.id, d).indexOf(item); if (i >= 0) return [c.id, d, i]; } return null; };
+  return JSON.stringify({
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, LOADED, PASS,
+    reviews:reviews.map(r => Object.assign({}, r, {ref:r.ref ? refOf(r.ref) : null})),
+    NOTIFS:NOTIFS.map(n => Object.assign({}, n, {rv:n.rv ? n.rv.id : undefined})),
+    sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}
+  }, (k, v) => k === 'loc' ? undefined : v);
+}
+function restoreData(txt) {
+  const d = JSON.parse(txt);
+  if (d.v !== DATA_VER) return false;
+  replaceArr(P, d.P); P.forEach(p => p.units.forEach(u => { u.loc = p; }));
+  replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
+  Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT); Object.assign(WATER, d.WATER);
+  replaceObj(CHAT, d.CHAT); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
+  reviews.length = 0; d.reviews.forEach(r => { const f = r.ref; r.ref = f ? L(f[0], f[1])[f[2]] : null; reviews.push(r); });
+  NOTIFS.length = 0; d.NOTIFS.forEach(n => { n.rv = n.rv !== undefined && n.rv !== null ? reviews.find(r => r.id === n.rv) : undefined; NOTIFS.push(n); });
+  nid = d.nid; CITY = d.CITY;
+  if (d.sess && d.sess.role && (d.sess.role === 'mgr' || cr(d.sess.me))) Object.assign(S, d.sess, {view:null, sheet:null, cam:null, shade:false});
+  return true;
+}
+function saveAll() { try { localStorage.setItem(STORE_KEY, snapshotData()); } catch (e) {} }
+let saveT = 0;
+function saveSoon() { clearTimeout(saveT); saveT = setTimeout(saveAll, 400); }
+window.appSave = saveAll;
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveAll(); });
+addEventListener('pagehide', saveAll);
+/* ===================== ОБНОВЛЕНИЕ ПО ИНТЕРНЕТУ ===================== */
+// Android-оболочка сама проверяет сервер обновлений при запуске и сообщает сюда через window.onUpdateState
+const UPD = {state:null, banner:false};
+window.onUpdateState = s => {
+  try { s = typeof s === 'string' ? JSON.parse(s) : s; } catch (e) { return; }
+  if (s.kind === 'content' && s.version <= APP_VERSION) s = {kind:'none'};   // эта версия уже открыта
+  UPD.state = s;
+  if ((s.kind === 'content' || s.kind === 'apk') && s.ready) UPD.banner = true;
+  render(true);
+};
+function updCheck() {
+  UPD.state = {kind:'checking'}; render(true);
+  try { AndroidBridge.checkUpdates(); } catch (e) { UPD.state = {kind:'error', msg:'Обновления работают только в установленном приложении'}; render(true); }
+}
+function updApply() {
+  UPD.banner = false;
+  try { if (UPD.state && UPD.state.kind === 'apk') { UPD.state = {kind:'downloading'}; render(true); AndroidBridge.installApk(); } else AndroidBridge.applyUpdate(); } catch (e) {}
+}
+function updBlock() {
+  const s = UPD.state, has = !!window.AndroidBridge;
+  let st = has ? 'Приложение проверяет обновления при каждом запуске.' : 'Обновления работают в установленном приложении.';
+  let btn = has ? `<button class="btn sec" style="margin-top:8px" onclick="updCheck()">Проверить обновления</button>` : '';
+  if (s) {
+    if (s.kind === 'checking') st = 'Проверяем наличие обновлений…';
+    else if (s.kind === 'none') st = 'У вас последняя версия.';
+    else if (s.kind === 'error') st = esc(s.msg || 'Не удалось проверить обновления.');
+    else if (s.kind === 'downloading') st = 'Скачиваем обновление…';
+    else if (s.kind === 'content') { st = `Доступна версия ${s.version}${s.notes ? ': ' + esc(s.notes) : ''}`; btn = `<button class="btn" style="margin-top:8px" onclick="updApply()">Обновить сейчас</button>`; }
+    else if (s.kind === 'apk') { st = `Доступна новая версия приложения ${s.version}${s.notes ? ': ' + esc(s.notes) : ''}`; btn = `<button class="btn" style="margin-top:8px" onclick="updApply()">Скачать и установить</button>`; }
+  }
+  return `<h3>Обновления</h3><div class="card"><div class="kv"><span>Версия приложения</span><b>${APP_VERSION}</b></div><div class="tiny" style="margin-top:6px">${st}</div>${btn}</div>`;
+}
+function updBanner() {
+  const s = UPD.state;
+  if (!UPD.banner || !s || (s.kind !== 'content' && s.kind !== 'apk')) return '';
+  return `<div style="position:absolute;left:12px;right:12px;bottom:74px;background:#16301f;border:1px solid var(--g);border-radius:14px;padding:11px 12px;z-index:9"><div class="t1" style="font-size:14px">${s.kind === 'apk' ? 'Доступна новая версия приложения' : 'Доступно обновление'} ${s.version}</div>${s.notes ? `<div class="t2">${esc(s.notes)}</div>` : ''}<div class="btns" style="margin:8px 0 0"><button class="btn sm" onclick="updApply()">${s.kind === 'apk' ? 'Скачать и установить' : 'Обновить'}</button><button class="btn sec sm" onclick="UPD.banner=false;render(true)">Позже</button></div></div>`;
+}
+// после обновления сообщаем об этом при первом запуске новой версии
+try { const lv = +(localStorage.getItem('angara_kofe_ver') || 0); if (lv && lv < APP_VERSION) S.toast = 'Приложение обновлено до версии ' + APP_VERSION; localStorage.setItem('angara_kofe_ver', String(APP_VERSION)); } catch (e) {}
+
+const ACC_KEY = 'angara_kofe_accounts';
+let ACCS = [];
+try { ACCS = JSON.parse(localStorage.getItem(ACC_KEY) || '[]'); if (!Array.isArray(ACCS)) ACCS = []; } catch (e) { ACCS = []; }
+function saveAccs() { try { localStorage.setItem(ACC_KEY, JSON.stringify(ACCS)); } catch (e) {} }
+try { const txt = localStorage.getItem(STORE_KEY); if (txt && !restoreData(txt)) localStorage.removeItem(STORE_KEY); } catch (e) { try { localStorage.removeItem(STORE_KEY); } catch (e2) {} }
+render();
+</script>
+</body>
+</html>

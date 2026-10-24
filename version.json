@@ -1,0 +1,9 @@
+{
+    "content":  3,
+    "apk":  2,
+    "notes":  "Обновление приложения по интернету. Исправлено повторное предложение уже установленного обновления.",
+    "contentFile":  "index.html",
+    "contentSha256":  "9d7a4596932d60b69d2801b063db5c0aed02ca91b4ba35860a0c1560a1a08e1d",
+    "apkFile":  "AngaraKofe-beta.apk",
+    "apkSha256":  "ff1f530419ab5aa3520920058e3d1e02e7c327ee8090679302568d69452b0ff5"
+}
