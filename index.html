@@ -99,7 +99,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 9;
+const APP_VERSION = 10;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -670,6 +670,13 @@ function pointsScreen() {
     });
   return h + '</div>';
 }
+// правка менеджером: подтоварка (шаг как у курьера) и остатки на станции (бутылки по ¼, штучные по 10)
+function mgBack(pid, gid, d) { const p = pt(pid), g = ING.find(x => x.id === gid); p.back[gid] = Math.max(0, +(p.back[gid] + d * stepFor(g)).toFixed(1)); render(true); }
+function mgCur(pid, i, gid, d) {
+  const u = pt(pid).units[i], g = ING.find(x => x.id === gid);
+  u.cur[gid] = g.t === 'count' ? Math.max(0, Math.min(g.cap, u.cur[gid] + d * 10)) : Math.max(0, Math.min(1, +(u.cur[gid] + d * .25).toFixed(2)));
+  render(true);
+}
 function pointCard(id) {
   const p = pt(id), item = S.role === 'cour' ? L(S.me, TODAY).find(x => x.pid === id) : null;
   let h = `<div class="top"><button class="back" onclick="go({view:null})">‹ Назад</button><h1>${p.name}</h1><div class="sub">${p.addr}</div></div><div class="body">`;
@@ -681,14 +688,17 @@ function pointCard(id) {
   h += `<div class="card"><div class="t1" style="font-size:14px">При прибытии на последнем визите</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
     <span class="pill ${CCOL[p.arr.clean]}">Чистота: ${CLEAN[p.arr.clean]}</span><span class="pill ${p.arr.trash >= .75 ? 'warn' : ''}">Урна: ${Math.round(p.arr.trash * 100)}% · ${trashStatus(p.arr.trash)}</span></div></div>`;
   h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Генеральная уборка</div><div class="t2">${deepText(p)}</div></div>${deepLeft(p) <= 14 ? `<span class="pill ${deepLeft(p) < 0 ? 'bad' : 'warn'}">${deepLeft(p) < 0 ? 'просрочена' : 'скоро срок'}</span>` : ''}</div></div>`;
-  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${g.n}</span><span><b>${p.back[g.id]} ${g.u}</b>${nb > 0 ? ` <span class="pill warn">с базы ${nb}</span>` : ''}</span></div>`; }).join('') + '</div>';
+  const mg = S.role === 'mgr';
+  // у менеджера значения правятся прямо в карточке кнопками − и +
+  const stp = (call, val) => `<div class="step"><button onclick="${call},-1)">−</button><span>${val}</span><button onclick="${call},1)">+</button></div>`;
+  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${g.n}</span><span>${mg ? stp(`mgBack(${p.id},'${g.id}'`, p.back[g.id] + ' ' + g.u) : `<b>${p.back[g.id]} ${g.u}</b>`}${nb > 0 ? ` <span class="pill warn">с базы ${nb}</span>` : ''}</span></div>`; }).join('') + '</div>';
   h += '<h3>Остатки на последний визит</h3>';
   p.units.forEach((u, i) => {
     if (p.units.length > 1) h += `<h3>Станция ${i + 1} · ${STN[u.st]}</h3>`;
     ING.forEach(g => {
       const f = frac(u, g), r = rec(u, g), c = f < .2 ? 'var(--r)' : f < .4 ? 'var(--y)' : 'var(--g)';
       h += `<div class="card" style="padding:9px 12px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${g.n}</div><div class="bar"><i style="width:${Math.round(f * 100)}%;background:${c}"></i></div></div>
-        <div style="text-align:right"><div class="t1" style="font-size:13px">${fmtCur(u, g)}</div><div class="t2" style="color:var(--o)">${r > 0 ? 'взять ' + r + ' ' + g.u : '—'}</div></div></div></div>`;
+        <div style="text-align:right">${mg ? stp(`mgCur(${p.id},${i},'${g.id}'`, fmtCur(u, g)) : `<div class="t1" style="font-size:13px">${fmtCur(u, g)}</div>`}<div class="t2" style="color:var(--o)">${r > 0 ? 'взять ' + r + ' ' + g.u : '—'}</div></div></div></div>`;
     });
   });
   if (S.role === 'cour') {

@@ -1,9 +1,9 @@
 {
-    "content":  9,
+    "content":  10,
     "apk":  5,
-    "notes":  "Менеджер может исправлять остатки на точке (кнопка «Исправить остатки» в карточке точки).",
+    "notes":  "Менеджер правит подтоварку и остатки на станциях прямо в карточке точки кнопками − и +.",
     "contentFile":  "index.html",
-    "contentSha256":  "aa98e64cf5eb57295928d5e695047fccb015ec83afbc833a521bcd334a4f7bdf",
+    "contentSha256":  "c8a8787c3e4fe4de8719b5ae57f6cf97ef62615d40baa7b0cbbd77697e0e3d4e",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "472823a8b05bad418561aca0223d7cd2e43f17305fcd6f4237595dfa522bc2fe"
+    "apkSha256":  "b73749a40007ef9cd513f48c6f7359118961758fb4836c2b3460807f6ba492f7"
 }
