@@ -1,9 +1,9 @@
 {
-    "content":  35,
-    "apk":  8,
-    "notes":  "Веб-версия для iPhone: иконка на экране «Домой», запуск без адресной строки, отступы под нижнюю полосу.",
+    "content":  36,
+    "apk":  9,
+    "notes":  "Сервер переехал в интернет: приложение работает из любой сети по защищённому адресу, компьютер включать не нужно.",
     "contentFile":  "index.html",
-    "contentSha256":  "194aaaa4dfff24786d5718d118e0060d1778e54d2f13340a6874894e46142197",
+    "contentSha256":  "88e5acb313f524550bb889ab8dec4c090bd9e6d53caae3a4ed5108448e2d59d4",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "e0e84fed02c6e64c5ded76db1911a5918250df17d5d50b06c7707b8323a1e2e7"
+    "apkSha256":  "563cb669bdef77e78ea9e781f51ea18331e6fa57c7da55c3fcfb5a05ad954289"
 }
