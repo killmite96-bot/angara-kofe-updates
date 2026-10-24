@@ -103,13 +103,14 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 26;
+const APP_VERSION = 27;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
   route:'<path d="M3 6.5l6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/>',
   calendar:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="8.5" cy="14.5" r=".9" fill="currentColor"/><circle cx="12" cy="14.5" r=".9" fill="currentColor"/><circle cx="15.5" cy="14.5" r=".9" fill="currentColor"/>',
   pin:'<path d="M12 21.5s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10.5" r="2.4"/>',
+  cap:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.6v4.1c0 1.5 2.7 2.8 6 2.8s6-1.3 6-2.8v-4.1"/><path d="M22 9v6"/>',
   chat:'<path d="M5 4.5h14a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5h-8l-5 4v-4H5A2.5 2.5 0 0 1 2.5 15V7A2.5 2.5 0 0 1 5 4.5z"/><path d="M8 9.5h8M8 13h5"/>',
   pay:'<circle cx="12" cy="12" r="9"/><path d="M9.5 17.5V7h4a2.8 2.8 0 0 1 0 5.6h-4M8 14.5h6"/>',
   plan:'<rect x="5" y="4.5" width="14" height="17" rx="2.5"/><rect x="9" y="2.5" width="6" height="4" rx="1.2"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/>',
@@ -782,6 +783,128 @@ function infoSheet() {
   else h += `<div class="tiny">Описание: где лучше всего парковаться</div><textarea rows="5" style="width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--tx);font-size:14px;margin:6px 0" oninput="S.inf.d.text=this.value">${esc(o.text)}</textarea>`;
   return h + `<button class="btn" style="margin-top:8px" onclick="infoSave()">Сохранить</button><button class="btn sec" style="margin-top:8px" onclick="S.inf.edit=false;render(true)">Отмена</button>`;
 }
+/* ===================== ОБУЧЕНИЕ ===================== */
+// Уроки ведёт менеджер: текст, фото, ссылка на видео, комментарий и тест до 10 вопросов. Урок с тестом засчитывается при PASS_PCT% правильных ответов,
+// урок без теста курьер отмечает кнопкой «Прочитал». Менеджер видит, кто какие уроки прошёл.
+const LESSONS = [];   // {id, title, text, imgs, video, comment, quiz:[{q, opts, ok}], ts}
+const PROG = {};      // курьер -> {id урока -> {done, score, ts}}
+let LSEED = false;    // стартовые уроки уже создавались
+const PASS_PCT = 80;
+const lessonOf = id => LESSONS.find(l => l.id === id);
+const lsDone = (cid, id) => !!(PROG[cid] && PROG[cid][id] && PROG[cid][id].done);
+function seedLessons() {
+  ['Обслуживание на двойке', 'Распространённые ошибки, о которых надо знать'].forEach((t, i) => LESSONS.push({id:'l' + (Date.now() + i).toString(36), title:t, text:'', imgs:[], video:'', comment:'', quiz:[], ts:Date.now() + i}));
+}
+const openLesson = id => go({view:{type:'lesson', id}, qz:null});
+function learnScreen() {
+  const me = S.me, n = LESSONS.filter(l => lsDone(me, l.id)).length;
+  let h = topbar('Обучение', LESSONS.length ? `Пройдено ${n} из ${LESSONS.length}` : 'Уроков пока нет') + '<div class="body">';
+  if (!LESSONS.length) h += '<div class="card t2">Менеджер ещё не добавил уроки.</div>';
+  LESSONS.forEach(l => {
+    const ok = lsDone(me, l.id), pr = PROG[me] && PROG[me][l.id];
+    h += `<div class="card" onclick="openLesson('${l.id}')"><div class="row"><div class="grow"><div class="t1">${esc(l.title)}</div><div class="t2">${l.quiz.length ? 'Тест: ' + l.quiz.length + ' вопр.' : 'Без теста'}${ok && pr.score != null ? ' · результат ' + pr.score + '%' : ''}</div></div>${ok ? '<span class="pill ok">✓ пройден</span>' : '<span class="pill">не пройден</span>'}</div></div>`;
+  });
+  return h + '</div>';
+}
+function lessonScreen() {
+  const l = lessonOf(S.view.id), back = `<button class="back" onclick="go({view:null,qz:null})">‹ К урокам</button>`;
+  if (!l) return `<div class="top">${back}<h1>Урок удалён</h1></div><div class="body"></div>`;
+  const cour = S.role === 'cour', ok = cour && lsDone(S.me, l.id);
+  let h = `<div class="top">${back}<h1>${esc(l.title)}</h1>${ok ? '<div class="sub" style="color:var(--g)">✓ Урок пройден</div>' : ''}</div><div class="body">`;
+  if (S.qz && S.qz.id === l.id) return h + quizHTML(l) + '</div>';
+  if (l.imgs.length) h += `<div style="display:flex;gap:8px;overflow-x:auto;margin:8px 0">${l.imgs.map(s => `<div class="photo" style="flex:none;width:200px;height:150px"><img src="${s}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div>`).join('')}</div>`;
+  if (l.text) h += `<div class="card" style="white-space:pre-wrap;font-size:14px;line-height:1.45">${esc(l.text)}</div>`;
+  if (l.video) h += `<button class="btn sec" style="margin-bottom:8px" onclick="openExternal('${esc(l.video)}')">▶ Смотреть видео</button>`;
+  if (l.comment) h += `<div class="card" style="border-color:var(--g)"><div class="tiny">Комментарий менеджера</div><div style="white-space:pre-wrap;font-size:14px;margin-top:4px">${esc(l.comment)}</div></div>`;
+  if (!l.text && !l.imgs.length && !l.video && !l.comment) h += '<div class="card t2">Материалы урока ещё не добавлены.</div>';
+  if (l.quiz.length) h += `<button class="btn" style="margin-top:8px" onclick="startQuiz('${l.id}')">${ok ? 'Пройти тест ещё раз' : 'Пройти тест'} · ${l.quiz.length} вопр.</button><div class="tiny" style="margin-top:6px">Урок засчитывается при ${PASS_PCT}% правильных ответов и больше.${cour ? '' : ' Вы смотрите как менеджер: результат не сохраняется.'}</div>`;
+  else if (cour && !ok) h += `<button class="btn" style="margin-top:8px" onclick="markDone(lessonOf('${l.id}'),null);go({toast:'Урок отмечен как пройденный'})">Прочитал(а)</button>`;
+  return h + '</div>';
+}
+const startQuiz = id => go({qz:{id, i:0, ans:[]}});
+function quizAns(k) {
+  const q = S.qz, l = lessonOf(q.id); q.ans.push(k); q.i++;
+  if (q.i >= l.quiz.length) {
+    const good = l.quiz.filter((x, i) => q.ans[i] === x.ok).length, pct = Math.round(good * 100 / l.quiz.length);
+    q.res = {good, n:l.quiz.length, pct, pass:pct >= PASS_PCT};
+    if (q.res.pass && S.role === 'cour') markDone(l, pct);
+  }
+  render();
+}
+function markDone(l, score) {
+  const me = S.me, c = (PROG[me] = PROG[me] || {}), old = c[l.id];
+  c[l.id] = {done:true, score:score === null ? null : Math.max(score, (old && old.score) || 0), ts:Date.now()};
+  if (!old || !old.done) notify('mgr', 'ok', cr(me).name + ' прошёл урок «' + l.title + '»' + (score !== null ? ' (' + score + '%)' : ''));
+}
+function quizHTML(l) {
+  const q = S.qz;
+  if (q.res) {
+    const r = q.res;
+    return `<div class="card" style="text-align:center;margin-top:10px"><div class="big">${r.pct}%</div><div class="t1">Правильно ${r.good} из ${r.n}</div><div class="t2" style="margin-top:6px;color:${r.pass ? 'var(--g)' : 'var(--o)'}">${r.pass ? (S.role === 'cour' ? '✓ Урок пройден' : 'Тест сдан (у менеджера результат не сохраняется)') : 'Не хватило: нужно не меньше ' + PASS_PCT + '%'}</div></div>
+      <button class="btn" style="margin-top:8px" onclick="startQuiz('${l.id}')">${r.pass ? 'Пройти ещё раз' : 'Попробовать ещё раз'}</button><button class="btn sec" style="margin-top:8px" onclick="go({qz:null})">К уроку</button>`;
+  }
+  const x = l.quiz[q.i];
+  return `<div class="tiny" style="margin-top:8px">Вопрос ${q.i + 1} из ${l.quiz.length}</div><div class="bar" style="margin:6px 0 10px"><i style="width:${Math.round(q.i / l.quiz.length * 100)}%;background:var(--g)"></i></div>
+    <div class="card"><div class="t1" style="white-space:pre-wrap">${esc(x.q)}</div></div>${x.opts.map((o, k) => `<button class="btn sec" style="margin-top:8px;text-align:left;white-space:normal" onclick="quizAns(${k})">${esc(o)}</button>`).join('')}
+    <button class="btn sec sm" style="margin-top:12px" onclick="go({qz:null})">Выйти из теста</button>`;
+}
+// менеджер: сводка «кто что прошёл» и список уроков (внутри вкладки «Курьеры»)
+function learnMgr(seg) {
+  const active = COUR.filter(c => c.active);
+  let h = topbar('Обучение', 'Уроки и кто их прошёл') + '<div class="body">' + seg + '<button class="btn" onclick="leNew()">+ Новый урок</button>';
+  if (LESSONS.length && active.length) h += '<h3>Кто что прошёл</h3><div class="card">' + active.map(c => `<div class="kv"><span>${esc(c.name)}</span><b>${LESSONS.filter(l => lsDone(c.id, l.id)).length} из ${LESSONS.length}</b></div>`).join('') + '</div>';
+  h += '<h3>Уроки</h3>';
+  if (!LESSONS.length) h += '<div class="card t2">Уроков пока нет. Нажмите «+ Новый урок».</div>';
+  LESSONS.forEach(l => {
+    h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${esc(l.title)}</div><div class="t2">${l.quiz.length ? 'Тест: ' + l.quiz.length + ' вопр.' : 'Без теста'} · фото: ${l.imgs.length}${l.video ? ' · видео' : ''}</div></div><button class="btn sec sm" onclick="openLesson('${l.id}')">Открыть</button><button class="btn sec sm" onclick="leOpen('${l.id}')">Изменить</button></div>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">${active.map(c => { const p = PROG[c.id] && PROG[c.id][l.id]; return p && p.done ? `<span class="pill ok">${esc(c.name)} ✓${p.score != null ? ' ' + p.score + '%' : ''}</span>` : `<span class="pill">${esc(c.name)} —</span>`; }).join('')}</div></div>`;
+  });
+  return h + '</div>';
+}
+// редактор урока
+function leNew() { S.le = {id:null, d:{title:'', text:'', imgs:[], video:'', comment:'', quiz:[]}, err:'', cd:false}; go({view:{type:'lessonedit'}}); }
+function leOpen(id) { S.le = {id, d:JSON.parse(JSON.stringify(lessonOf(id))), err:'', cd:false}; go({view:{type:'lessonedit'}}); }
+function leAddImg() { if (S.le.d.imgs.length >= 6) return go({toast:'Не больше 6 фото'}); pickImage(800, d => { if (S.le) { S.le.d.imgs.push(d); render(true); } }); }
+const leDelImg = i => { S.le.d.imgs.splice(i, 1); render(true); };
+function leAddQ() { if (S.le.d.quiz.length >= 10) return go({toast:'Не больше 10 вопросов'}); S.le.d.quiz.push({q:'', opts:['', '', ''], ok:0}); render(true); }
+const leDelQ = i => { S.le.d.quiz.splice(i, 1); render(true); };
+const leOk = (i, k) => { S.le.d.quiz[i].ok = k; render(true); };
+const leAddOpt = i => { const q = S.le.d.quiz[i]; if (q.opts.length < 4) { q.opts.push(''); render(true); } };
+function leSave() {
+  const e = S.le, d = e.d; d.title = d.title.trim(); d.video = d.video.trim();
+  if (!d.title) { e.err = 'Укажите название урока'; return render(true); }
+  if (d.video && !/^https?:\/\//i.test(d.video)) d.video = 'https://' + d.video;
+  for (let i = 0; i < d.quiz.length; i++) { const q = d.quiz[i]; if (q.q.trim() && !(q.opts[q.ok] || '').trim()) { e.err = 'Вопрос ' + (i + 1) + ': отметьте правильным заполненный вариант ответа'; return render(true); } }
+  d.quiz = d.quiz.map(q => { const right = (q.opts[q.ok] || '').trim(), opts = q.opts.map(o => o.trim()).filter(Boolean); return {q:q.q.trim(), opts, ok:Math.max(0, opts.indexOf(right))}; }).filter(q => q.q && q.opts.length >= 2);
+  if (e.id) { const i = LESSONS.findIndex(x => x.id === e.id); LESSONS[i] = Object.assign({}, LESSONS[i], d); }
+  else LESSONS.push(Object.assign({id:'l' + Date.now().toString(36), ts:Date.now()}, d));
+  go({view:null, le:null, toast:'Урок сохранён'});
+}
+function leDelete() {
+  if (!S.le.cd) { S.le.cd = true; return render(true); }   // удаление подтверждается вторым нажатием
+  const i = LESSONS.findIndex(x => x.id === S.le.id); if (i >= 0) LESSONS.splice(i, 1);
+  go({view:null, le:null, toast:'Урок удалён'});
+}
+function leScreen() {
+  const e = S.le, d = e.d, ta = 'width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--tx);font-size:14px;margin:6px 0';
+  let h = `<div class="top"><button class="back" onclick="go({view:null,le:null})">‹ Назад</button><h1>${e.id ? 'Редактирование урока' : 'Новый урок'}</h1></div><div class="body">`;
+  h += `<div class="tiny">Название</div><input type="text" value="${esc(d.title)}" placeholder="Например: Обслуживание на двойке" oninput="S.le.d.title=this.value">`;
+  h += `<div class="tiny">Текст урока</div><textarea rows="6" style="${ta}" oninput="S.le.d.text=this.value">${esc(d.text)}</textarea>`;
+  h += `<div class="tiny">Фото (до 6)</div><div style="display:flex;gap:8px;overflow-x:auto;margin:6px 0 10px">${d.imgs.map((s, i) => `<div style="position:relative;flex:none"><img src="${s}" alt="" style="width:110px;height:84px;object-fit:cover;border-radius:10px;display:block"><button class="btn sm" style="position:absolute;top:4px;right:4px;padding:2px 8px" onclick="leDelImg(${i})">✕</button></div>`).join('')}<button class="btn sec" style="flex:none;width:110px;height:84px" onclick="leAddImg()">+ Фото</button></div>`;
+  h += `<div class="tiny">Видео: ссылка (ВК Видео, RuTube, YouTube)</div><input type="text" value="${esc(d.video)}" placeholder="https://..." autocapitalize="none" oninput="S.le.d.video=this.value">`;
+  h += `<div class="tiny">Комментарий менеджера</div><textarea rows="3" style="${ta}" oninput="S.le.d.comment=this.value">${esc(d.comment)}</textarea>`;
+  h += `<h3>Тест: вопросов ${d.quiz.length} из 10</h3><div class="tiny">Урок засчитывается при ${PASS_PCT}% правильных ответов и больше. Отметьте галочкой правильный ответ.</div>`;
+  d.quiz.forEach((q, i) => {
+    h += `<div class="card"><div class="row"><div class="grow t1" style="font-size:14px">Вопрос ${i + 1}</div><button class="btn sec sm" onclick="leDelQ(${i})">Удалить</button></div><input type="text" value="${esc(q.q)}" placeholder="Текст вопроса" oninput="S.le.d.quiz[${i}].q=this.value">`
+      + q.opts.map((o, k) => `<div class="row" style="margin:5px 0"><div class="box ${q.ok === k ? 'on' : ''}" onclick="leOk(${i},${k})">${q.ok === k ? '✓' : ''}</div><input type="text" class="grow" value="${esc(o)}" placeholder="Вариант ответа ${k + 1}" oninput="S.le.d.quiz[${i}].opts[${k}]=this.value"></div>`).join('')
+      + (q.opts.length < 4 ? `<button class="btn sec sm" onclick="leAddOpt(${i})">+ Вариант</button>` : '') + '</div>';
+  });
+  if (d.quiz.length < 10) h += `<button class="btn sec" onclick="leAddQ()">+ Добавить вопрос</button>`;
+  if (e.err) h += `<div style="color:var(--r);font-size:13px;margin:8px 0">${e.err}</div>`;
+  h += `<button class="btn" style="margin-top:10px" onclick="leSave()">Сохранить урок</button>`;
+  if (e.id) h += `<button class="btn" style="margin-top:8px;background:#4a1a1a;color:#ffb0b0" onclick="leDelete()">${e.cd ? 'Точно удалить? Нажмите ещё раз' : 'Удалить урок'}</button>`;
+  return h + '</div>';
+}
 const ldOpen = pid => { S.ldp = S.ldp === pid ? null : pid; render(true); };
 // остатки на точке сейчас по каждой станции и сколько нужно взять
 function stockRows(p) {
@@ -1208,8 +1331,10 @@ function saveBase() {
 
 /* ===================== МЕНЕДЖЕР: КУРЬЕРЫ ===================== */
 function teamScreen() {
+  const seg = `<div class="seg" style="margin:8px 0"><button class="${S.tm !== 'learn' ? 'on' : ''}" onclick="go({tm:'team'})">Курьеры</button><button class="${S.tm === 'learn' ? 'on' : ''}" onclick="go({tm:'learn'})">Обучение</button></div>`;
+  if (S.tm === 'learn') return learnMgr(seg);
   let h = topbar('Курьеры', 'Аккаунты, логины и расценки');
-  h += '<div class="body"><button class="btn" style="margin-top:8px" onclick="openCF(null)">+ Новый курьер</button>';
+  h += '<div class="body">' + seg + '<button class="btn" style="margin-top:8px" onclick="openCF(null)">+ Новый курьер</button>';
   COUR.forEach(c => {
     let n = 0; for (let d = 0; d < 7; d++) n += L(c.id, d).length;
     h += `<div class="card" style="${c.active ? '' : 'opacity:.6'}"><div class="row"><div class="grow"><div class="t1">${c.name}</div>
@@ -1602,10 +1727,10 @@ function confirmLoad() {
 
 /* ===================== ОТРИСОВКА ===================== */
 const TABS = {
-  cour:[['route', 'route', 'Маршрут'], ['sched', 'calendar', 'График'], ['points', 'pin', 'Адреса'], ['chat', 'chat', 'Чат'], ['pay', 'pay', 'Зарплата']],
+  cour:[['route', 'route', 'Маршрут'], ['sched', 'calendar', 'График'], ['points', 'pin', 'Адреса'], ['learn', 'cap', 'Обучение'], ['chat', 'chat', 'Чат'], ['pay', 'pay', 'Зарплата']],
   mgr:[['plan', 'plan', 'План'], ['wh', 'box', 'Склад'], ['points', 'pin', 'Точки'], ['pay', 'pay', 'Зарплата'], ['mgr', 'shield', 'Фото'], ['team', 'users', 'Курьеры'], ['chat', 'chat', 'Чат']]
 };
-const SCR = {route:routeScreen, sched:scheduleScreen, points:pointsScreen, pay:payScreen, plan:planScreen, wh:whScreen, mgr:mgrScreen, team:teamScreen, chat:chatScreen};
+const SCR = {route:routeScreen, sched:scheduleScreen, points:pointsScreen, pay:payScreen, plan:planScreen, wh:whScreen, mgr:mgrScreen, team:teamScreen, chat:chatScreen, learn:learnScreen};
 // окна закрываются свайпом за «ручку»: нижние окна тянутся вниз, шторка уведомлений вверх
 // жест работает с любого места окна: когда содержимое прокручено до края (нижние окна до верха, шторка до низа), дальнейшее движение пальца тянет окно;
 // отметка уровня на бутылке, поля ввода, фото и окно выбора области жест не запускают
@@ -1646,6 +1771,8 @@ function render(keep) {
   let main;
   if (S.view && S.view.type === 'point') main = pointCard(S.view.id);
   else if (S.view && S.view.type === 'visit') main = visitScreen();
+  else if (S.view && S.view.type === 'lesson') main = lessonScreen();
+  else if (S.view && S.view.type === 'lessonedit') main = leScreen();
   else main = SCR[S.tab]();
   const tabs = !S.view ? `<div class="tabs">${TABS[S.role].map(t => `<button class="${S.tab === t[0] ? 'on' : ''}" onclick="go({tab:'${t[0]}'})"><b>${ic(t[1], 22)}</b>${t[2]}${tabBadge(t[0])}</button>`).join('')}</div>` : '';
   $('app').innerHTML = main + tabs
@@ -1742,7 +1869,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -1753,7 +1880,7 @@ function restoreData(txt) {
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
-  replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {});
+  replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED;
   nid = d.nid; CITY = d.CITY;
   if (d.sess && d.sess.role && (d.sess.role === 'mgr' || cr(d.sess.me))) Object.assign(S, d.sess, {view:null, sheet:null, cam:null, shade:false});
   return true;
@@ -1863,10 +1990,12 @@ function api(path, body) {
   }), () => { throw new Error('Нет связи с сервером'); });
 }
 function docsFromState() {
-  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name}}, ld = {};
+  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, LSEED}}, ld = {};
   Object.keys(AV).forEach(k => { d['av/' + k] = AV[k]; });
   Object.keys(EX).forEach(k => { d['ex/' + k] = EX[k]; });
   Object.keys(INFO).forEach(k => { d['info/' + k] = INFO[k]; });
+  LESSONS.forEach(l => { d['lesson/' + l.id] = l; });
+  Object.keys(PROG).forEach(k => { d['prog/' + k] = PROG[k]; });
   P.forEach(p => { d['pt/' + p.id] = p; });
   Object.keys(sched).forEach(c => { for (let k = 0; k < 7; k++) d['sched/' + c + '/' + k] = sched[c][k]; });
   Object.keys(TEMPLATE).forEach(c => { for (let k = 0; k < 7; k++) d['tpl/' + c + '/' + k] = TEMPLATE[c][k]; });
@@ -1883,7 +2012,7 @@ function canWriteKey(k, v) {
   if (SY.role === 'mgr') return k !== 'cour';
   const p = k.split('/'), h = p[0], me = String(SY.cid);
   if (h === 'pt' || h === 'wh') return true;
-  if (h === 'sched' || h === 'ld' || h === 'msg' || h === 'av') return p[1] === me;
+  if (h === 'sched' || h === 'ld' || h === 'msg' || h === 'av' || h === 'prog') return p[1] === me;
   if (h === 'ntf') return p[1] === 'mgr' || p[1] === me;
   if (h === 'rev') return !v || String(v.cid) === me;
   return false;
@@ -1909,13 +2038,17 @@ function applyDoc(k, v, dele) {
     COUR.forEach(c => ensureCour(c.id));
     if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
   } else if (h === 'core') {
-    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; }
+    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.LSEED) LSEED = true; }
   } else if (h === 'av') {
     if (dele || !v) delete AV[p[1]]; else AV[p[1]] = v;
   } else if (h === 'ex') {
     if (dele || !v) delete EX[p[1]]; else EX[p[1]] = v;
   } else if (h === 'info') {
     if (dele || !v) delete INFO[p[1]]; else INFO[p[1]] = v;
+  } else if (h === 'lesson') {
+    upsert(LESSONS, dele ? {id:p[1]} : v, dele, (a, b) => (a.ts || 0) - (b.ts || 0));
+  } else if (h === 'prog') {
+    if (dele || !v) delete PROG[p[1]]; else PROG[p[1]] = v;
   } else if (h === 'wh') {
     if (v) replaceObj(WH, v);
   } else if (h === 'pt') {
@@ -1940,7 +2073,7 @@ function applyDoc(k, v, dele) {
 }
 function resetFromDocs(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
-  [CHAT, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO].forEach(o => replaceObj(o, {}));
+  [CHAT, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(LESSONS, []); LSEED = false;
   SY.mirror = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
     if (d.dele) return;
@@ -2045,6 +2178,7 @@ function doLoginServer(l, p, rem) {
         seed = true;
         const c = st.docs.find(d => d.key === 'cour'); if (c) applyDoc('cour', c.v, false);
       } else resetFromDocs(st.docs);
+      if (j.role === 'mgr' && !LSEED) { LSEED = true; if (!LESSONS.length) seedLessons(); }   // стартовые уроки создаются один раз
       if (j.role === 'cour' && !cr(j.cid)) throw new Error('Курьер не найден на сервере');
       SY.seq = st.seq; SY.on = true; saveSync();
       if (rem) rememberAcc(l, p, j.name, j.role);
@@ -2072,6 +2206,7 @@ let ACCS = [];
 try { ACCS = JSON.parse(localStorage.getItem(ACC_KEY) || '[]'); if (!Array.isArray(ACCS)) ACCS = []; } catch (e) { ACCS = []; }
 function saveAccs() { try { localStorage.setItem(ACC_KEY, JSON.stringify(ACCS)); } catch (e) {} }
 try { const txt = localStorage.getItem(STORE_KEY); if (txt && !restoreData(txt)) localStorage.removeItem(STORE_KEY); } catch (e) { try { localStorage.removeItem(STORE_KEY); } catch (e2) {} }
+if (!SRV && !LSEED) { LSEED = true; if (!LESSONS.length) seedLessons(); }
 syncBoot();
 render();
 </script>
