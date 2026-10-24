@@ -104,13 +104,14 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 31;
+const APP_VERSION = 32;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
   route:'<path d="M3 6.5l6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/>',
   calendar:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="8.5" cy="14.5" r=".9" fill="currentColor"/><circle cx="12" cy="14.5" r=".9" fill="currentColor"/><circle cx="15.5" cy="14.5" r=".9" fill="currentColor"/>',
   pin:'<path d="M12 21.5s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10.5" r="2.4"/>',
+  move:'<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M8.5 15h7M13 12.3l2.7 2.7-2.7 2.7"/>',
   cap:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.6v4.1c0 1.5 2.7 2.8 6 2.8s6-1.3 6-2.8v-4.1"/><path d="M22 9v6"/>',
   chat:'<path d="M5 4.5h14a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5h-8l-5 4v-4H5A2.5 2.5 0 0 1 2.5 15V7A2.5 2.5 0 0 1 5 4.5z"/><path d="M8 9.5h8M8 13h5"/>',
   pay:'<circle cx="12" cy="12" r="9"/><path d="M9.5 17.5V7h4a2.8 2.8 0 0 1 0 5.6h-4M8 14.5h6"/>',
@@ -517,7 +518,7 @@ function shadeHTML() {
   if (!list.length) h += '<div class="card t2">Новых уведомлений нет.</div>';
   list.forEach(n => {
     const r = n.rvId ? reviews.find(x => x.id === n.rvId) : null, p = r ? pt(r.pid) : null;
-    h += `<div class="card" style="${n.read ? '' : 'border-color:var(--g)'}"><div class="row" style="align-items:flex-start"><div style="color:${n.kind === 'redo' ? 'var(--o)' : 'var(--g)'}">${ic(n.kind === 'photo' ? 'camera' : n.kind === 'ok' ? 'check' : n.kind === 'chat' ? 'chat' : n.kind === 'water' ? 'drop' : 'warn', 24)}</div>
+    h += `<div class="card" style="${n.read ? '' : 'border-color:var(--g)'}"><div class="row" style="align-items:flex-start"><div style="color:${n.kind === 'redo' ? 'var(--o)' : 'var(--g)'}">${ic(n.kind === 'photo' ? 'camera' : n.kind === 'ok' ? 'check' : n.kind === 'chat' ? 'chat' : n.kind === 'water' ? 'drop' : n.kind === 'move' ? 'move' : 'warn', 24)}</div>
       <div class="grow"><div class="t1" style="font-size:14px">${n.text}</div><div class="t2">${n.t}</div></div></div>`;
     if (r) {
       h += `<div class="row" style="margin-top:8px;align-items:flex-start"><div class="photo" style="width:64px;height:100px">${((r.photos && r.photos[0]) || r.photo) ? ((r.photos && r.photos[0]) || r.photo).svg : stationSVG(pst(p))}</div>
@@ -529,6 +530,7 @@ function shadeHTML() {
     }
     if (n.kind === 'redo') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="closeShade();openPoint(${n.pid})">Открыть точку</button></div>`;
     if (n.kind === 'chat') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="openChatFrom(${n.cid})">Ответить в чате</button></div>`;
+    if (n.kind === 'move' && n.mvId) { const m = MV.find(x => x.id === n.mvId); if (m && m.status === 'pending' && S.role === 'mgr') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="mvApprove('${m.id}')">Принять</button><button class="btn sec sm" onclick="mvDecline('${m.id}')">Отклонить</button></div>`; else if (m && m.status !== 'pending') h += `<div style="margin-top:8px"><span class="pill ${m.status === 'ok' ? 'ok' : 'bad'}">${m.status === 'ok' ? 'принято' : 'отклонено'}</span></div>`; }
     h += '</div>';
   });
   return h + '<div class="grab up" id="grabup"><i></i></div></div></div>';
@@ -716,6 +718,85 @@ const shortNeed = p => { const a = ING.map(g => [g, needBase(p, g)]).filter(x =>
 function doOpt() { const l = L(S.me, TODAY), dn = l.filter(x => x.done), rest = l.filter(x => !x.done); sched[S.me][TODAY] = dn.concat(optimize(rest, posOf(S.me))); go({toast:'Порядок перестроен: сначала ближайшие'}); }
 
 /* ===================== КУРЬЕР: РАСПИСАНИЕ ===================== */
+/* ===================== ПЕРЕНОС АДРЕСА НА ДРУГОЙ ДЕНЬ ===================== */
+// Курьер просит перенести адрес (один раз, только на эту неделю); менеджер принимает или отклоняет.
+// Если в выбранный день этот адрес уже есть, визиты объединяются и берётся старший тип (из 1 и 2 получится 2).
+const MV = [];   // заявки: {id, cid, pid, from, to, type, status:'pending'|'ok'|'no', reason, ts}
+const mvPending = (cid, pid, from) => MV.find(m => m.cid === cid && m.pid === pid && m.from === from && m.status === 'pending');
+const mvRejected = (cid, pid, from) => MV.find(m => m.cid === cid && m.pid === pid && m.from === from && m.status === 'no');
+function mvBtn(x) {
+  if (S.role !== 'cour' || x.done || S.day < TODAY || mvPending(S.me, x.pid, S.day)) return '';
+  return `<button class="btn sec sm" title="Перенести на другой день" style="padding:6px 9px" onclick="event.stopPropagation();openMove(${x.pid})">${ic('move', 18)}</button>`;
+}
+function mvNote(x) {
+  if (S.role !== 'cour') return '';
+  const m = mvPending(S.me, x.pid, S.day), r = mvRejected(S.me, x.pid, S.day);
+  if (m) return `<div class="row" style="margin-top:8px"><span class="pill warn">Перенос на ${WD[m.to]}: ждёт согласования</span><div class="grow"></div><button class="btn sec sm" onclick="event.stopPropagation();mvCancel('${m.id}')">Отменить</button></div>`;
+  if (r) return `<div class="row" style="margin-top:8px"><div class="grow t2" style="color:#ff8f8f">Перенос на ${WD[r.to]} отклонён${r.reason ? ': ' + esc(r.reason) : ''}</div><button class="btn sec sm" onclick="event.stopPropagation();mvCancel('${r.id}')">Понятно</button></div>`;
+  return '';
+}
+const openMove = pid => go({sheet:'move', mvs:{pid, from:S.day}});
+function mvSheet() {
+  const c = S.me, f = S.mvs, p = pt(f.pid), item = L(c, f.from).find(x => x.pid === f.pid && !x.done);
+  if (!item) return `<h2>Перенос</h2><div class="card t2">Эта точка уже выполнена или удалена из дня.</div><button class="btn sec" onclick="go({sheet:null})">Закрыть</button>`;
+  let h = `<h2>Перенести на другой день</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)} · сейчас ${WD[f.from]} · тип ${tl(item.type)}</div><div class="tiny">Перенос на один раз, только на эту неделю. Менеджер должен согласовать: до этого адрес остаётся в текущем дне.</div>`;
+  const days = [0, 1, 2, 3, 4, 5].filter(d => d > TODAY && d !== f.from);
+  if (!days.length) h += '<div class="card t2" style="margin-top:8px">Свободных дней в этой неделе нет.</div>';
+  days.forEach(d => {
+    const ex = L(c, d).find(x => x.pid === f.pid);
+    h += `<div class="card" style="margin-top:8px;cursor:pointer" onclick="mvSend(${d})"><div class="row"><div class="grow"><div class="t1">${WD[d]}</div><div class="t2">точек в этот день: ${L(c, d).length}</div></div><span class="pill blue">Выбрать</span></div>`
+      + (ex ? `<div class="t2" style="color:var(--o);margin-top:6px">В этот день адрес уже есть (тип ${tl(ex.type)}): визиты объединятся${Math.max(ex.type, item.type) !== ex.type ? ', тип станет ' + tl(Math.max(ex.type, item.type)) : ''}.</div>` : '') + '</div>';
+  });
+  return h + '<button class="btn sec" style="margin-top:10px" onclick="go({sheet:null,mvs:null})">Отмена</button>';
+}
+function mvSend(d) {
+  const c = S.me, f = S.mvs, item = L(c, f.from).find(x => x.pid === f.pid && !x.done);
+  if (!item) return go({sheet:null, mvs:null, toast:'Точка уже выполнена'});
+  for (let i = MV.length - 1; i >= 0; i--) if (MV[i].cid === c && MV[i].pid === f.pid && MV[i].from === f.from && MV[i].status !== 'pending') MV.splice(i, 1);   // старая отклонённая заявка не нужна
+  const m = {id:uid(), cid:c, pid:f.pid, from:f.from, to:d, type:item.type, status:'pending', ts:Date.now()};
+  MV.unshift(m);
+  notify('mgr', 'move', `${cr(c).name} просит перенести «${pt(f.pid).name}» с ${WD[f.from]} на ${WD[d]}`, {mvId:m.id, pid:f.pid});
+  go({sheet:null, mvs:null, toast:'Заявка отправлена менеджеру'});
+}
+function mvCancel(id) {
+  const i = MV.findIndex(m => m.id === id); if (i < 0) return;
+  const m = MV[i], was = m.status; MV.splice(i, 1);
+  if (was === 'pending') notify('mgr', 'move', `${cr(m.cid).name} отозвал заявку на перенос «${pt(m.pid).name}»`);
+  go({toast:was === 'pending' ? 'Заявка отозвана' : ''});
+}
+function mvApprove(id) {
+  const m = MV.find(x => x.id === id); if (!m || m.status !== 'pending') return;
+  const p = pt(m.pid), src = L(m.cid, m.from), i = src.findIndex(x => x.pid === m.pid && !x.done);
+  if (i < 0) { m.status = 'no'; m.reason = 'визит уже выполнен или убран из дня'; notify(m.cid, 'move', `Перенос «${p.name}» не выполнен: ${m.reason}`, {pid:m.pid}); return go({toast:'Точки уже нет в этом дне'}); }
+  const item = src.splice(i, 1)[0], dst = L(m.cid, m.to), ex = dst.find(x => x.pid === m.pid);
+  let note = '';
+  if (ex) { const t = Math.max(ex.type, item.type); note = t !== ex.type ? `, тип стал ${tl(t)}` : ', визиты объединены'; ex.type = t; } else dst.push(item);
+  m.status = 'ok';
+  notify(m.cid, 'move', `Перенос принят: «${p.name}» теперь в ${WD[m.to]}${note}`, {pid:m.pid});
+  go({toast:'Перенос принят'});
+}
+const mvDecline = id => go({shade:false, sheet:'mvno', mvn:{id, text:''}});
+function mvNoSheet() {
+  const m = MV.find(x => x.id === S.mvn.id); if (!m) return '<h2>Заявка</h2><div class="card t2">Заявки уже нет.</div><button class="btn sec" onclick="go({sheet:null})">Закрыть</button>';
+  return `<h2>Отклонить перенос</h2><div class="t2" style="margin-bottom:8px">${esc(cr(m.cid).name)}: «${esc(pt(m.pid).name)}» с ${WD[m.from]} на ${WD[m.to]}</div><div class="tiny">Причина (по желанию), её увидит курьер</div>
+    <input type="text" value="${esc(S.mvn.text)}" placeholder="Например: в пятницу этот адрес закрыт" oninput="S.mvn.text=this.value">
+    <button class="btn" style="margin-top:8px" onclick="mvNoSend()">Отклонить</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null,mvn:null})">Назад</button>`;
+}
+function mvNoSend() {
+  const m = MV.find(x => x.id === S.mvn.id), why = S.mvn.text.trim();
+  if (m && m.status === 'pending') { m.status = 'no'; m.reason = why; notify(m.cid, 'move', `Перенос «${pt(m.pid).name}» отклонён${why ? ': ' + why : ''}`, {pid:m.pid}); }
+  go({sheet:null, mvn:null, toast:'Перенос отклонён'});
+}
+// менеджер: ожидающие заявки (блок вверху «Планирования»)
+function mvBlock() {
+  const list = MV.filter(m => m.status === 'pending'); if (!list.length) return '';
+  return '<h3>Заявки на перенос</h3>' + list.map(m => {
+    const p = pt(m.pid), ex = L(m.cid, m.to).find(x => x.pid === m.pid);
+    return `<div class="card" style="border-color:var(--o)"><div class="t1" style="font-size:14px">${esc(cr(m.cid).name)}: «${esc(p.name)}»</div><div class="t2">${WD[m.from]} → ${WD[m.to]} · тип ${tl(m.type)}</div>`
+      + (ex ? `<div class="t2" style="color:var(--o)">В ${WD[m.to]} адрес уже есть (тип ${tl(ex.type)}): визиты объединятся${Math.max(ex.type, m.type) !== ex.type ? ', тип станет ' + tl(Math.max(ex.type, m.type)) : ''}</div>` : '')
+      + `<div class="btns" style="margin:8px 0 0"><button class="btn sm" onclick="mvApprove('${m.id}')">Принять</button><button class="btn sec sm" onclick="mvDecline('${m.id}')">Отклонить</button></div></div>`;
+  }).join('');
+}
 function scheduleScreen() {
   const c = S.me, list = L(c, S.day);
   let h = topbar('Моё расписание', 'Неделя · ' + cr(c).name);
@@ -724,7 +805,7 @@ function scheduleScreen() {
   list.forEach((x, i) => {
     const p = pt(x.pid);
     h += `<div class="card" onclick="openPoint(${p.id})"><div class="row"><div class="badge ${bcls(x.type)}">${tl(x.type)}</div>
-      <div class="grow"><div class="t1">${i + 1}. ${p.name}</div><div class="t2">${p.addr}</div></div>${x.done ? '<span class="pill ok">выполнена</span>' : ''}</div></div>`;
+      <div class="grow"><div class="t1">${i + 1}. ${p.name}</div><div class="t2">${p.addr}</div></div>${x.done ? '<span class="pill ok">выполнена</span>' : mvBtn(x)}</div>${mvNote(x)}</div>`;
   });
   const cnt = t => list.filter(x => x.type === t).length;
   if (list.length) h += `<div class="tiny" style="margin-top:6px">Тип 1: ${cnt(1)} · Тип 2: ${cnt(2)}${cnt(3) ? ' · Генеральная: ' + cnt(3) : ''} · заработок за день: ${money(list.reduce((s, x) => s + rateOf(cr(c), x.type), 0))}</div>`;
@@ -1143,7 +1224,7 @@ const rate = (id, k, d) => { cr(id)[k] = Math.max(0, cr(id)[k] + d); render(true
 function planScreen() {
   const c = S.mc, list = L(c, S.day);
   let h = topbar('Планирование', 'Курьер, день, адреса и тип визита');
-  h += '<div class="body">' + shiftCard() + '<div class="chips">' + COUR.filter(x => x.active).map(x => `<button class="${x.id === c ? 'on' : ''}" onclick="go({mc:${x.id}})">${x.name}</button>`).join('') + '</div>';
+  h += '<div class="body">' + mvBlock() + shiftCard() + '<div class="chips">' + COUR.filter(x => x.active).map(x => `<button class="${x.id === c ? 'on' : ''}" onclick="go({mc:${x.id}})">${x.name}</button>`).join('') + '</div>';
   h += '<div class="days">' + WD.map((d, i) => `<button class="${i === S.day ? 'on' : ''} ${i === TODAY ? 'today' : ''}" onclick="go({day:${i}})">${d}<small>${L(c, i).length} т.</small></button>`).join('') + '</div>';
   let from = DEPOT, tot = 0;
   list.forEach(x => { tot += km(from, pt(x.pid)); from = pt(x.pid); });
@@ -1452,6 +1533,8 @@ function sheet() {
     return h + '<button class="btn sec" onclick="go({sheet:null})">Закрыть</button>';
   }
   if (S.sheet === 'info') return infoSheet();
+  if (S.sheet === 'move') return mvSheet();
+  if (S.sheet === 'mvno') return mvNoSheet();
   if (S.sheet === 'take') {
     // по прибытии на точку: что именно нужно взять для наполнения этой точки
     const p = pt(S.tk), item = L(c, TODAY).find(x => x.pid === p.id), fmt = (g, n) => (g.t === 'count' ? n : +(+n).toFixed(1)) + ' ' + g.u;
@@ -1883,7 +1966,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -1894,7 +1977,7 @@ function restoreData(txt) {
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
-  replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED;
+  replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []);
   nid = d.nid; CITY = d.CITY;
   if (d.sess && d.sess.role && (d.sess.role === 'mgr' || cr(d.sess.me))) Object.assign(S, d.sess, {view:null, sheet:null, cam:null, shade:false});
   return true;
@@ -2009,6 +2092,7 @@ function docsFromState() {
   Object.keys(EX).forEach(k => { d['ex/' + k] = EX[k]; });
   Object.keys(INFO).forEach(k => { d['info/' + k] = INFO[k]; });
   LESSONS.forEach(l => { d['lesson/' + l.id] = l; });
+  MV.forEach(m => { d['mv/' + m.cid + '/' + m.id] = m; });
   Object.keys(PROG).forEach(k => { d['prog/' + k] = PROG[k]; });
   P.forEach(p => { d['pt/' + p.id] = p; });
   Object.keys(sched).forEach(c => { for (let k = 0; k < 7; k++) d['sched/' + c + '/' + k] = sched[c][k]; });
@@ -2026,7 +2110,7 @@ function canWriteKey(k, v) {
   if (SY.role === 'mgr') return k !== 'cour';
   const p = k.split('/'), h = p[0], me = String(SY.cid);
   if (h === 'pt' || h === 'wh') return true;
-  if (h === 'sched' || h === 'ld' || h === 'msg' || h === 'av' || h === 'prog') return p[1] === me;
+  if (h === 'sched' || h === 'ld' || h === 'msg' || h === 'av' || h === 'prog' || h === 'mv') return p[1] === me;
   if (h === 'ntf') return p[1] === 'mgr' || p[1] === me;
   if (h === 'rev') return !v || String(v.cid) === me;
   return false;
@@ -2063,6 +2147,8 @@ function applyDoc(k, v, dele) {
     upsert(LESSONS, dele ? {id:p[1]} : v, dele, (a, b) => (a.ts || 0) - (b.ts || 0));
   } else if (h === 'prog') {
     if (dele || !v) delete PROG[p[1]]; else PROG[p[1]] = v;
+  } else if (h === 'mv') {
+    upsert(MV, dele ? {id:p[2]} : v, dele, (a, b) => (b.ts || 0) - (a.ts || 0));
   } else if (h === 'wh') {
     if (v) replaceObj(WH, v);
   } else if (h === 'pt') {
@@ -2087,7 +2173,7 @@ function applyDoc(k, v, dele) {
 }
 function resetFromDocs(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
-  [CHAT, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(LESSONS, []); LSEED = false;
+  [CHAT, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(LESSONS, []); replaceArr(MV, []); LSEED = false;
   SY.mirror = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
     if (d.dele) return;

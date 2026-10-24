@@ -1,9 +1,9 @@
 {
-    "content":  31,
+    "content":  32,
     "apk":  8,
-    "notes":  "В визите у остатков убрана надпись «отметить»: остаток показывается значением.",
+    "notes":  "Перенос адреса на другой день: курьер отправляет заявку, менеджер принимает или отклоняет.",
     "contentFile":  "index.html",
-    "contentSha256":  "10ac2843ca80cd663c251858ca40b0218c5031d66be5f43facf7fe5ab578081f",
+    "contentSha256":  "93efac684156c27463beeae53a5dacf669760c5041f42f8cfe0014d53572d10c",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "33803724b4c01088283bbb28782cd2d366183efe12b97d547017c54f87e55c68"
+    "apkSha256":  "e6df849e3a88f1b65c142dd4a29727ea056a941acb01dc7d4245d733e5a70b9e"
 }
