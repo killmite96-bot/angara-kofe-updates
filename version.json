@@ -1,9 +1,9 @@
 {
-    "content":  32,
+    "content":  33,
     "apk":  8,
-    "notes":  "Перенос адреса на другой день: курьер отправляет заявку, менеджер принимает или отклоняет.",
+    "notes":  "Настоящий день недели и смена недели по понедельникам, итоги прошлых недель; запомненные аккаунты хранят ключ вместо пароля.",
     "contentFile":  "index.html",
-    "contentSha256":  "93efac684156c27463beeae53a5dacf669760c5041f42f8cfe0014d53572d10c",
+    "contentSha256":  "e8f1896ecb2b3685de9e9672a906f5c490b6aa6c6d8b9a7e76f0b764d87e105e",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "e6df849e3a88f1b65c142dd4a29727ea056a941acb01dc7d4245d733e5a70b9e"
+    "apkSha256":  "a68adecc194b9f96c0f613d526e8063aec7ca9a50797d625b1c7d33fb8b142a4"
 }

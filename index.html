@@ -104,7 +104,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 32;
+const APP_VERSION = 33;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -177,7 +177,8 @@ const WH = {straw:1500, cell:400, hold:900, coffee:18, cup:1400, lid:1300, sugar
 const LV = ['пусто','¼','½','¾','полно'];
 const STN = {A:'«Кофе с собой» (дуб)', B:'«Зерновой кофе» (чёрная)', C:'HERISSON COFFEE', D:'«Кофе с собой» (серая)'};
 const WD = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-const TODAY = 2;
+const todayIdx = () => (new Date().getDay() + 6) % 7;   // пн = 0 … вс = 6
+let TODAY = todayIdx();   // настоящий сегодняшний день недели; обновляется сам, если приложение открыто через полночь
 const DEPOT = {name:'База (склад)', addr:'Красноказачья, 85', lat:52.2752, lon:104.3246};
 const DEPOT_LL = [DEPOT.lat, DEPOT.lon];
 const COUR = [{id:1, name:'Алексей', login:'alex', pass:'1234', active:true, r1:600, r2:1100, r3:2000}, {id:2, name:'Мария', login:'maria', pass:'1234', active:true, r1:600, r2:1100, r3:2000}];
@@ -625,7 +626,10 @@ function saveProfile() {
   render();
 }
 function doLogout() {
-  if (SRV) syncStop();
+  if (SRV) {
+    if (SY.token && !ACCS.some(a => a.token && a.token === SY.token)) srvLogout(SY.token);   // вход, сохранённый как аккаунт, на сервере остаётся действующим
+    syncStop();
+  }
   go({role:null, view:null, sheet:null, shade:false, cam:null, visit:null, viewer:null});
 }
 function changePass() {
@@ -637,7 +641,7 @@ function changePass() {
     else {
       f.err = ''; render();
       api('/api/password', {old:f.old, new:f.n1}).then(() => {
-        const k = ACCS.findIndex(a => a.login.toLowerCase() === SY.login.toLowerCase()); if (k >= 0) { ACCS[k].pass = f.n1; saveAccs(); }
+        const k = ACCS.findIndex(a => a.login.toLowerCase() === SY.login.toLowerCase()); if (k >= 0) { delete ACCS[k].pass; saveAccs(); }
         go({sheet:null, pw:null, toast:'Пароль изменён'});
       }).catch(e => { f.err = e.message; render(); });
       return;
@@ -667,19 +671,27 @@ function doLogin() {
   S.lg = {login:'', pass:'', err:''}; login('cour', c.id);
 }
 // сохранённые аккаунты хранятся только на этом телефоне (отдельно от данных приложения)
-function rememberAcc(login, pass, name, role) {
-  const i = ACCS.findIndex(a => a.login.toLowerCase() === login.toLowerCase()), a = {login, pass, name, role};
+// с сервером вместо пароля хранится временный ключ входа (token): пароль на телефоне не лежит; без сервера (демо) остаётся прежний вариант
+function rememberAcc(login, pass, name, role, token) {
+  const i = ACCS.findIndex(a => a.login.toLowerCase() === login.toLowerCase()), a = {login, name, role};
+  if (token) a.token = token; else a.pass = pass;
   if (i >= 0) ACCS[i] = a; else ACCS.push(a);
   saveAccs();
 }
 const isRemembered = login => ACCS.some(a => a.login.toLowerCase() === login.toLowerCase());
-function useAcc(i) { const a = ACCS[i]; S.lg.login = a.login; S.lg.pass = a.pass; S.lg.err = ''; render(); }
-function unpinAcc(i) { ACCS.splice(i, 1); saveAccs(); render(); }
+// выход на сервере: ключ перестаёт действовать
+const srvLogout = tok => { try { fetch(SRV + '/api/logout', {method:'POST', headers:{'Content-Type':'application/json', Authorization:'Bearer ' + tok}, body:'{}'}).catch(() => {}); } catch (e) {} };
+function useAcc(i) {
+  const a = ACCS[i];
+  if (SRV && a.token) return loginToken(i);   // вход по сохранённому ключу, без пароля
+  S.lg.login = a.login; S.lg.pass = a.pass || ''; S.lg.err = ''; render();
+}
+function unpinAcc(i) { const a = ACCS[i]; if (SRV && a.token) srvLogout(a.token); ACCS.splice(i, 1); saveAccs(); render(); }
 function toggleAcc() {
-  const mgr = S.role === 'mgr', login = mgr ? MGR.login : cr(S.me).login;
+  const mgr = S.role === 'mgr', login = SRV && SY.login ? SY.login : mgr ? MGR.login : cr(S.me).login;
   const i = ACCS.findIndex(a => a.login.toLowerCase() === login.toLowerCase());
-  if (i >= 0) { ACCS.splice(i, 1); saveAccs(); go({toast:'Аккаунт откреплён'}); }
-  else { rememberAcc(login, mgr ? MGR.pass : cr(S.me).pass, mgr ? MGR.name : cr(S.me).name, S.role); go({toast:'Аккаунт запомнен на этом телефоне'}); }
+  if (i >= 0) { if (SRV && ACCS[i].token) srvLogout(ACCS[i].token); ACCS.splice(i, 1); saveAccs(); go({toast:'Аккаунт откреплён'}); }
+  else { if (SRV) rememberAcc(login, null, mgr ? MGR.name : cr(S.me).name, S.role, SY.token); else rememberAcc(login, mgr ? MGR.pass : cr(S.me).pass, mgr ? MGR.name : cr(S.me).name, S.role); go({toast:'Аккаунт запомнен на этом телефоне'}); }
 }
 
 /* ===================== КУРЬЕР: МАРШРУТ С НАВИГАТОРОМ ===================== */
@@ -702,7 +714,7 @@ function routeScreen() {
       <button class="btn sec sm" onclick="doOpt()">Построить по ближайшим</button></div></div>`;
     h += `<div class="row" style="margin:6px 2px"><div class="grow tiny">Осталось ${lg.out.length} точек · ${lg.tot.toFixed(1)} км · ≈ ${Math.floor(mins / 60)} ч ${mins % 60} мин</div></div>`;
     h += `<div class="btns" style="margin-top:0"><button class="btn sec sm" onclick="go({sheet:'load'})">Погрузка</button><button class="btn sec sm" onclick="go({sheet:'map'})">Весь маршрут в картах</button></div>`;
-  } else h += '<div class="card"><div class="t1">Маршрут выполнен</div><div class="t2">Все точки на сегодня сданы.</div></div>';
+  } else h += TODAY === 6 ? '<div class="card"><div class="t1">Сегодня выходной</div><div class="t2">Воскресенье: точек в маршруте нет. Хорошего отдыха!</div></div>' : '<div class="card"><div class="t1">Маршрут выполнен</div><div class="t2">Все точки на сегодня сданы.</div></div>';
   let prev = posOf(c), n = 0;
   list.forEach(x => {
     const p = pt(x.pid), d = km(prev, p); if (!x.done) { n++; prev = p; }
@@ -988,7 +1000,37 @@ function leScreen() {
   if (e.id) h += `<button class="btn" style="margin-top:8px;background:#4a1a1a;color:#ffb0b0" onclick="leDelete()">${e.cd ? 'Точно удалить? Нажмите ещё раз' : 'Удалить урок'}</button>`;
   return h + '</div>';
 }
-const ldOpen = pid => { S.ldp = S.ldp === pid ? null : pid; render(true); };
+// неделя: сервер сам собирает график заново в понедельник; WK хранит текущую неделю и итоги прошлых (без сервера это делает приложение)
+const WK = {id:'', hist:[]};
+const weekIdNow = () => { const d = new Date(), k = (d.getDay() + 6) % 7, m = new Date(d.getFullYear(), d.getMonth(), d.getDate() - k); return m.getFullYear() + '-' + String(m.getMonth() + 1).padStart(2, '0') + '-' + String(m.getDate()).padStart(2, '0'); };
+const MON = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+function wkLabel(id) {
+  const [y, m, d] = id.split('-').map(Number), a = new Date(y, m - 1, d), b = new Date(y, m - 1, d + 6);
+  return a.getMonth() === b.getMonth() ? `${a.getDate()}–${b.getDate()} ${MON[b.getMonth()]}` : `${a.getDate()} ${MON[a.getMonth()]} – ${b.getDate()} ${MON[b.getMonth()]}`;
+}
+function weekCheckLocal() {
+  const now = weekIdNow();
+  if (!WK.id) { WK.id = now; return; }
+  if (WK.id === now) return;
+  const rows = COUR.map(c => { const r = pay(c.id); return {cid:c.id, name:c.name, n1:r.n1, n2:r.n2, n3:r.n3, ok:r.ok, pend:r.pend, total:r.total}; });
+  WK.hist = [{week:WK.id, rows}].concat(WK.hist).slice(0, 12); WK.id = now;
+  COUR.forEach(c => {
+    const tplN = Object.values(TEMPLATE[c.id] || {}).reduce((s, l) => s + l.filter(x => !x.cond).length, 0);   // пустой шаблон: прежний план повторяется
+    for (let d = 0; d < 7; d++) { const src = tplN ? TEMPLATE[c.id][d].filter(x => !x.cond) : L(c.id, d); sched[c.id][d] = src.map(x => ({pid:x.pid, type:x.type === 3 ? 2 : x.type, done:false, review:null})); }
+  });
+  replaceObj(LOADED, {}); replaceObj(PASS, {}); replaceArr(MV, []);
+}
+function refreshDay() {
+  if (todayIdx() !== TODAY) { TODAY = todayIdx(); S.day = TODAY; if (S.role) render(true); }
+  if (!SRV) { const before = WK.id; weekCheckLocal(); if (WK.id !== before && S.role) render(true); }
+}
+setInterval(refreshDay, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshDay(); });
+function histHTML(cid) {
+  const rows = (WK.hist || []).map(w => ({w, r:cid ? w.rows.filter(x => x.cid === cid) : w.rows})).filter(x => x.r.some(y => y.total > 0)).slice(0, 8);
+  if (!rows.length) return '';
+  return '<h3>Прошлые недели</h3>' + rows.map(({w, r}) => `<div class="card"><div class="t1" style="font-size:14px">Неделя ${wkLabel(w.week)}</div>` + r.map(y => `<div class="kv"><span>${cid ? 'Итого' : esc(y.name)} <span class="tiny">тип 1 × ${y.n1}, тип 2 × ${y.n2}${y.n3 ? ', Г × ' + y.n3 : ''}</span></span><b>${money(y.total)}</b></div>`).join('') + '</div>').join('');
+}const ldOpen = pid => { S.ldp = S.ldp === pid ? null : pid; render(true); };
 // остатки на точке сейчас по каждой станции и сколько нужно взять
 function stockRows(p) {
   let h = '';
@@ -1202,7 +1244,7 @@ function payScreen() {
       <div class="kv"><span>Генеральная уборка × ${r.n3} (${money(c.r3)})</span><b>${money(r.n3 * c.r3)}</b></div>
       <div class="kv"><span>Запланировано до конца недели</span><b style="color:var(--o)">${money(r.plan)}</b></div></div>
       <h3>По дням</h3><div class="card">${WD.map((d, i) => `<div class="kv"><span>${d}${i === TODAY ? ' · сегодня' : ''}</span><b>${money(r.byDay[i])}</b></div>`).join('')}</div>
-      <div class="tiny">Визит считается, когда сдан. Если менеджер просит переснять фото, он выпадает из расчёта до повторной сдачи.</div></div>`;
+      ${histHTML(S.me)}<div class="tiny">Визит считается, когда сдан. Если менеджер просит переснять фото, он выпадает из расчёта до повторной сдачи.</div></div>`;
     return h;
   }
   let h = topbar('Зарплата', 'Автоматический расчёт за неделю'), sum = 0;
@@ -1215,7 +1257,7 @@ function payScreen() {
       <div class="kv"><span>Тип 2 × ${r.n2}</span><div class="step"><button onclick="rate(${c.id},'r2',-50)">−</button><span style="min-width:64px">${money(c.r2)}</span><button onclick="rate(${c.id},'r2',50)">+</button></div></div>
       <div class="kv"><span>Генеральная × ${r.n3}</span><div class="step"><button onclick="rate(${c.id},'r3',-100)">−</button><span style="min-width:64px">${money(c.r3)}</span><button onclick="rate(${c.id},'r3',100)">+</button></div></div></div>`;
   });
-  h += `<div class="nav"><div class="tiny">Итого к выплате за неделю</div><div class="big">${money(sum)}</div></div><div class="tiny">Расценки за тип 1 и тип 2 задаёт менеджер для каждого курьера. Сумма пересчитывается автоматически по сданным визитам.</div></div>`;
+  h += `<div class="nav"><div class="tiny">Итого к выплате за неделю</div><div class="big">${money(sum)}</div></div><div class="tiny">Расценки за тип 1 и тип 2 задаёт менеджер для каждого курьера. Сумма пересчитывается автоматически по сданным визитам.</div>` + histHTML(0) + '</div>';
   return h;
 }
 const rate = (id, k, d) => { cr(id)[k] = Math.max(0, cr(id)[k] + d); render(true); };
@@ -1966,7 +2008,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -1977,7 +2019,7 @@ function restoreData(txt) {
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
-  replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []);
+  replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
   nid = d.nid; CITY = d.CITY;
   if (d.sess && d.sess.role && (d.sess.role === 'mgr' || cr(d.sess.me))) Object.assign(S, d.sess, {view:null, sheet:null, cam:null, shade:false});
   return true;
@@ -2107,7 +2149,7 @@ function docsFromState() {
 }
 // те же правила, что на сервере: сервер всё равно перепроверит
 function canWriteKey(k, v) {
-  if (SY.role === 'mgr') return k !== 'cour';
+  if (SY.role === 'mgr') return k !== 'cour' && k !== 'wk';
   const p = k.split('/'), h = p[0], me = String(SY.cid);
   if (h === 'pt' || h === 'wh') return true;
   if (h === 'sched' || h === 'ld' || h === 'msg' || h === 'av' || h === 'prog' || h === 'mv') return p[1] === me;
@@ -2147,6 +2189,8 @@ function applyDoc(k, v, dele) {
     upsert(LESSONS, dele ? {id:p[1]} : v, dele, (a, b) => (a.ts || 0) - (b.ts || 0));
   } else if (h === 'prog') {
     if (dele || !v) delete PROG[p[1]]; else PROG[p[1]] = v;
+  } else if (h === 'wk') {
+    if (v) { WK.id = v.id || ''; WK.hist = v.hist || []; }
   } else if (h === 'mv') {
     upsert(MV, dele ? {id:p[2]} : v, dele, (a, b) => (b.ts || 0) - (a.ts || 0));
   } else if (h === 'wh') {
@@ -2173,7 +2217,7 @@ function applyDoc(k, v, dele) {
 }
 function resetFromDocs(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
-  [CHAT, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(LESSONS, []); replaceArr(MV, []); LSEED = false;
+  [CHAT, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
   SY.mirror = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
     if (d.dele) return;
@@ -2269,8 +2313,21 @@ function doLoginServer(l, p, rem) {
   if (!l || !p) { S.lg.err = 'Введите логин и пароль'; return render(); }
   S.lg.busy = true; S.lg.err = ''; render();
   syncStop();
+  return api('/api/login', {login:l, password:p}).then(j => startServerSession(j, l, rem)).catch(e => { syncStop(); S.lg.busy = false; S.lg.err = e.message; render(); });
+}
+// вход по сохранённому ключу: пароль не нужен; если ключ устарел, просим ввести пароль
+function loginToken(i) {
+  const a = ACCS[i]; S.lg.busy = true; S.lg.err = ''; render();
+  syncStop(); SY.token = a.token;
+  return api('/api/me').then(me => startServerSession({token:a.token, role:me.role, cid:me.cid, name:me.name}, a.login, true)).catch(e => {
+    syncStop(); S.lg.busy = false; S.lg.login = a.login; S.lg.pass = '';
+    if (/Сессия истекла/.test(e.message)) { delete a.token; saveAccs(); S.lg.err = 'Сессия истекла: введите пароль'; } else S.lg.err = e.message;
+    render();
+  });
+}
+function startServerSession(j, l, rem) {
   let seed = false;
-  return api('/api/login', {login:l, password:p}).then(j => {
+  {
     Object.assign(SY, {token:j.token, role:j.role, cid:j.cid, login:l});
     return api('/api/state?since=0').then(st => {
       if (st.empty) {
@@ -2281,14 +2338,14 @@ function doLoginServer(l, p, rem) {
       if (j.role === 'mgr' && !LSEED) { LSEED = true; if (!LESSONS.length) seedLessons(); }   // стартовые уроки создаются один раз
       if (j.role === 'cour' && !cr(j.cid)) throw new Error('Курьер не найден на сервере');
       SY.seq = st.seq; SY.on = true; saveSync();
-      if (rem) rememberAcc(l, p, j.name, j.role);
+      if (rem) rememberAcc(l, null, j.name, j.role, j.token);
       S.lg = {login:'', pass:'', err:''};
       if (j.role === 'mgr') MGR.name = j.name;
       login(j.role, j.cid);
       openStream(); setNet(true);
       pushChanges();   // первый вход менеджера на пустой сервер: загружаем начальные данные
-    });
-  }).catch(e => { syncStop(); S.lg.busy = false; S.lg.err = e.message; render(); });
+    }).catch(e => { syncStop(); S.lg.busy = false; S.lg.err = e.message; render(); });
+  }
 }
 // после перезапуска приложения продолжаем сессию без повторного ввода пароля
 function syncBoot() {
@@ -2306,6 +2363,7 @@ let ACCS = [];
 try { ACCS = JSON.parse(localStorage.getItem(ACC_KEY) || '[]'); if (!Array.isArray(ACCS)) ACCS = []; } catch (e) { ACCS = []; }
 function saveAccs() { try { localStorage.setItem(ACC_KEY, JSON.stringify(ACCS)); } catch (e) {} }
 try { const txt = localStorage.getItem(STORE_KEY); if (txt && !restoreData(txt)) localStorage.removeItem(STORE_KEY); } catch (e) { try { localStorage.removeItem(STORE_KEY); } catch (e2) {} }
+S.day = TODAY; if (!SRV) weekCheckLocal();
 if (!SRV && !LSEED) { LSEED = true; if (!LESSONS.length) seedLessons(); }
 syncBoot();
 render();
