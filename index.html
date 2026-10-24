@@ -115,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 36;
+const APP_VERSION = 37;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1031,7 +1031,15 @@ function weekCheckLocal() {
   });
   replaceObj(LOADED, {}); replaceObj(PASS, {}); replaceArr(MV, []);
 }
-function refreshDay() {
+// автоочистка на телефоне (то же, что делает сервер): проверки с фото и уведомления старше 30 дней и переписка старше 90 дней удаляются,
+// иначе память телефона (около 5 МБ) заполнится фотографиями
+function pruneOld() {
+  const now = Date.now(), D = 86400000;
+  for (let i = reviews.length - 1; i >= 0; i--) if (reviews[i].id > 1e12 && now - reviews[i].id > 30 * D) reviews.splice(i, 1);
+  for (let i = NOTIFS.length - 1; i >= 0; i--) if (NOTIFS[i].ts > 1e12 && now - NOTIFS[i].ts > 30 * D) NOTIFS.splice(i, 1);
+  Object.keys(CHAT).forEach(c => { const a = CHAT[c]; for (let i = a.length - 1; i >= 0; i--) if (a[i].ts > 1e12 && now - a[i].ts > 90 * D) a.splice(i, 1); });
+}function refreshDay() {
+  pruneOld();
   if (todayIdx() !== TODAY) { TODAY = todayIdx(); S.day = TODAY; if (S.role) render(true); }
   if (!SRV) { const before = WK.id; weekCheckLocal(); if (WK.id !== before && S.role) render(true); }
 }
@@ -2410,7 +2418,7 @@ let ACCS = [];
 try { ACCS = JSON.parse(localStorage.getItem(ACC_KEY) || '[]'); if (!Array.isArray(ACCS)) ACCS = []; } catch (e) { ACCS = []; }
 function saveAccs() { try { localStorage.setItem(ACC_KEY, JSON.stringify(ACCS)); } catch (e) {} }
 try { const txt = localStorage.getItem(STORE_KEY); if (txt && !restoreData(txt)) localStorage.removeItem(STORE_KEY); } catch (e) { try { localStorage.removeItem(STORE_KEY); } catch (e2) {} }
-S.day = TODAY; if (!SRV) weekCheckLocal();
+S.day = TODAY; pruneOld(); if (!SRV) weekCheckLocal();
 if (!SRV && !LSEED) { LSEED = true; if (!LESSONS.length) seedLessons(); }
 syncBoot();
 render();
