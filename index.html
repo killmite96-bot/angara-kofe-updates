@@ -104,7 +104,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 30;
+const APP_VERSION = 31;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1008,7 +1008,7 @@ function visitScreen() {
     h += unitTabs(p, null);
     ING.forEach(g => {
       const isL = true;
-      h += `<div class="card" style="padding:10px 12px"><div class="row"><div class="grow t1" style="font-size:14px;${isL ? 'cursor:pointer' : ''}" ${isL ? `onclick="openLevel('${g.id}')"` : ''}>${g.n}${isL ? ` <span class="pill blue">${lvIcon(g.id)} ${g.t === 'count' ? v.after[g.id] + ' шт' : '≈ ' + +(v.after[g.id] * g.cap).toFixed(2) + ' ' + g.u} · отметить</span>` : ''}</div>${v.quick ? '' : `<div class="tiny">добавил</div><div class="step"><button onclick="dv('${g.id}',-1)">−</button><span>${v.deliv[g.id]}</span><button onclick="dv('${g.id}',1)">+</button></div>`}</div>`;
+      h += `<div class="card" style="padding:10px 12px"><div class="row"><div class="grow t1" style="font-size:14px;${isL ? 'cursor:pointer' : ''}" ${isL ? `onclick="openLevel('${g.id}')"` : ''}>${g.n}${isL ? ` <span class="pill blue">${lvIcon(g.id)} ${g.t === 'count' ? v.after[g.id] + ' шт' : '≈ ' + +(v.after[g.id] * g.cap).toFixed(2) + ' ' + g.u}</span>` : ''}</div>${v.quick ? '' : `<div class="tiny">добавил</div><div class="step"><button onclick="dv('${g.id}',-1)">−</button><span>${v.deliv[g.id]}</span><button onclick="dv('${g.id}',1)">+</button></div>`}</div>`;
       if (g.t === 'level') h += lvPick(g.id, v.after[g.id]);
       else h += `<div class="row" style="margin-top:6px"><div class="tiny grow">осталось на станции</div><div class="step"><button onclick="sc('${g.id}',-10)">−</button><span>${v.after[g.id]}</span><button onclick="sc('${g.id}',10)">+</button></div></div>`;
       h += '</div>';
