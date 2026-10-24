@@ -1,9 +1,9 @@
 {
-    "content":  33,
+    "content":  34,
     "apk":  8,
-    "notes":  "Настоящий день недели и смена недели по понедельникам, итоги прошлых недель; запомненные аккаунты хранят ключ вместо пароля.",
+    "notes":  "Одновременные правки менеджера и курьера сливаются по полям: ничего не теряется.",
     "contentFile":  "index.html",
-    "contentSha256":  "e8f1896ecb2b3685de9e9672a906f5c490b6aa6c6d8b9a7e76f0b764d87e105e",
+    "contentSha256":  "1783b8fb2e462e74b29a70d04a367ddfae1e0634a633dde0a39255cf5c958285",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "a68adecc194b9f96c0f613d526e8063aec7ca9a50797d625b1c7d33fb8b142a4"
+    "apkSha256":  "c8639524037021d644068ed34ebe37512b0f9334ad6e7b228e7e655e640ad4eb"
 }

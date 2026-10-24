@@ -104,7 +104,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 33;
+const APP_VERSION = 34;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2104,13 +2104,13 @@ try { SRV = localStorage.getItem(SRV_KEY) || ''; } catch (e) {}
 if (!SRV) { try { SRV = window.AndroidBridge && AndroidBridge.serverUrl ? String(AndroidBridge.serverUrl() || '') : ''; } catch (e) {} }
 if (!SRV && /^https?:$/.test(location.protocol)) SRV = location.origin;
 SRV = SRV.trim().replace(/\/+$/, '');
-const SY = {token:'', role:'', cid:0, login:'', seq:0, mirror:{}, on:false, net:false, pend:{}, pushing:false, es:null};
-try { const t = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (t && t.url === SRV && t.token) Object.assign(SY, {token:t.token, role:t.role, cid:t.cid, login:t.login || '', seq:t.seq || 0, mirror:t.mirror || {}}); } catch (e) {}
+const SY = {token:'', role:'', cid:0, login:'', seq:0, mirror:{}, base:{}, on:false, net:false, pend:{}, pushing:false, es:null};
+try { const t = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (t && t.url === SRV && t.token) Object.assign(SY, {token:t.token, role:t.role, cid:t.cid, login:t.login || '', seq:t.seq || 0, mirror:t.mirror || {}, base:t.base || {}}); } catch (e) {}
 // сообщаем оболочке Android данные входа: пока приложение закрыто, она раз в ~15 минут проверяет новые уведомления
 function bgSession(on) {
   try { if (window.AndroidBridge && AndroidBridge.setSession) { if (on) AndroidBridge.setSession(SRV, SY.token, SY.role, SY.cid | 0, SY.seq | 0); else AndroidBridge.clearSession(); } } catch (e) {}
 }
-function saveSync() { bgSession(true); try { localStorage.setItem(SYNC_KEY, JSON.stringify({url:SRV, token:SY.token, role:SY.role, cid:SY.cid, login:SY.login, seq:SY.seq, mirror:SY.mirror})); } catch (e) {} }
+function saveSync() { bgSession(true); try { localStorage.setItem(SYNC_KEY, JSON.stringify({url:SRV, token:SY.token, role:SY.role, cid:SY.cid, login:SY.login, seq:SY.seq, mirror:SY.mirror, base:SY.base})); } catch (e) {} }
 function setServer(v) {
   v = (v || '').trim().replace(/\/+$/, '');
   if (v && !/^https?:\/\//i.test(v)) v = 'http://' + v;
@@ -2218,29 +2218,65 @@ function applyDoc(k, v, dele) {
 function resetFromDocs(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
   [CHAT, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
-  SY.mirror = {};
+  SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
     if (d.dele) return;
-    applyDoc(d.key, d.v, false); SY.mirror[d.key] = hsh(jstr(d.v));
+    applyDoc(d.key, d.v, false); SY.mirror[d.key] = hsh(jstr(d.v)); setBase(d.key, d.v);
   });
 }
-function afterRemote() {
+// Слияние правок по полям. Если на телефоне есть ещё не отправленные правки документа, а с сервера пришла чужая версия, то общая «основа»
+// (последнее согласованное состояние) позволяет оставить ваши изменения и добавить чужие, а не затирать одно другим. Если оба изменили одно поле, побеждает ваше.
+// Основа хранится для небольших документов (остатки, график, склад); для больших (фото) работает прежнее правило «побеждает пришедшая версия».
+const BASE_MAX = 30000;
+function setBase(k, v) { if (v === null || v === undefined) { delete SY.base[k]; return; } const s = jstr(v); if (s.length <= BASE_MAX) SY.base[k] = s; else delete SY.base[k]; }
+function merge3(b, l, r) {
+  const sb = jstr(b), sl = jstr(l), sr = jstr(r);
+  if (sl === sb) return r;       // у вас без изменений: берём пришедшее
+  if (sr === sb) return l;       // чужих изменений нет: оставляем ваше
+  if (sl === sr) return l;
+  const isO = x => x && typeof x === 'object' && !Array.isArray(x);
+  if (isO(b) && isO(l) && isO(r)) {
+    const o = {};
+    new Set(Object.keys(b).concat(Object.keys(l), Object.keys(r))).forEach(k => { const v = merge3(b[k], l[k], r[k]); if (v !== undefined) o[k] = v; });
+    return o;
+  }
+  const keyed = a => Array.isArray(a) && a.every(x => isO(x) && x.pid !== undefined);
+  if (keyed(b) && keyed(l) && keyed(r)) {   // списки визитов: сливаем по номеру точки
+    const mb = new Map(b.map(x => [x.pid, x])), ml = new Map(l.map(x => [x.pid, x])), mr = new Map(r.map(x => [x.pid, x])), out = [];
+    new Set(r.map(x => x.pid).concat(l.map(x => x.pid))).forEach(pid => {
+      const inB = mb.has(pid), inL = ml.has(pid), inR = mr.has(pid);
+      if (inL && inR) out.push(merge3(mb.get(pid), ml.get(pid), mr.get(pid)));
+      else if (inL) { if (!inB || jstr(ml.get(pid)) !== jstr(mb.get(pid))) out.push(ml.get(pid)); }   // удалено там: оставляем, только если вы это меняли
+      else if (inR) { if (!inB || jstr(mr.get(pid)) !== jstr(mb.get(pid))) out.push(mr.get(pid)); }   // удалено у вас: возвращаем, только если там меняли
+    });
+    return out;
+  }
+  return l;   // оба изменили одно и то же целиком: побеждает ваше
+}function afterRemote() {
   if (!S.role) return;
   if (S.role === 'cour' && !cr(S.me)) return doLogout();
   if (S.cam || CROP || S.sheet === 'level' || S.sheet === 'trash') return;   // не перерисовываем под пальцем
   render(true);
 }
 function onRemote(list) {
-  let changed = false;
+  let changed = false, merged = false, cur = null;
   list.forEach(d => {
     if (d.seq > SY.seq) SY.seq = d.seq;
     const s = d.dele ? null : hsh(jstr(d.v));
     if (SY.mirror[d.key] === s || SY.pend[d.key] === s) { if (s !== null) SY.mirror[d.key] = s; return; }   // это наше же изменение
-    applyDoc(d.key, d.v, d.dele);
-    if (s === null) delete SY.mirror[d.key]; else SY.mirror[d.key] = s;
+    let val = d.v;
+    if (!d.dele && SY.base[d.key] !== undefined) {   // есть ли у вас неотправленные правки этого документа?
+      if (!cur) cur = docsFromState();
+      const mine = cur[d.key];
+      if (mine !== undefined && SY.mirror[d.key] !== undefined && hsh(jstr(mine)) !== SY.mirror[d.key] && canWriteKey(d.key, mine)) { val = merge3(JSON.parse(SY.base[d.key]), JSON.parse(jstr(mine)), d.v); merged = true; }
+    }
+    applyDoc(d.key, val, d.dele);
+    if (s === null) delete SY.mirror[d.key]; else SY.mirror[d.key] = s;   // «последнее согласованное» — версия сервера; слитый результат уйдёт на сервер следующей отправкой
+    setBase(d.key, d.dele ? null : d.v);
     changed = true;
   });
   saveSync();
+  if (merged) pushSoon();
   if (changed) afterRemote();
 }
 function setNet(ok) {
@@ -2252,15 +2288,15 @@ let pushT = 0;
 function pushSoon() { clearTimeout(pushT); pushT = setTimeout(pushChanges, 350); }
 function pushChanges() {
   if (!SY.on || SY.pushing) return;
-  const cur = docsFromState(), ch = [], sig = {};
+  const cur = docsFromState(), ch = [], sig = {}, bas = {};
   Object.keys(cur).forEach(k => {
     const v = cur[k];
     if (!canWriteKey(k, v)) return;
     if (Array.isArray(v) && !v.length && !(k in SY.mirror)) return;
     if (SY.role === 'cour' && k.indexOf('rev/') === 0 && k in SY.mirror) return;   // решение менеджера курьер не перезаписывает
-    const s = hsh(jstr(v));
+    const js = jstr(v), s = hsh(js);
     if (SY.mirror[k] === s) return;
-    ch.push({key:k, value:JSON.parse(jstr(v))}); sig[k] = s;
+    ch.push({key:k, value:JSON.parse(js)}); sig[k] = s; bas[k] = js;
   });
   Object.keys(SY.mirror).forEach(k => {
     if (!(k in cur) && canWriteKey(k, null)) { ch.push({key:k, value:null, del:true}); sig[k] = null; }
@@ -2268,7 +2304,7 @@ function pushChanges() {
   if (!ch.length) return;
   SY.pushing = true; SY.pend = sig;
   api('/api/push', {changes:ch}).then(() => {
-    Object.keys(sig).forEach(k => { if (sig[k] === null) delete SY.mirror[k]; else SY.mirror[k] = sig[k]; });
+    Object.keys(sig).forEach(k => { if (sig[k] === null) { delete SY.mirror[k]; delete SY.base[k]; } else { SY.mirror[k] = sig[k]; if (bas[k].length <= BASE_MAX) SY.base[k] = bas[k]; else delete SY.base[k]; } });
     SY.pushing = false; SY.pend = {}; setNet(true); saveSync(); pushSoon();
   }).catch(e => {
     SY.pushing = false; SY.pend = {};
@@ -2300,7 +2336,7 @@ function syncResume() {
 }
 function syncStop() {
   SY.on = false; closeStream(); clearTimeout(pushT);
-  Object.assign(SY, {token:'', mirror:{}, seq:0, pend:{}, pushing:false, net:false});
+  Object.assign(SY, {token:'', mirror:{}, base:{}, seq:0, pend:{}, pushing:false, net:false});
   try { localStorage.removeItem(SYNC_KEY); } catch (e) {}
   bgSession(false);
 }
