@@ -100,7 +100,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 13;
+const APP_VERSION = 14;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -275,17 +275,53 @@ function km(a, b) {
   return 2 * R * Math.asin(Math.sqrt(x)) * 1.3;
 }
 const eta = k => Math.max(2, Math.round(k / 28 * 60));
+// порядок объезда: сначала ближайшая точка, затем исправление «зигзагов» (2-opt): участки пути переворачиваются, пока это сокращает дорогу
+const lateWin = p => { const m = /^(\d{1,2}):/.exec(p.win || ''); return !!m && +m[1] >= 13; };   // точки, куда можно только после 13:00, едут в конце
+function pathOrder(list, from) {
+  let cur = from; const rest = list.slice(), seq = [];
+  while (rest.length) { rest.sort((x, y) => km(cur, pt(x.pid)) - km(cur, pt(y.pid))); const n = rest.shift(); seq.push(n); cur = pt(n.pid); }
+  const at = i => i < 0 ? from : pt(seq[i].pid);
+  for (let imp = true, guard = 0; imp && guard < 60; guard++) {
+    imp = false;
+    for (let i = 0; i < seq.length - 1; i++) for (let j = i + 1; j < seq.length; j++) {
+      const a = at(i - 1), b = at(i), c = at(j), hasD = j + 1 < seq.length, d = hasD ? at(j + 1) : null;
+      if (km(a, c) + (hasD ? km(b, d) : 0) < km(a, b) + (hasD ? km(c, d) : 0) - 1e-9) { seq.splice(i, j - i + 1, ...seq.slice(i, j + 1).reverse()); imp = true; }
+    }
+  }
+  return seq;
+}
+// точный перебор (ветви и границы) для обычного дня: самый короткий путь по всем точкам вместе с дорогой до точек «после 13:00», которые едут в конце
+function bestPath(list, from, tail) {
+  const pts = list.map(x => pt(x.pid)), tp = tail.map(x => pt(x.pid)), n = pts.length, used = new Array(n).fill(false), seq = [];
+  const tailLen = last => { let c = last, t = 0; tp.forEach(q => { t += km(c, q); c = q; }); return t; };
+  let best = Infinity, bestSeq = [];
+  (function dfs(cur, len) {
+    if (len >= best) return;
+    if (seq.length === n) { const tot = len + tailLen(cur); if (tot < best) { best = tot; bestSeq = seq.slice(); } return; }
+    const order = pts.map((p, i) => i).filter(i => !used[i]).sort((a, b) => km(cur, pts[a]) - km(cur, pts[b]));
+    for (const i of order) { used[i] = true; seq.push(i); dfs(pts[i], len + km(cur, pts[i])); seq.pop(); used[i] = false; }
+  })(from, 0);
+  return bestSeq.map(i => list[i]);
+}
+const OPT_CACHE = {};   // порядок не пересчитывается на каждой перерисовке
 function optimize(list, from) {
-  const rest = list.slice(), out = []; let cur = from;
-  while (rest.length) { rest.sort((x, y) => km(cur, pt(x.pid)) - km(cur, pt(y.pid))); const n = rest.shift(); out.push(n); cur = pt(n.pid); }
-  return out;
+  const key = from.lat + ',' + from.lon + '|' + list.map(x => x.pid).sort((a, b) => a - b).join(',');
+  const ord = OPT_CACHE[key] || (OPT_CACHE[key] = optimizeRaw(list, from).map(x => x.pid));
+  return ord.map(pid => list.find(x => x.pid === pid));
+}
+function optimizeRaw(list, from) {
+  const early = list.filter(x => !lateWin(pt(x.pid))), late = pathOrder(list.filter(x => lateWin(pt(x.pid))), from);
+  if (early.length <= 9) return bestPath(early, from, late).concat(late);
+  const e = pathOrder(early, from);
+  return e.concat(pathOrder(late, e.length ? pt(e[e.length - 1].pid) : from));
 }
 function posOf(cid) {
   const done = L(cid, TODAY).filter(x => x.done);
   return done.length ? pt(done[done.length - 1].pid) : DEPOT;
 }
 function legs(cid) {
-  const rem = L(cid, TODAY).filter(x => !x.done); let cur = posOf(cid), tot = 0; const out = [];
+  let cur = posOf(cid), tot = 0; const out = [];
+  const rem = optimize(L(cid, TODAY).filter(x => !x.done), cur);   // маршрут всегда строится от последней точки по ближайшим
   rem.forEach(x => { const d = km(cur, pt(x.pid)); out.push({x, d}); tot += d; cur = pt(x.pid); });
   return {out, tot};
 }
