@@ -1,9 +1,9 @@
 {
-    "content":  18,
+    "content":  19,
     "apk":  6,
-    "notes":  "Окна закрываются свайпом за ручку (шторка уведомлений вверх). В погрузке раскрытие адреса не сбрасывает прокрутку.",
+    "notes":  "Окна закрываются свайпом вниз с любого места (шторка уведомлений вверх).",
     "contentFile":  "index.html",
-    "contentSha256":  "1ade9e29182644076ba4b6e8e7c842be01bfabb3ae72541be40574961ad266f1",
+    "contentSha256":  "5d58aec1c373a43dc5073993e22fa9b5222dcd845d7339fc01ce98d686dde67a",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "192628e979a250690f96c34981604d3e53bfd0051f0d57d5619abf9208f38a35"
+    "apkSha256":  "44fbc8a47cb1412ef470a54d9b8edfc1eead35c22695676f8a6d4abf546bddc7"
 }
