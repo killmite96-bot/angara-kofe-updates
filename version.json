@@ -1,9 +1,9 @@
 {
-    "content":  115,
+    "content":  116,
     "apk":  20,
-    "notes":  "Точка в цитате ответа спокойнее: меньше и мягче.",
+    "notes":  "Плашка точки в цитате ответа светлее.",
     "contentFile":  "index.html",
-    "contentSha256":  "3da4b5fb54482646ab1b154d8f9fe35c9e655ad85217e41ab1239084477f9904",
+    "contentSha256":  "6d37b9ad7eb526bd73de410d1023ca5875f6aa8eda969235ffc2f9d3a75d1519",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }
