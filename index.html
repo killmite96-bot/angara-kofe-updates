@@ -145,7 +145,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 #app.enter .body>*{animation:fadeup .4s cubic-bezier(.22,1,.36,1) both}
 #app.enter .body>*:nth-child(2){animation-delay:.04s}#app.enter .body>*:nth-child(3){animation-delay:.08s}#app.enter .body>*:nth-child(4){animation-delay:.12s}#app.enter .body>*:nth-child(5){animation-delay:.16s}#app.enter .body>*:nth-child(6){animation-delay:.2s}#app.enter .body>*:nth-child(7){animation-delay:.24s}#app.enter .body>*:nth-child(8){animation-delay:.28s}#app.enter .body>*:nth-child(n+9){animation-delay:.32s}
 #app.enterlist .body>*:not(.days):not(.chips){animation:fadeup .38s cubic-bezier(.22,1,.36,1) both}
-#app.enterlist .body>*:nth-child(2){animation-delay:.03s}#app.enterlist .body>*:nth-child(3){animation-delay:.06s}#app.enterlist .body>*:nth-child(4){animation-delay:.09s}#app.enterlist .body>*:nth-child(5){animation-delay:.12s}#app.enterlist .body>*:nth-child(6){animation-delay:.15s}#app.enterlist .body>*:nth-child(7){animation-delay:.18s}#app.enterlist .body>*:nth-child(8){animation-delay:.21s}#app.enterlist .body>*:nth-child(n+9){animation-delay:.24s}
+#app.enterlist .body>*{animation-delay:.1s !important}#app.enterlist .body>*:nth-child(2){animation-delay:.13s !important}#app.enterlist .body>*:nth-child(3){animation-delay:.16s !important}#app.enterlist .body>*:nth-child(4){animation-delay:.19s !important}#app.enterlist .body>*:nth-child(5){animation-delay:.22s !important}#app.enterlist .body>*:nth-child(6){animation-delay:.25s !important}#app.enterlist .body>*:nth-child(7){animation-delay:.28s !important}#app.enterlist .body>*:nth-child(n+8){animation-delay:.31s !important}
 @keyframes settle{from{opacity:.72;transform:translateY(12px)}to{opacity:1;transform:none}}
 #app.enterback .body>*{animation:settle .45s cubic-bezier(.22,1,.36,1) both}
 #app.enterback .body>*:nth-child(2){animation-delay:.03s}#app.enterback .body>*:nth-child(3){animation-delay:.06s}#app.enterback .body>*:nth-child(4){animation-delay:.09s}#app.enterback .body>*:nth-child(5){animation-delay:.12s}#app.enterback .body>*:nth-child(6){animation-delay:.15s}#app.enterback .body>*:nth-child(7){animation-delay:.18s}#app.enterback .body>*:nth-child(8){animation-delay:.21s}#app.enterback .body>*:nth-child(n+9){animation-delay:.24s}
@@ -194,7 +194,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 76;
+const APP_VERSION = 77;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2271,7 +2271,7 @@ function screenHTML(patch) {
 }
 // экран определяется вкладкой, открытой карточкой/визитом (и шагом визита) и беседой чата: пока он тот же, прокрутка сохраняется при любой перерисовке, сбрасывается только при переходе
 const renderKey = () => [S.role, S.view ? JSON.stringify(S.view) : S.tab, S.th || '', S.view && S.view.type === 'visit' && S.visit ? S.visit.step : ''].join('|');
-let NAVDIR = 0;
+let NAVDIR = 0, NAVSKIPPED = false;
 const SCROLLMEM = {};   // где был прокручен каждый экран: при возврате назад список остаётся на том же месте
 const sigOf = () => Array.from($('app').querySelectorAll('.body .days button.on, .body .chips button.on')).map(b => b.textContent.trim()).join('|');
 function render(keep) {
@@ -2287,7 +2287,7 @@ function render(keep) {
   let navDir = 0, navSnap = null, ghost = null, preSig = '';
   if (navChanged && !NAV_SKIP && !FX_OFF && $('app').firstElementChild) { navDir = isPop ? -1 : 1; navSnap = navSnapshot(); }
   if (sameScreen && body && !FX_OFF && body.querySelector('.days, .chips')) { preSig = sigOf(); ghost = body.cloneNode(true); ghost._sc = body.scrollTop; }
-  LASTDEPTH = navD0; NAV_SKIP = false; NAVDIR = navChanged ? (isPop ? -1 : 1) : 0;
+  LASTDEPTH = navD0; NAVSKIPPED = NAV_SKIP; NAV_SKIP = false; NAVDIR = navChanged ? (isPop ? -1 : 1) : 0;
   BK.on = false;
   $('app').innerHTML = screenHTML({})
     + (S.sheet ? `<div class="overlay" onclick="if(event.target===this)go({sheet:null})"><div class="sheet" id="sheetmain"><div class="grab" id="grab"><i></i></div>${sheet()}</div></div>` : '')
@@ -2344,7 +2344,12 @@ function bkStart(st) {
   const cb = cur.querySelector('.body'); if (cb && ob) cb.scrollTop = ob.scrollTop;
   const ub = under.querySelector('.body'), ps = SCROLLMEM[keyFor(st.patch)] || 0;   // предыдущий экран под сдвигаемым стоит там же, где вы его оставили
   if (ub) ub.scrollTop = ps; const utop = under.querySelector('.top'); if (utop && ps > 16) utop.classList.add('sc');
-  Object.assign(st, {cur, under, W:app.clientWidth || 360, started:true}); BK.on = true;
+  Object.assign(st, {cur, under, W:app.clientWidth || 360, started:true, kids:Array.from(under.querySelectorAll('.body > *'))}); BK.on = true;
+  bkCascade(st, 0);
+}
+// «каскадное появление» предыдущего экрана привязано к движению пальца: карточки по очереди проявляются по мере того, как экран отодвигается; в конце картинка совпадает с настоящим экраном, и подмена незаметна
+function bkCascade(st, p) {
+  st.kids.forEach((el, i) => { const a = Math.max(0, Math.min(1, (p - 0.05 * i) / 0.5)); el.style.opacity = String(a); el.style.transform = `translateY(${(1 - a) * 14}px)`; });
 }
 function bkMove(st) {
   if (!st.cur.isConnected) return;
@@ -2352,6 +2357,7 @@ function bkMove(st) {
   st.cur.style.transform = `translateX(${st.dx}px)`;
   st.under.style.transform = `translateX(${-28 * (1 - p)}%)`;
   const dim = st.under.querySelector('#bkdim'); if (dim) dim.style.opacity = String(.6 * (1 - p));
+  bkCascade(st, Math.min(1, p * 1.6));
 }
 function bkEnd(st) {
   if (!st.cur.isConnected) { BK.on = false; return; }
@@ -2359,10 +2365,11 @@ function bkEnd(st) {
   st.cur.style.transition = tr; st.under.style.transition = tr;
   const dim = st.under.querySelector('#bkdim'); if (dim) dim.style.transition = 'opacity .24s ease-out';
   st.cur.style.transform = `translateX(${done ? st.W : 0}px)`; st.under.style.transform = `translateX(${done ? 0 : -28}%)`; if (dim) dim.style.opacity = done ? '0' : '.6';
+  st.kids.forEach((el, i) => { el.style.transition = 'opacity .3s ease-out, transform .3s ease-out'; el.style.transitionDelay = (done ? Math.min(i, 8) * 28 : 0) + 'ms'; el.style.opacity = done ? '1' : '0'; el.style.transform = done ? 'none' : 'translateY(14px)'; });
   setTimeout(() => {
-    if (done) { BK.on = false; NAV_SKIP = true; go(st.patch); }   // экран перерисовывается, слои исчезают
+    if (done) { BK.on = false; NAV_SKIP = true; go(st.patch); }   // экран перерисовывается тем же содержимым (без анимации), слои исчезают
     else { BK.on = false; st.cur.remove(); st.under.remove(); }
-  }, 250);
+  }, done ? 250 + Math.min(st.kids.length, 8) * 28 + 90 : 250);
 }
 (function () {
   const app = $('app'); let st = null;
@@ -3031,8 +3038,8 @@ function uiAfterRender() {
   const tb = app.querySelector('.tabs'); app.style.setProperty('--tabh', (tb ? tb.offsetHeight : 0) + 'px');
   const key = renderKey();
   const sub = S.tab === 'sched' && !S.view ? 'd' + S.day + (S.mc !== undefined && S.role === 'mgr' ? 'c' + S.mc : '') : S.tab === 'plan' && !S.view ? 'd' + S.day + 'c' + S.mc : '';   // день недели / курьер на экранах с выбором: список тоже «въезжает»
-  app.classList.toggle('enter', key !== LASTKEY && !FX_OFF && !NAVDIR);   // при выезде/уезде экрана список не «проявляется» заново: иначе при возврате из остатков экран мигал
-  app.classList.remove('enterlist'); app.classList.toggle('enterback', NAVDIR < 0 && !FX_OFF);   // возврат назад: список мягко «оседает» (без полного исчезновения, чтобы не мигало)
+  app.classList.toggle('enter', key !== LASTKEY && !FX_OFF && (NAVDIR === 0 || (NAVDIR < 0 && !NAVSKIPPED)));   // каскад: при открытии вкладки и при возврате кнопкой назад; после свайпа он уже сыгран в слое под экраном   // при выезде/уезде экрана список не «проявляется» заново: иначе при возврате из остатков экран мигал
+  app.classList.remove('enterlist'); app.classList.remove('enterback');   // возврат назад: список мягко «оседает» (без полного исчезновения, чтобы не мигало)
   LASTKEY = key;
   const tp = app.querySelector('.top'), bd = app.querySelector('.body');
   if (tp) tp.classList.add('nt');   // пока подгоняем заголовок и состояние шапки, анимации выключены: иначе надпись «прыгала» после каждой перерисовки
@@ -3211,7 +3218,7 @@ function subGhost(ghost) {
   ghost.style.cssText = `position:absolute;left:${r.left - a.left}px;top:${r.top - a.top}px;width:${r.width}px;height:${r.height}px;overflow:hidden;pointer-events:none;z-index:5;margin:0;padding-bottom:0`;
   ghost.querySelectorAll('.days, .chips, .seg').forEach(e => { e.style.visibility = 'hidden'; });
   app.appendChild(ghost); ghost.scrollTop = ghost._sc || 0;
-  ghost.animate([{opacity: 1}, {opacity: 0}], {duration: 220, easing: 'ease-out', fill: 'forwards'});
+  ghost.animate([{opacity: 1}, {opacity: 0}], {duration: 150, easing: 'ease-out', fill: 'forwards'});
   setTimeout(() => ghost.remove(), 260);
 }
 
