@@ -115,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 45;
+const APP_VERSION = 46;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -543,7 +543,8 @@ function replyNotif(id) {
   const n = NOTIFS.find(x => sameId(x.id, id)), text = (S.nr && sameId(S.nr.id, id) ? S.nr.text : '').trim(); if (!n || !text) return;
   const th = n.th || 'm:' + n.cid, mgr = S.role === 'mgr';
   if (th[0] === 'm') sendMsg(+th.slice(2), mgr ? 'mgr' : 'cour', text, null); else sendTeamMsg(th, text, null);
-  n.read = true; S.nr = null; go({toast:'Ответ отправлен'});
+  const i = NOTIFS.indexOf(n); if (i >= 0) NOTIFS.splice(i, 1);   // на сообщение ответили: плашка больше не нужна
+  S.nr = null; POP = null; go({toast:'Ответ отправлен'});
 }
 // карточку уведомления можно смахнуть в сторону, чтобы убрать
 function bindNotifSwipe() {
@@ -562,6 +563,20 @@ function bindNotifSwipe() {
     };
     el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
   });
+}/* ----- всплывающая плашка сверху: новое уведомление с ответом и «Прочитано» ----- */
+let POP = null, popT = null;
+function popShow(id) { POP = id; clearTimeout(popT); popT = setTimeout(popAuto, 12000); render(true); }
+function popAuto() { const a = document.activeElement; if (a && a.id === 'popin' && (a.value || '').length) { popT = setTimeout(popAuto, 6000); return; } popHide(); }
+function popHide() { clearTimeout(popT); if (POP !== null) { POP = null; render(true); } }
+function popRead(id) { const n = NOTIFS.find(x => sameId(x.id, id)); if (n) n.read = true; POP = null; clearTimeout(popT); render(true); }
+function popHTML() {
+  const n = POP !== null && NOTIFS.find(x => sameId(x.id, POP));
+  if (!n || n.read || S.shade || !S.role) return '';
+  const chat = n.kind === 'chat', ico = n.kind === 'photo' ? 'camera' : n.kind === 'ok' ? 'check' : chat ? 'chat' : n.kind === 'water' ? 'drop' : n.kind === 'move' ? 'move' : 'warn';
+  return `<div id="pop" style="position:absolute;left:10px;right:10px;top:calc(8px + env(safe-area-inset-top));z-index:12;background:#16231c;border:1px solid var(--g);border-radius:16px;padding:10px 12px;box-shadow:0 8px 28px rgba(0,0,0,.55)">
+    <div class="row" style="align-items:flex-start"><div style="color:var(--g)">${ic(ico, 22)}</div><div class="grow" onclick="popHide();${chat ? `openTh('${n.th || 'm:' + n.cid}')` : 'go({shade:true})'}" style="cursor:pointer"><div class="t1" style="font-size:14px">${esc(n.text)}</div></div><button class="btn sec sm" style="padding:4px 8px" onclick="popHide()">${ic('x', 14)}</button></div>
+    ${chat ? `<div class="row" style="margin-top:8px"><input type="text" id="popin" placeholder="Быстрый ответ" autocomplete="off" value="${esc(S.nr && sameId(S.nr.id, n.id) ? S.nr.text : '')}" oninput="S.nr={id:'${n.id}',text:this.value}" onkeydown="if(event.key==='Enter')replyNotif('${n.id}')" style="margin:0"><button class="btn sm" onclick="replyNotif('${n.id}')">${ic('send', 17)}</button></div>` : ''}
+    <div class="btns" style="margin:8px 0 0"><button class="btn sec sm" onclick="popRead('${n.id}')">${ic('check', 15)} Прочитано</button></div></div>`;
 }function shadeHTML() {
   const list = NOTIFS.filter(n => n.to === nkey());
   let h = `<div class="overlay" style="align-items:flex-start" onclick="if(event.target===this)closeShade()"><div class="sheet" id="sheetshade" style="border-radius:0 0 20px 20px;border-top:0;border-bottom:1px solid var(--line);max-height:84%">
@@ -581,7 +596,7 @@ function bindNotifSwipe() {
         : `<div style="margin-top:8px"><span class="pill ${r.status === 'ok' ? 'ok' : 'bad'}">${r.status === 'ok' ? 'принято' : 'отправлено на пересъёмку'}</span></div>`;
     }
     if (n.kind === 'redo') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="closeShade();openPoint(${n.pid})">Открыть точку</button></div>`;
-    if (n.kind === 'chat') h += `<div class="row" style="margin-top:8px"><input type="text" placeholder="Быстрый ответ" autocomplete="off" value="${esc(S.nr && sameId(S.nr.id, n.id) ? S.nr.text : '')}" oninput="S.nr={id:'${n.id}',text:this.value}" onkeydown="if(event.key==='Enter')replyNotif('${n.id}')" style="margin:0"><button class="btn sm" onclick="replyNotif('${n.id}')">${ic('send', 17)}</button></div><div class="btns" style="margin:8px 0 0"><button class="btn sec sm" onclick="openTh('${n.th || 'm:' + n.cid}')">Открыть чат</button></div>`;
+    if (n.kind === 'chat') h += `<div class="row" style="margin-top:8px"><input type="text" id="nr${n.id}" placeholder="Быстрый ответ" autocomplete="off" value="${esc(S.nr && sameId(S.nr.id, n.id) ? S.nr.text : '')}" oninput="S.nr={id:'${n.id}',text:this.value}" onkeydown="if(event.key==='Enter')replyNotif('${n.id}')" style="margin:0"><button class="btn sm" onclick="replyNotif('${n.id}')">${ic('send', 17)}</button></div><div class="btns" style="margin:8px 0 0"><button class="btn sec sm" onclick="openTh('${n.th || 'm:' + n.cid}')">Открыть чат</button></div>`;
     if (n.kind === 'move' && n.mvId) { const m = MV.find(x => x.id === n.mvId); if (m && m.status === 'pending' && S.role === 'mgr') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="mvApprove('${m.id}')">Принять</button><button class="btn sec sm" onclick="mvDecline('${m.id}')">Отклонить</button></div>`; else if (m && m.status !== 'pending') h += `<div style="margin-top:8px"><span class="pill ${m.status === 'ok' ? 'ok' : 'bad'}">${m.status === 'ok' ? 'принято' : 'отклонено'}</span></div>`; }
     h += '</div>';
   });
@@ -1123,7 +1138,7 @@ function pointCard(id) {
     if (p.units.length > 1) h += `<h3>Станция ${i + 1} · ${STN[u.st]}</h3>`;
     ING.forEach(g => {
       const f = frac(u, g), r = rec(u, g), c = f < .2 ? 'var(--r)' : f < .4 ? 'var(--y)' : 'var(--g)';
-      h += `<div class="card" style="padding:9px 12px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${gn(g, p)}</div><div class="bar"><i style="width:${Math.round(f * 100)}%;background:${c}"></i></div></div>
+      h += `<div class="card" style="padding:9px 12px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${gn(g, p)}${/^s\d$/.test(g.id) ? ` <span class="pill blue" style="cursor:pointer" onclick="openSyr(${p.id},'${g.id}')">✎ вкус</span>` : ''}</div><div class="bar"><i style="width:${Math.round(f * 100)}%;background:${c}"></i></div></div>
         <div style="text-align:right">${mg ? stp(`mgCur(${p.id},${i},'${g.id}'`, fmtCur(u, g)) : `<div class="t1" style="font-size:13px">${fmtCur(u, g)}</div>`}<div class="t2" style="color:var(--o)">${r > 0 ? 'взять ' + r + ' ' + g.u : '—'}</div></div></div></div>`;
     });
   });
@@ -2067,7 +2082,7 @@ function render(keep) {
   saveSoon();
   const body = document.querySelector('.body'), sc0 = keep && body ? body.scrollTop : 0;
   const shM = $('sheetmain'), shS = $('sheetshade'), scM = keep && shM ? shM.scrollTop : 0, scS = keep && shS ? shS.scrollTop : 0;   // прокрутка внутри окон тоже сохраняется
-  const ae = document.activeElement, refocus = ae && ae.tagName === 'INPUT' ? ae.selectionStart : -1;
+  const ae = document.activeElement, refocus = ae && ae.tagName === 'INPUT' ? ae.selectionStart : -1, refId = ae && ae.id ? ae.id : '';
   if (!S.role) { $('app').innerHTML = loginScreen(); return; }
   let main;
   if (S.view && S.view.type === 'point') main = pointCard(S.view.id);
@@ -2084,6 +2099,7 @@ function render(keep) {
     + (CROP ? cropHTML() : '')
     + updOverlay()
     + updBanner()
+    + popHTML()
     + (S.toast ? `<div style="position:absolute;left:16px;right:16px;bottom:${UPD.banner ? 170 : 78}px;background:#1f7a45;color:#fff;border-radius:12px;padding:11px 14px;font-size:13px;z-index:9">${S.toast}</div>` : '');
   const nb = document.querySelector('.body'); if (nb) nb.scrollTop = sc0;
   if (S.sheet === 'level' || S.sheet === 'trash') bindLevel();
@@ -2093,7 +2109,7 @@ function render(keep) {
   bindSwipe($('sheetmain'), false, () => go({sheet:null}));
   bindSwipe($('sheetshade'), true, closeShade);
   if (S.tab === 'chat' && !S.view) { if (nb) nb.scrollTop = nb.scrollHeight; if (S.focusChat) { const ci = $('chatin'); if (ci) ci.focus(); S.focusChat = false; } }
-  if (refocus >= 0) { const inp = document.querySelector('input[type=text]'); if (inp) { inp.focus(); inp.setSelectionRange(refocus, refocus); } }
+  if (refocus >= 0) { const inp = (refId && document.getElementById(refId)) || document.querySelector('input[type=text]'); if (inp) { inp.focus(); inp.setSelectionRange(refocus, refocus); } }
   if (S.toast) { clearTimeout(window._t); window._t = setTimeout(() => { S.toast = ''; render(true); }, 2200); }
 }
 // кнопка «Назад» на телефоне (вызывается из Android-оболочки): закрывает окно, шторку, экран и т. д.
@@ -2270,7 +2286,13 @@ SRV = SRV.trim().replace(/\/+$/, '');
 const SY = {token:'', role:'', cid:0, login:'', seq:0, mirror:{}, base:{}, on:false, net:false, pend:{}, pushing:false, es:null};
 try { const t = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (t && t.url === SRV && t.token) Object.assign(SY, {token:t.token, role:t.role, cid:t.cid, login:t.login || '', seq:t.seq || 0, mirror:t.mirror || {}, base:t.base || {}}); } catch (e) {}
 // сообщаем оболочке Android данные входа: пока приложение закрыто, она раз в ~15 минут проверяет новые уведомления
+let swTokLast = null;
+function swTok(tok) {   // вход приложения для service worker: уведомление сможет само отметить прочитанным или отправить ответ
+  if (swTokLast === tok) return; swTokLast = tok;
+  try { const q = indexedDB.open('angara-sw', 1); q.onupgradeneeded = () => q.result.createObjectStore('kv'); q.onsuccess = () => { try { q.result.transaction('kv', 'readwrite').objectStore('kv').put(tok, 'token'); } catch (e) {} }; } catch (e) {}
+}
 function bgSession(on) {
+  swTok(on ? SY.token : '');
   try { if (window.AndroidBridge && AndroidBridge.setSession) { if (on) AndroidBridge.setSession(SRV, SY.token, SY.role, SY.cid | 0, SY.seq | 0); else AndroidBridge.clearSession(); } } catch (e) {}
 }
 function saveSync() { bgSession(true); try { localStorage.setItem(SYNC_KEY, JSON.stringify({url:SRV, token:SY.token, role:SY.role, cid:SY.cid, login:SY.login, seq:SY.seq, mirror:SY.mirror, base:SY.base})); } catch (e) {} }
@@ -2434,7 +2456,7 @@ function merge3(b, l, r) {
   render(true);
 }
 function onRemote(list) {
-  let changed = false, merged = false, cur = null, pingNow = false;
+  let changed = false, merged = false, cur = null, pingNow = false, popId = null;
   list.forEach(d => {
     if (d.seq > SY.seq) SY.seq = d.seq;
     const s = d.dele ? null : hsh(jstr(d.v));
@@ -2445,7 +2467,7 @@ function onRemote(list) {
       const mine = cur[d.key];
       if (mine !== undefined && SY.mirror[d.key] !== undefined && hsh(jstr(mine)) !== SY.mirror[d.key] && canWriteKey(d.key, mine)) { val = merge3(JSON.parse(SY.base[d.key]), JSON.parse(jstr(mine)), d.v); merged = true; }
     }
-    if (!d.dele && d.key.startsWith('ntf/') && d.v && !d.v.read && String(d.v.to) === String(nkey()) && !NOTIFS.some(x => sameId(x.id, d.v.id))) pingNow = true;
+    if (!d.dele && d.key.startsWith('ntf/') && d.v && !d.v.read && String(d.v.to) === String(nkey()) && !NOTIFS.some(x => sameId(x.id, d.v.id))) { pingNow = true; popId = d.v.id; }
     applyDoc(d.key, val, d.dele);
     if (s === null) delete SY.mirror[d.key]; else SY.mirror[d.key] = s;   // «последнее согласованное» — версия сервера; слитый результат уйдёт на сервер следующей отправкой
     setBase(d.key, d.dele ? null : d.v);
@@ -2455,6 +2477,7 @@ function onRemote(list) {
   if (pingNow) ping();
   if (merged) pushSoon();
   if (changed) afterRemote();
+  if (popId !== null) { const n = NOTIFS.find(x => sameId(x.id, popId)); if (n && !n.read && !S.shade) popShow(n.id); }
 }
 function setNet(ok) {
   if (SY.net === ok) return;
