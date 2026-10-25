@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 82;
+const APP_VERSION = 83;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -887,7 +887,7 @@ function toggleAcc() {
 function routeScreen() {
   const c = S.me, list = L(c, TODAY), done = list.filter(x => x.done).length, lg = legs(c);
   const mins = lg.out.reduce((s, o) => s + workMin(o.x.type) + eta(o.d), 0);
-  let h = topbar('Маршрут', `${WD[TODAY]} · ${list.length} точек · выполнено ${done}`);
+  let h = topbar('Маршрут', `${WD[TODAY]} · ${list.length} точек · выполнено ${done}${shActive() ? ' · на смене <span data-shiftt>' + shiftDur() + '</span>' : ''}`);
   h += '<div class="body">' + (list.length ? courRings(c) : '') + shiftBlock();
   const loaded = LOADED[S.me + ':' + TODAY];
   h += `<div class="card" style="border-color:${loaded ? 'var(--line)' : 'var(--o)'}"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(DEPOT.name)}</div><div class="t2">${esc(DEPOT.addr || 'Адрес базы не указан')}</div>
@@ -4059,7 +4059,7 @@ function mglInner(cid) {
 function prRefresh() {
   document.querySelectorAll('[data-mgl]').forEach(e => { const h = mglInner(e.dataset.mgl); if (e.innerHTML !== h) e.innerHTML = h; });
   document.querySelectorAll('[data-prh]').forEach(e => { const k = e.dataset.prh; e.className = 'pres ' + prInfo(k).s; const h = prInner(k, e.dataset.wl === '1'); if (e.innerHTML !== h) e.innerHTML = h; });
-  const t = document.querySelector('[data-shiftt]'); if (t) t.textContent = shiftDur();
+  document.querySelectorAll('[data-shiftt]').forEach(t => { t.textContent = shiftDur(); });
 }
 
 /* ----- где курьер сейчас ----- */
@@ -4096,7 +4096,7 @@ const shiftDur = () => { const s = shMine(); return s && s.s ? durTxt(Math.round
 function shiftBlock() {
   if (S.role !== 'cour') return '';
   const s = shMine(), today = s && new Date(s.s).toDateString() === new Date().toDateString();
-  if (shActive()) return `<div class="tiny" style="margin:0 2px 8px;display:flex;align-items:center;gap:6px;opacity:.85">${ic('clock', 13)} На смене с ${hm(s.s)} · <span data-shiftt>${shiftDur()}</span></div>`;
+  if (shActive()) return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('clock', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Вы на смене</div><div class="t2">с ${hm(s.s)} · <span data-shiftt>${shiftDur()}</span></div></div><button class="btn sec sm" onclick="shiftEnd()">Завершить смену</button></div></div>`;
   if (s && s.e && today) return `<div class="tiny" style="margin:0 2px 8px;opacity:.85">Смена завершена: ${hm(s.s)}–${hm(s.e)} · ${shiftDur()}</div>`;
   if (!L(S.me, TODAY).length) return '';
   return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('flag', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Начало смены</div><div class="t2">Нажмите, когда приедете на склад: менеджер увидит, что вы вышли</div></div><button class="btn sm" onclick="shiftStart()">Выйти на смену</button></div></div>`;
