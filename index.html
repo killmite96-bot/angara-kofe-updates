@@ -115,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 38;
+const APP_VERSION = 39;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1421,10 +1421,11 @@ function chatScreen() {
     h += `<div class="msg ${mine ? 'me' : 'them'}">${!mine && th === 'g' ? `<div class="tiny" style="margin-bottom:3px;color:var(--g)">${esc(sender(m.from))}</div>` : ''}${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="openPoint(${m.pid})">${ic('pin', 13)} ${pt(m.pid) ? pt(m.pid).name : 'точка'}</div>` : ''}<div>${esc(m.text)}</div><div class="mt">${m.t}</div></div>`;
   });
   h += `</div><div style="background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">Ответ по точке: ${pt(ctx) ? pt(ctx).name : ''} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true,chatPid:null})">✕</span></div>`
-    : `<div style="margin-bottom:6px"><select onchange="S.chatPid=+this.value||null;render()" style="margin:0;padding:5px 8px;font-size:13px;max-width:100%"><option value="">+ привязать точку</option>${P.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>`}
+    : `<div style="margin-bottom:6px"><button class="btn sec sm" onclick="go({sheet:'chatpt'})">${ic('pin', 15)} Привязать точку</button></div>`}
     <div class="row"><input type="text" id="chatin" placeholder="Сообщение" value="${esc(S.chatDraft)}" oninput="S.chatDraft=this.value" onkeydown="if(event.key==='Enter')sendChat()" style="margin:0"><button class="btn sm" onclick="sendChat()">${ic('send', 17)}</button></div></div>`;
   return h;
 }
+function chatPtFilter(q) { q = q.trim().toLowerCase(); document.querySelectorAll('#chatptlist .card').forEach(e => { e.style.display = !q || e.dataset.s.includes(q) ? '' : 'none'; }); }
 function sendChat() {
   const t = S.chatDraft.trim(), th = S.th; if (!t || !th) return;
   const mgr = S.role === 'mgr', me = th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey();
@@ -1635,6 +1636,12 @@ function sheet() {
     }
     h += LOADED[key] ? '<div class="pill ok" style="display:inline-block;margin-bottom:10px">Погрузка подтверждена, склад обновлён</div>' : `<button class="btn" style="margin-bottom:8px" onclick="confirmLoad()">Подтвердить погрузку</button>`;
     return h + '<button class="btn sec" onclick="go({sheet:null})">Закрыть</button>';
+  }
+  if (S.sheet === 'chatpt') {
+    return `<h2>Привязать точку</h2><div class="tiny">Выберите точку: в сообщении появится метка, по которой собеседник сразу откроет её.</div>
+      <input type="text" placeholder="Поиск по названию или адресу" autocomplete="off" oninput="chatPtFilter(this.value)" style="margin:10px 0 8px">
+      <div id="chatptlist">${P.map(p => `<div class="card" data-s="${esc((p.name + ' ' + (p.addr || '')).toLowerCase())}" style="padding:10px 12px;cursor:pointer" onclick="go({sheet:null,chatPid:${p.id}})"><div class="row"><div style="color:var(--g)">${ic('pin', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(p.addr || '')}</div></div></div></div>`).join('')}</div>
+      <button class="btn sec" style="margin-top:6px" onclick="go({sheet:null})">Отмена</button>`;
   }
   if (S.sheet === 'info') return infoSheet();
   if (S.sheet === 'move') return mvSheet();

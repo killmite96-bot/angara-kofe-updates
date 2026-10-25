@@ -1,9 +1,9 @@
 {
-    "content":  38,
+    "content":  39,
     "apk":  9,
-    "notes":  "Общий чат команды и личные чаты курьер-курьер; уведомления на iPhone при закрытом приложении (Профиль -\u003e Уведомления).",
+    "notes":  "Чат: красивая кнопка и окно выбора точки с поиском.",
     "contentFile":  "index.html",
-    "contentSha256":  "328b167f6f24e9ae660a6a54aa082c9b3ca8a9173878e5e91e18465eeb23faa9",
+    "contentSha256":  "b9873627d0167d86870c25d298a1c245dded2fad4e4c0630001753b7baf318de",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "cbe7a65a323a3ae248cf47582389f1a6db58dc308a63afc53ad0cbeddbb187fe"
+    "apkSha256":  "5a828d0c44bc3121499419ed380cf52ad0b8d3978523935daf823138eba4ba33"
 }
