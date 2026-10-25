@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 125;
+const APP_VERSION = 126;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1928,8 +1928,20 @@ function toggleCour(id) {
 }
 
 /* ===================== МЕНЕДЖЕР: ПРОВЕРКА ФОТО ===================== */
+// пустая вкладка «Проверка фото»: полупрозрачная картинка в стиле приложения (камера с галочкой на зелёном свечении)
+const rvEmpty = () => `<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:34px 20px 26px;opacity:.55">
+  <svg width="150" height="130" viewBox="0 0 150 130" fill="none" aria-hidden="true"><defs><radialGradient id="rvg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#5dffa0" stop-opacity=".28"/><stop offset="1" stop-color="#5dffa0" stop-opacity="0"/></radialGradient></defs>
+    <circle cx="75" cy="64" r="62" fill="url(#rvg)"/>
+    <rect x="30" y="38" width="90" height="62" rx="16" fill="#16241c" stroke="#5dffa0" stroke-width="3"/>
+    <path d="M56 38l5-9h28l5 9" stroke="#5dffa0" stroke-width="3" stroke-linejoin="round"/>
+    <circle cx="75" cy="68" r="19" stroke="#5dffa0" stroke-width="3"/>
+    <path d="M66 68.5l6.5 6.5L85 62" stroke="#5dffa0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="106" cy="52" r="3" fill="#5dffa0"/>
+    <path d="M22 24l3 6 6 3-6 3-3 6-3-6-6-3 6-3zM128 18l2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill="#5dffa0" opacity=".7"/></svg>
+  <div class="t1" style="margin-top:12px;font-size:15px">Новых фото для проверки пока нет</div></div>`;
 function mgrScreen() {
   let h = topbar('Проверка фото', pendCount() ? 'Ждут подтверждения: ' + pendCount() : 'Всё проверено'); h += '<div class="body">';
+  if (!pendCount()) h += rvEmpty();
   reviews.forEach((r, i) => {
     const p = pt(r.pid);
     h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${esc(p.name)}</div><div class="t2">${esc(cr(r.cid).name)} · ${r.when} · ${r.type === 3 ? 'генеральная уборка' : 'тип ' + r.type}</div></div>

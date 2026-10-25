@@ -1,9 +1,9 @@
 {
-    "content":  125,
+    "content":  126,
     "apk":  21,
-    "notes":  "Порядок чатов: Техподдержка, Общий чат, Илья (Менеджер), курьеры по алфавиту.",
+    "notes":  "Вкладка «Проверка фото»: картинка и надпись, когда новых фото нет.",
     "contentFile":  "index.html",
-    "contentSha256":  "5c58c9b3bbaf7819f43b2d866d7913fad9c62717f460cdbb41c29bd7f292b0c4",
+    "contentSha256":  "48e9761b470e7709313eaf3347779bff6bf8e3b32c59185e7587c4304b039150",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "8edd30b4e60912cf494b35a7352719c21c33ae9cc877681a3c7649b6baae772d"
 }
