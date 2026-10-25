@@ -191,7 +191,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 72;
+const APP_VERSION = 73;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2266,15 +2266,18 @@ function screenHTML(patch) {
     return main + tabs;
   } finally { keys.forEach(k => { S[k] = saved[k]; }); }
 }
+// экран определяется вкладкой, открытой карточкой/визитом (и шагом визита) и беседой чата: пока он тот же, прокрутка сохраняется при любой перерисовке, сбрасывается только при переходе
+const renderKey = () => [S.role, S.view ? JSON.stringify(S.view) : S.tab, S.th || '', S.view && S.view.type === 'visit' && S.visit ? S.visit.step : ''].join('|');
+let NAVDIR = 0;
 function render(keep) {
   saveSoon();
-  const body = document.querySelector('.body'), sc0 = keep && body ? body.scrollTop : 0;
-  const shM = $('sheetmain'), shS = $('sheetshade'), scM = keep && shM ? shM.scrollTop : 0, scS = keep && shS ? shS.scrollTop : 0;   // прокрутка внутри окон тоже сохраняется
+  const sameScreen = renderKey() === LASTKEY, body = document.querySelector('.body'), sc0 = (keep || sameScreen) && body ? body.scrollTop : 0;
+  const shM = $('sheetmain'), shS = $('sheetshade'), scM = (keep || S.sheet === SHEETSEEN) && shM ? shM.scrollTop : 0, scS = (keep || S.shade === SHADESEEN) && shS ? shS.scrollTop : 0;   // прокрутка внутри окон тоже сохраняется
   const ae = document.activeElement, refocus = ae && ae.tagName === 'INPUT' ? ae.selectionStart : -1, refId = ae && ae.id ? ae.id : '';
   if (!S.role) { $('app').innerHTML = loginScreen(); return; }
   const navD = navDepth(); let navDir = 0, navSnap = null;
   if (LASTDEPTH !== null && navD !== LASTDEPTH && !NAV_SKIP && !FX_OFF && $('app').firstElementChild) { navDir = navD > LASTDEPTH ? 1 : -1; navSnap = navSnapshot(); }
-  LASTDEPTH = navD; NAV_SKIP = false;
+  LASTDEPTH = navD; NAV_SKIP = false; NAVDIR = navDir;
   BK.on = false;
   $('app').innerHTML = screenHTML({})
     + (S.sheet ? `<div class="overlay" onclick="if(event.target===this)go({sheet:null})"><div class="sheet" id="sheetmain"><div class="grab" id="grab"><i></i></div>${sheet()}</div></div>` : '')
@@ -3012,9 +3015,9 @@ const FITFS = {};   // подобранный размер заголовка п
 function uiAfterRender() {
   const app = $('app'); if (!app) return;
   const tb = app.querySelector('.tabs'); app.style.setProperty('--tabh', (tb ? tb.offsetHeight : 0) + 'px');
-  const key = [S.role, S.view ? JSON.stringify(S.view) : S.tab, S.th || ''].join('|');
+  const key = renderKey();
   const sub = S.tab === 'sched' && !S.view ? 'd' + S.day + (S.mc !== undefined && S.role === 'mgr' ? 'c' + S.mc : '') : S.tab === 'plan' && !S.view ? 'd' + S.day + 'c' + S.mc : '';   // день недели / курьер на экранах с выбором: список тоже «въезжает»
-  app.classList.toggle('enter', key !== LASTKEY && !FX_OFF);
+  app.classList.toggle('enter', key !== LASTKEY && !FX_OFF && !NAVDIR);   // при выезде/уезде экрана список не «проявляется» заново: иначе при возврате из остатков экран мигал
   app.classList.toggle('enterlist', key === LASTKEY && sub !== LASTSUB && LASTSUB !== null && !FX_OFF);
   LASTKEY = key; LASTSUB = sub;
   const tp = app.querySelector('.top'), bd = app.querySelector('.body');
