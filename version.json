@@ -1,9 +1,9 @@
 {
-    "content":  60,
+    "content":  61,
     "apk":  14,
-    "notes":  "Безопасность: защита от вставки вредного кода, вход передаётся в заголовке, смена пароля завершает другие входы; контроль состояния сервера.",
+    "notes":  "Свайп назад от левого края: экран отодвигается, под ним предыдущий светлеет.",
     "contentFile":  "index.html",
-    "contentSha256":  "0be591abdc7b824b6c7bf32c229e93859c5b50bea80fd750c4b3abc11f16d95c",
+    "contentSha256":  "3e6b46c42fcc86bd8f0e8772a3fa9739ae49b6694c7dbae23cd9128a9842d178",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "5a3220d98395bbd932527f881ed2c8d972be22d6e1f0fca8e686949666bc6fa8"
 }

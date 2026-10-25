@@ -128,7 +128,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 60;
+const APP_VERSION = 61;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2172,20 +2172,30 @@ function bindSwipe(sh, up, close) {
   };
   sh.addEventListener('touchend', end); sh.addEventListener('touchcancel', end);
 }
+const BK = {on:false};
+// экран (содержимое + нижние вкладки) для состояния S с временно подставленными полями patch: нужен и для рисования, и для «предыдущего экрана» под сдвигаемым при свайпе назад
+function screenHTML(patch) {
+  const keys = Object.keys(patch), saved = {};
+  keys.forEach(k => { saved[k] = S[k]; S[k] = patch[k]; });
+  try {
+    let main;
+    if (S.view && S.view.type === 'point') main = pointCard(S.view.id);
+    else if (S.view && S.view.type === 'visit') main = visitScreen();
+    else if (S.view && S.view.type === 'lesson') main = lessonScreen();
+    else if (S.view && S.view.type === 'lessonedit') main = leScreen();
+    else main = SCR[S.tab]();
+    const tabs = !S.view ? `<div class="tabs">${TABS[S.role].map(t => `<button class="${S.tab === t[0] ? 'on' : ''}" onclick="go({tab:'${t[0]}'})"><b>${ic(t[1], 22)}</b>${t[2]}${tabBadge(t[0])}</button>`).join('')}</div>` : '';
+    return main + tabs;
+  } finally { keys.forEach(k => { S[k] = saved[k]; }); }
+}
 function render(keep) {
   saveSoon();
   const body = document.querySelector('.body'), sc0 = keep && body ? body.scrollTop : 0;
   const shM = $('sheetmain'), shS = $('sheetshade'), scM = keep && shM ? shM.scrollTop : 0, scS = keep && shS ? shS.scrollTop : 0;   // прокрутка внутри окон тоже сохраняется
   const ae = document.activeElement, refocus = ae && ae.tagName === 'INPUT' ? ae.selectionStart : -1, refId = ae && ae.id ? ae.id : '';
   if (!S.role) { $('app').innerHTML = loginScreen(); return; }
-  let main;
-  if (S.view && S.view.type === 'point') main = pointCard(S.view.id);
-  else if (S.view && S.view.type === 'visit') main = visitScreen();
-  else if (S.view && S.view.type === 'lesson') main = lessonScreen();
-  else if (S.view && S.view.type === 'lessonedit') main = leScreen();
-  else main = SCR[S.tab]();
-  const tabs = !S.view ? `<div class="tabs">${TABS[S.role].map(t => `<button class="${S.tab === t[0] ? 'on' : ''}" onclick="go({tab:'${t[0]}'})"><b>${ic(t[1], 22)}</b>${t[2]}${tabBadge(t[0])}</button>`).join('')}</div>` : '';
-  $('app').innerHTML = main + tabs
+  BK.on = false;
+  $('app').innerHTML = screenHTML({})
     + (S.sheet ? `<div class="overlay" onclick="if(event.target===this)go({sheet:null})"><div class="sheet" id="sheetmain"><div class="grab" id="grab"><i></i></div>${sheet()}</div></div>` : '')
     + (S.cam ? camScreen() : '')
     + (S.shade ? shadeHTML() : '')
@@ -2216,6 +2226,79 @@ window.appBack = () => {
   if (S.tab === 'chat' && S.th) { go({th:null}); return true; }
   return false;
 };
+
+/* ===================== СВАЙП НАЗАД ОТ ЛЕВОГО КРАЯ ===================== */
+// берёмся за левый край и ведём вправо: текущий экран отодвигается, под ним затемнённый предыдущий, который светлеет по мере движения
+function backPatch() {
+  if (!S.role || S.viewer || S.cam || S.shade || S.sheet || CROP) return null;
+  if (S.view) return S.view.type === 'visit' && S.visit ? {view:{type:'point', id:S.visit.pid}} : {view:null};
+  if (S.tab === 'chat' && S.th) return {th:null};
+  return null;
+}
+function bkStart(st) {
+  const app = $('app'), cur = document.createElement('div'), under = document.createElement('div'), ob = app.querySelector('.body');
+  cur.id = 'bkcur'; under.id = 'bkunder';
+  cur.style.cssText = 'position:absolute;left:0;top:0;right:0;bottom:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;box-shadow:-12px 0 30px rgba(0,0,0,.6);will-change:transform';
+  under.style.cssText = 'position:absolute;left:0;top:0;right:0;bottom:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;will-change:transform;transform:translateX(-28%)';
+  Array.from(app.children).forEach(ch => cur.appendChild(ch.cloneNode(true)));
+  under.innerHTML = screenHTML(st.patch) + '<div id="bkdim" style="position:absolute;left:0;top:0;right:0;bottom:0;background:#000;opacity:.6;pointer-events:none"></div>';
+  app.appendChild(under); app.appendChild(cur);
+  const cb = cur.querySelector('.body'); if (cb && ob) cb.scrollTop = ob.scrollTop;
+  Object.assign(st, {cur, under, W:app.clientWidth || 360, started:true}); BK.on = true;
+}
+function bkMove(st) {
+  if (!st.cur.isConnected) return;
+  const p = Math.min(1, st.dx / st.W);
+  st.cur.style.transform = `translateX(${st.dx}px)`;
+  st.under.style.transform = `translateX(${-28 * (1 - p)}%)`;
+  const dim = st.under.querySelector('#bkdim'); if (dim) dim.style.opacity = String(.6 * (1 - p));
+}
+function bkEnd(st) {
+  if (!st.cur.isConnected) { BK.on = false; return; }
+  const v = st.dx / Math.max(1, Date.now() - st.t0), done = st.dx > st.W * .33 || (v > .6 && st.dx > 40), tr = 'transform .24s ease-out';
+  st.cur.style.transition = tr; st.under.style.transition = tr;
+  const dim = st.under.querySelector('#bkdim'); if (dim) dim.style.transition = 'opacity .24s ease-out';
+  st.cur.style.transform = `translateX(${done ? st.W : 0}px)`; st.under.style.transform = `translateX(${done ? 0 : -28}%)`; if (dim) dim.style.opacity = done ? '0' : '.6';
+  setTimeout(() => {
+    if (done) { BK.on = false; go(st.patch); }   // экран перерисовывается, слои исчезают
+    else { BK.on = false; st.cur.remove(); st.under.remove(); }
+  }, 250);
+}
+(function () {
+  const app = $('app'); let st = null;
+  app.addEventListener('touchstart', e => {
+    st = null;
+    if (e.touches.length !== 1 || BK.on) return;
+    const t = e.touches[0];
+    if (t.clientX > 30 || (e.target.closest && e.target.closest('input,textarea,select,#lvsvg,.bottles,#cropbox'))) return;
+    const patch = backPatch(); if (!patch) return;
+    st = {x0:t.clientX, y0:t.clientY, t0:Date.now(), patch, started:false, dx:0};
+  }, {passive:true});
+  app.addEventListener('touchmove', e => {
+    if (!st) return;
+    const t = e.touches[0], dx = t.clientX - st.x0, dy = t.clientY - st.y0;
+    if (!st.started) {
+      if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { st = null; return; }
+      if (dx > 10 && dx > Math.abs(dy)) { st.x0 = t.clientX; st.t0 = Date.now(); bkStart(st); } else return;
+    }
+    e.preventDefault(); st.dx = Math.max(0, t.clientX - st.x0); bkMove(st);
+  }, {passive:false});
+  const end = () => { if (st && st.started) bkEnd(st); st = null; };
+  app.addEventListener('touchend', end); app.addEventListener('touchcancel', end);
+})();
+// приложение из Chrome и значок «Домой»: системный жест «назад» с края экрана возвращает по приложению, а не закрывает его
+try {
+  if (window.navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) {
+    history.replaceState({a:1}, ''); history.pushState({a:2}, '');
+    let lastBack = 0;
+    window.addEventListener('popstate', () => {
+      let handled = false; try { handled = appBack(); } catch (e) {}
+      if (!handled && Date.now() - lastBack < 2500) { history.back(); return; }   // второй «назад» подряд на главном экране — выход
+      if (!handled) { lastBack = Date.now(); go({toast:'Нажмите «назад» ещё раз, чтобы выйти'}); }
+      history.pushState({a:2}, '');
+    });
+  }
+} catch (e) {}
 
 /* ===================== ФОТО НА ВЕСЬ ЭКРАН С ПРИБЛИЖЕНИЕМ ===================== */
 // любое фото (.photo с рисунком внутри) открывается по нажатию; щипок, двойное касание или кнопки +/− приближают, одним пальцем двигаем
