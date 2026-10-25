@@ -1,9 +1,9 @@
 {
-    "content":  43,
-    "apk":  9,
-    "notes":  "Сиропы: можно подписать вкус (курьеры и менеджер), вместо «Сироп 1» показывается вкус.",
+    "content":  44,
+    "apk":  10,
+    "notes":  "Уведомления: смахивание, кнопка «Прочитано», быстрый ответ из шторки; звук уведомлений; установка на экран без строки адреса.",
     "contentFile":  "index.html",
-    "contentSha256":  "600a6d0ef850026e922f5e730e3c13803f91986a6ef180e2c1ac1bc8f159e9b8",
+    "contentSha256":  "e2f9049cdb2ca02656b057b3bc3c28cc6aaf6c92529ebe45c8d5ba0d0d1e65a3",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "ff46f95271cdb5d765965d4829049aab27b997a95bb63f472e7ddfa411f9992e"
+    "apkSha256":  "4435ff37b0ad74552394456e3f0d0c4299133694a680fb0a1d2a5652bc4da108"
 }

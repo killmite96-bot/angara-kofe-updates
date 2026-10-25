@@ -115,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 43;
+const APP_VERSION = 44;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -526,15 +526,52 @@ const topbar = (t, s) => `<div class="top"><div class="trow"><h1>${t}</h1><div c
 function closeShade() { NOTIFS.forEach(n => { if (n.to === nkey()) n.read = true; }); go({shade:false}); }
 function clearNotifs() { const k = nkey(), keep = NOTIFS.filter(n => n.to !== k); NOTIFS.length = 0; NOTIFS.push(...keep); render(); }
 function askRedo(id) { go({shade:false, sheet:'redo', redo:id}); }
-function shadeHTML() {
+/* ----- звук уведомлений в приложении и действия в шторке ----- */
+const SND = {ctx:null};
+function sndUnlock() { try { if (!SND.ctx) { const A = window.AudioContext || window.webkitAudioContext; if (A) SND.ctx = new A(); } if (SND.ctx && SND.ctx.state === 'suspended') SND.ctx.resume(); } catch (e) {} }
+['touchstart', 'pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, sndUnlock, {passive:true}));
+function ping() {
+  try {
+    sndUnlock(); const c = SND.ctx; if (!c) return; const t = c.currentTime;
+    [880, 1175].forEach((fr, i) => { const o = c.createOscillator(), g = c.createGain(), s = t + i * .17; o.type = 'sine'; o.frequency.value = fr; g.gain.setValueAtTime(.0001, s); g.gain.exponentialRampToValueAtTime(.3, s + .02); g.gain.exponentialRampToValueAtTime(.0001, s + .32); o.connect(g); g.connect(c.destination); o.start(s); o.stop(s + .34); });
+    if (navigator.vibrate) navigator.vibrate([90, 60, 90]);
+  } catch (e) {}
+}
+function markRead(id) { const n = NOTIFS.find(x => sameId(x.id, id)); if (n) { n.read = true; render(true); } }
+function dismissNotif(id) { const i = NOTIFS.findIndex(x => sameId(x.id, id)); if (i >= 0) NOTIFS.splice(i, 1); render(true); }
+function replyNotif(id) {
+  const n = NOTIFS.find(x => sameId(x.id, id)), text = (S.nr && sameId(S.nr.id, id) ? S.nr.text : '').trim(); if (!n || !text) return;
+  const th = n.th || 'm:' + n.cid, mgr = S.role === 'mgr';
+  if (th[0] === 'm') sendMsg(+th.slice(2), mgr ? 'mgr' : 'cour', text, null); else sendTeamMsg(th, text, null);
+  n.read = true; S.nr = null; go({toast:'Ответ отправлен'});
+}
+// карточку уведомления можно смахнуть в сторону, чтобы убрать
+function bindNotifSwipe() {
+  document.querySelectorAll('#sheetshade .ncard').forEach(el => {
+    let x0 = null, y0 = 0, dx = 0, on = false;
+    el.addEventListener('touchstart', e => { if (e.touches.length > 1 || (e.target.closest && e.target.closest('input,button,.photo'))) { x0 = null; return; } x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; on = false; }, {passive:true});
+    el.addEventListener('touchmove', e => {
+      if (x0 === null) return;
+      const x = e.touches[0].clientX, y = e.touches[0].clientY;
+      if (!on) { if (Math.abs(x - x0) > 12 && Math.abs(x - x0) > Math.abs(y - y0)) { on = true; el.style.transition = 'none'; } else return; }
+      e.preventDefault(); e.stopPropagation(); dx = x - x0; el.style.transform = `translateX(${dx}px)`; el.style.opacity = String(Math.max(.25, 1 - Math.abs(dx) / 260));
+    }, {passive:false});
+    const end = () => {
+      if (!on) { x0 = null; return; } on = false; x0 = null; el.style.transition = 'transform .18s ease, opacity .18s ease';
+      if (Math.abs(dx) > 90) { el.style.transform = `translateX(${dx > 0 ? '110%' : '-110%'})`; el.style.opacity = '0'; setTimeout(() => dismissNotif(el.dataset.id), 170); } else { el.style.transform = ''; el.style.opacity = ''; }
+    };
+    el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
+  });
+}function shadeHTML() {
   const list = NOTIFS.filter(n => n.to === nkey());
   let h = `<div class="overlay" style="align-items:flex-start" onclick="if(event.target===this)closeShade()"><div class="sheet" id="sheetshade" style="border-radius:0 0 20px 20px;border-top:0;border-bottom:1px solid var(--line);max-height:84%">
     <div class="row" style="margin-bottom:8px"><h2 class="grow" style="margin:0">Уведомления</h2><button class="btn sec sm" onclick="clearNotifs()">Очистить</button><button class="btn sm" onclick="closeShade()">${ic('x', 16)}</button></div>`;
   if (!list.length) h += '<div class="card t2">Новых уведомлений нет.</div>';
+  else h += '<div class="tiny" style="margin-bottom:6px">Смахните уведомление в сторону, чтобы убрать его.</div>';
   list.forEach(n => {
     const r = n.rvId ? reviews.find(x => x.id === n.rvId) : null, p = r ? pt(r.pid) : null;
-    h += `<div class="card" style="${n.read ? '' : 'border-color:var(--g)'}"><div class="row" style="align-items:flex-start"><div style="color:${n.kind === 'redo' ? 'var(--o)' : 'var(--g)'}">${ic(n.kind === 'photo' ? 'camera' : n.kind === 'ok' ? 'check' : n.kind === 'chat' ? 'chat' : n.kind === 'water' ? 'drop' : n.kind === 'move' ? 'move' : 'warn', 24)}</div>
-      <div class="grow"><div class="t1" style="font-size:14px">${n.text}</div><div class="t2">${n.t}</div></div></div>`;
+    h += `<div class="card ncard" data-id="${n.id}" style="touch-action:pan-y;${n.read ? '' : 'border-color:var(--g)'}"><div class="row" style="align-items:flex-start"><div style="color:${n.kind === 'redo' ? 'var(--o)' : 'var(--g)'}">${ic(n.kind === 'photo' ? 'camera' : n.kind === 'ok' ? 'check' : n.kind === 'chat' ? 'chat' : n.kind === 'water' ? 'drop' : n.kind === 'move' ? 'move' : 'warn', 24)}</div>
+      <div class="grow"><div class="t1" style="font-size:14px">${n.text}</div><div class="t2">${n.t}${n.read ? '' : ` · <span style="color:var(--g);cursor:pointer" onclick="markRead('${n.id}')">Прочитано</span>`}</div></div></div>`;
     if (r) {
       h += `<div class="row" style="margin-top:8px;align-items:flex-start"><div class="photo" style="width:64px;height:100px">${((r.photos && r.photos[0]) || r.photo) ? ((r.photos && r.photos[0]) || r.photo).svg : stationSVG(pst(p))}</div>
         ${r.type >= 2 ? `<div class="photo" style="width:64px;height:86px">${((r.nozzles && r.nozzles[0]) || r.nozzle) ? ((r.nozzles && r.nozzles[0]) || r.nozzle).svg : nozzleSVG(false, true)}</div>` : ''}
@@ -544,7 +581,7 @@ function shadeHTML() {
         : `<div style="margin-top:8px"><span class="pill ${r.status === 'ok' ? 'ok' : 'bad'}">${r.status === 'ok' ? 'принято' : 'отправлено на пересъёмку'}</span></div>`;
     }
     if (n.kind === 'redo') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="closeShade();openPoint(${n.pid})">Открыть точку</button></div>`;
-    if (n.kind === 'chat') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="openTh('${n.th || 'm:' + n.cid}')">Ответить в чате</button></div>`;
+    if (n.kind === 'chat') h += `<div class="row" style="margin-top:8px"><input type="text" placeholder="Быстрый ответ" autocomplete="off" value="${esc(S.nr && sameId(S.nr.id, n.id) ? S.nr.text : '')}" oninput="S.nr={id:'${n.id}',text:this.value}" onkeydown="if(event.key==='Enter')replyNotif('${n.id}')" style="margin:0"><button class="btn sm" onclick="replyNotif('${n.id}')">${ic('send', 17)}</button></div><div class="btns" style="margin:8px 0 0"><button class="btn sec sm" onclick="openTh('${n.th || 'm:' + n.cid}')">Открыть чат</button></div>`;
     if (n.kind === 'move' && n.mvId) { const m = MV.find(x => x.id === n.mvId); if (m && m.status === 'pending' && S.role === 'mgr') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="mvApprove('${m.id}')">Принять</button><button class="btn sec sm" onclick="mvDecline('${m.id}')">Отклонить</button></div>`; else if (m && m.status !== 'pending') h += `<div style="margin-top:8px"><span class="pill ${m.status === 'ok' ? 'ok' : 'bad'}">${m.status === 'ok' ? 'принято' : 'отклонено'}</span></div>`; }
     h += '</div>';
   });
@@ -2028,6 +2065,7 @@ function render(keep) {
     + (S.toast ? `<div style="position:absolute;left:16px;right:16px;bottom:${UPD.banner ? 170 : 78}px;background:#1f7a45;color:#fff;border-radius:12px;padding:11px 14px;font-size:13px;z-index:9">${S.toast}</div>` : '');
   const nb = document.querySelector('.body'); if (nb) nb.scrollTop = sc0;
   if (S.sheet === 'level' || S.sheet === 'trash') bindLevel();
+  if (S.shade) bindNotifSwipe();
   bindViewer(); bindCrop();
   { const a = $('sheetmain'), b = $('sheetshade'); if (a) a.scrollTop = scM; if (b) b.scrollTop = scS; }
   bindSwipe($('sheetmain'), false, () => go({sheet:null}));
@@ -2370,7 +2408,7 @@ function merge3(b, l, r) {
   render(true);
 }
 function onRemote(list) {
-  let changed = false, merged = false, cur = null;
+  let changed = false, merged = false, cur = null, pingNow = false;
   list.forEach(d => {
     if (d.seq > SY.seq) SY.seq = d.seq;
     const s = d.dele ? null : hsh(jstr(d.v));
@@ -2381,12 +2419,14 @@ function onRemote(list) {
       const mine = cur[d.key];
       if (mine !== undefined && SY.mirror[d.key] !== undefined && hsh(jstr(mine)) !== SY.mirror[d.key] && canWriteKey(d.key, mine)) { val = merge3(JSON.parse(SY.base[d.key]), JSON.parse(jstr(mine)), d.v); merged = true; }
     }
+    if (!d.dele && d.key.startsWith('ntf/') && d.v && !d.v.read && String(d.v.to) === String(nkey()) && !NOTIFS.some(x => sameId(x.id, d.v.id))) pingNow = true;
     applyDoc(d.key, val, d.dele);
     if (s === null) delete SY.mirror[d.key]; else SY.mirror[d.key] = s;   // «последнее согласованное» — версия сервера; слитый результат уйдёт на сервер следующей отправкой
     setBase(d.key, d.dele ? null : d.v);
     changed = true;
   });
   saveSync();
+  if (pingNow) ping();
   if (merged) pushSoon();
   if (changed) afterRemote();
 }
@@ -2476,6 +2516,8 @@ function loginToken(i) {
 // В приложении для Android уведомления приходят через саму оболочку; в iPhone и в браузере — через веб-уведомления (нужен HTTPS и иконка «Домой»).
 const PUSH_KEY = 'angara_kofe_push';
 const pushIsApp = () => { try { return !!window.AndroidBridge; } catch (e) { return false; } };
+// служебный файл регистрируется всегда: он нужен, чтобы Chrome на Android устанавливал приложение без строки адреса
+try { if ('serviceWorker' in navigator && /^https:/.test(location.protocol) && !pushIsApp()) navigator.serviceWorker.register('/sw.js').catch(() => {}); } catch (e) {}
 const pushCan = () => !pushIsApp() && !!SRV && /^https:/.test(SRV) && 'serviceWorker' in navigator && 'Notification' in window && 'PushManager' in window;
 const pushOn = () => { try { return localStorage.getItem(PUSH_KEY) === '1' && Notification.permission === 'granted'; } catch (e) { return false; } };
 function pushKeyBytes(k) { const s = atob((k + '==='.slice((k.length + 3) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(s, c => c.charCodeAt(0)); }
