@@ -91,6 +91,12 @@ input[type=text],input[type=password]{width:100%;background:var(--card);border:1
 .sheet{background:var(--bg);width:100%;max-height:88%;overflow-y:auto;border-radius:20px 20px 0 0;padding:16px;border-top:1px solid var(--line)}
 .sheet{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
 .sheet h2{margin:0 0 8px;font-size:18px}
+@keyframes rxpop{0%{transform:scale(.3);opacity:0}55%{transform:scale(1.4);opacity:1}100%{transform:scale(1)}}
+@keyframes rxfloat{0%{transform:translate(-50%,0) scale(.8);opacity:1}100%{transform:translate(-50%,-54px) scale(1.5);opacity:0}}
+@keyframes rxtap{0%{transform:scale(1)}40%{transform:scale(1.28)}100%{transform:scale(1)}}
+.rxpop{animation:rxpop .45s cubic-bezier(.2,1.4,.4,1)}
+.rxtap{animation:rxtap .26s ease-out}
+.rxfly{position:fixed;z-index:50;pointer-events:none;animation:rxfloat .75s ease-out forwards}
 .prog{display:flex;gap:6px;padding:0 14px 6px}.prog i{flex:1;height:4px;border-radius:3px;background:var(--line)}.prog i.on{background:var(--g)}
 .cam{position:absolute;inset:0;background:#000;z-index:8;display:flex;flex-direction:column}
 .vf{flex:1;position:relative;background:radial-gradient(#3b4a42,#101512);display:flex;align-items:center;justify-content:center}
@@ -115,7 +121,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 49;
+const APP_VERSION = 50;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1533,14 +1539,27 @@ function rxList(th, id) {   // [{k, users:[...]}] по видам реакций
 function rxChips(th, m) {
   const l = rxList(th, m.id); if (!l.length) return '';
   const me = String(meKey());
-  return '<div style="margin-top:4px">' + l.map(r => `<span onclick="event.stopPropagation();toggleRx('${th}','${m.id}','${r.k}')" style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;margin:0 4px 2px 0;border-radius:12px;background:rgba(255,255,255,.1);border:1px solid ${r.users.includes(me) ? 'var(--g)' : 'transparent'}">${rxIcon(r.k, 15)}${r.users.length > 1 ? `<span style="font-size:12px">${r.users.length}</span>` : ''}</span>`).join('') + '</div>';
+  return '<div style="margin-top:4px">' + l.map(r => `<span data-rxc="${m.id}:${r.k}" class="${RXA === m.id + ':' + r.k ? 'rxpop' : ''}" onclick="event.stopPropagation();toggleRx('${th}','${m.id}','${r.k}')" style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;margin:0 4px 2px 0;border-radius:12px;background:${r.users.includes(me) ? 'rgba(255,255,255,.24)' : 'rgba(255,255,255,.09)'}">${rxIcon(r.k, 15)}${r.users.length > 1 ? `<span style="font-size:12px;font-weight:600">${r.users.length}</span>` : ''}</span>`).join('') + '</div>';
+}
+let RXA = null;   // реакция, которую только что поставили: её значок «выпрыгивает»
+function rxBurst(id, k) {   // всплывающий значок над сообщением
+  const el = document.querySelector(`[data-rxc="${id}:${k}"]`); if (!el) return;
+  const r = el.getBoundingClientRect(), d = document.createElement('div'); d.className = 'rxfly';
+  d.style.cssText = `left:${r.left + r.width / 2}px;top:${r.top - 4}px`; d.innerHTML = rxIcon(k, 30);
+  document.body.appendChild(d); setTimeout(() => d.remove(), 800);
 }
 function toggleRx(th, id, kind) {   // одна реакция от человека на сообщение; повторное нажатие убирает её
-  const key = rxKey(th), me = String(meKey()), mine = Object.assign({}, (RX[key] || {})[me] || {});
-  if (mine[id] === kind) delete mine[id]; else mine[id] = kind;
-  const live = new Set(thMsgs(th).map(m => String(m.id))); Object.keys(mine).forEach(k => { if (!live.has(k)) delete mine[k]; });
-  (RX[key] = RX[key] || {})[me] = mine;
-  go({sheet:null, ma:null});
+  const btn = S.sheet === 'msgact' ? document.querySelector(`[data-rxb="${kind}"]`) : null;
+  const apply = () => {
+    const key = rxKey(th), me = String(meKey()), mine = Object.assign({}, (RX[key] || {})[me] || {}), adding = mine[id] !== kind;
+    if (adding) mine[id] = kind; else delete mine[id];
+    const live = new Set(thMsgs(th).map(m => String(m.id))); Object.keys(mine).forEach(k => { if (!live.has(k)) delete mine[k]; });
+    (RX[key] = RX[key] || {})[me] = mine;
+    RXA = adding ? id + ':' + kind : null;
+    go({sheet:null, ma:null});
+    if (adding) { rxBurst(id, kind); setTimeout(() => { RXA = null; }, 600); }
+  };
+  if (btn) { btn.classList.add('rxtap'); setTimeout(apply, 240); } else apply();   // в окне сообщения сначала виден «отклик» кнопки
 }
 /* ----- правка и удаление своих сообщений ----- */
 function msgEdit() { const f = S.ma, m = findMsg(f.th, f.id); if (!m) return go({sheet:null, ma:null}); go({sheet:null, ma:null, edit:{th:f.th, id:m.id}, chatDraft:m.text, focusChat:true}); }
@@ -1794,7 +1813,7 @@ function sheet() {
       <button class="btn" style="margin:10px 0 6px;background:#4a1a1a;color:#ffb0b0" onclick="msgDelete()">${ic('trash', 16)} Удалить</button><button class="btn sec" onclick="go({ma:{th:'${f.th}',id:'${f.id}'}})">Отмена</button>`;
     const mine = ((RX[rxKey(f.th)] || {})[String(meKey())] || {})[m.id], rl = rxList(f.th, m.id);
     return `<h2>Сообщение</h2>${prev}
-      <div style="display:flex;justify-content:space-between;margin:10px 0 4px">${RXS.map(r => `<button onclick="toggleRx('${f.th}','${m.id}','${r[0]}')" style="width:56px;height:52px;border-radius:14px;border:1px solid ${mine === r[0] ? 'var(--g)' : 'var(--line)'};background:${mine === r[0] ? 'rgba(93,255,160,.14)' : 'var(--card)'};display:flex;align-items:center;justify-content:center">${rxIcon(r[0], 28)}</button>`).join('')}</div>
+      <div style="display:flex;justify-content:space-between;margin:10px 0 4px">${RXS.map(r => `<button data-rxb="${r[0]}" onclick="toggleRx('${f.th}','${m.id}','${r[0]}')" style="width:56px;height:52px;border-radius:14px;border:1px solid var(--line);background:${mine === r[0] ? r[2] + '33' : 'var(--card)'};display:flex;align-items:center;justify-content:center">${rxIcon(r[0], 28)}</button>`).join('')}</div>
       ${rl.length ? `<div class="tiny" style="margin-bottom:6px">${rl.map(r => `${rxIcon(r.k, 13)} ${r.users.map(rxName).map(esc).join(', ')}`).join(' &nbsp; ')}</div>` : ''}
       <button class="btn" style="margin:8px 0 6px" onclick="msgReply()">${ic('chat', 16)} Ответить</button>
       <button class="btn sec" style="margin-bottom:6px" onclick="go({ma:{th:'${f.th}',id:'${f.id}',fwd:true}})">${ic('send', 16)} Переслать</button>

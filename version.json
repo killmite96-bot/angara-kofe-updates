@@ -1,9 +1,9 @@
 {
-    "content":  49,
+    "content":  50,
     "apk":  12,
-    "notes":  "Чат: реакции (палец вверх/вниз, смех, грусть, кофе), изменение и удаление своих сообщений.",
+    "notes":  "Реакции: без зелёной обводки, анимация при нажатии.",
     "contentFile":  "index.html",
-    "contentSha256":  "94d332b659d99cd5509bef85715dec569a942bce4afc7f9911116457fb013713",
+    "contentSha256":  "2f5271183411935c25934d75ccacadef50f9b0c90c86d35b25a720b0371ce481",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "bf510c22e490b67c5c2e7b53807b1b5505799a0f760cebee530ee4aa7c7f43df"
 }
