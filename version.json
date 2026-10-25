@@ -1,9 +1,9 @@
 {
-    "content":  39,
+    "content":  40,
     "apk":  9,
-    "notes":  "Чат: красивая кнопка и окно выбора точки с поиском.",
+    "notes":  "Вода: бидон 40 л в остатках визита (уровень пальцем), воды больше нет в подтоварке.",
     "contentFile":  "index.html",
-    "contentSha256":  "b9873627d0167d86870c25d298a1c245dded2fad4e4c0630001753b7baf318de",
+    "contentSha256":  "71fc9ce53a8a72fb9fd0e57ac2bb83c9c40d18eeb18dd768d8d4cbe3fb6fd6a3",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "5a828d0c44bc3121499419ed380cf52ad0b8d3978523935daf823138eba4ba33"
+    "apkSha256":  "6b234fa1575e7850a6001180534a40e1eb3233ca55a34eb55e29d76e7dd0a6f6"
 }

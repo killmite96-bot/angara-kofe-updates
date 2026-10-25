@@ -115,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 39;
+const APP_VERSION = 40;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -175,7 +175,7 @@ const ING = [
   {id:'hold', n:'Держатели для горячего', t:'count', u:'шт', cap:200, r:10, st:100},
   {id:'sugar', n:'Сахар', t:'level', u:'кг', cap:2, r:.5, st:5},
   {id:'milk', n:'Сухое молоко', t:'level', u:'кг', cap:1.5, r:.5, st:2},
-  {id:'water', n:'Вода', t:'level', u:'л', cap:10, r:1, st:10},
+  {id:'water', n:'Вода', t:'level', u:'л', cap:40, r:1, st:10},
   {id:'choc', n:'Шоколад', t:'level', u:'кг', cap:1.5, r:.5, st:2},
   {id:'raf', n:'Раф (растворимый порошок)', t:'level', u:'кг', cap:1.5, r:.5, st:2},
   {id:'nap', n:'Салфетки', t:'level', u:'уп', cap:4, r:1, st:5},
@@ -292,7 +292,7 @@ function rec(u, g) {
 }
 const stepFor = g => g.t === 'count' ? 10 : (g.u === 'бут' || g.u === 'уп' ? 1 : .5);
 // сколько нужно довезти с базы: потребность станций минус то, что уже лежит в подтоварке точки
-const needBase = (p, g) => { const n = Math.max(0, recP(p, g) - (p.back[g.id] || 0)); return g.t === 'count' ? Math.round(n / 10) * 10 : (g.u === 'бут' || g.u === 'уп' ? Math.ceil(n - .001) : Math.round(n * 2) / 2); };
+const needBase = (p, g) => { const n = Math.max(0, recP(p, g) - (g.id === 'water' ? 0 : (p.back[g.id] || 0))); return g.t === 'count' ? Math.round(n / 10) * 10 : (g.u === 'бут' || g.u === 'уп' ? Math.ceil(n - .001) : Math.round(n * 2) / 2); };
 const deepLeft = p => DEEP_DAYS - p.deep;
 const tl = t => t === 3 ? 'Г' : t;
 const bcls = t => t === 3 ? 'b3' : t === 2 ? 'b2' : 'b1';
@@ -1061,7 +1061,7 @@ function stockRows(p) {
     ING.forEach(g => { const r = rec(u, g); h += `<div class="kv"><span>${g.n}</span><span><b>${fmtCur(u, g)}</b>${r > 0 ? ` <span class="pill warn">взять ${r} ${g.u}</span>` : ''}</span></div>`; });
     if (multi) h += '</div>';
   });
-  return h + `<div class="tiny" style="margin-top:6px">Подтоварка на точке: ${ING.filter(g => p.back[g.id] > 0).map(g => g.n + ' ' + p.back[g.id] + ' ' + g.u).join(', ') || 'пусто'}</div>`;
+  return h + `<div class="tiny" style="margin-top:6px">Подтоварка на точке: ${ING.filter(g => g.id !== 'water' && p.back[g.id] > 0).map(g => g.n + ' ' + p.back[g.id] + ' ' + g.u).join(', ') || 'пусто'}</div>`;
 }
 function pointCard(id) {
   const p = pt(id), item = S.role === 'cour' ? L(S.me, TODAY).find(x => x.pid === id) : null;
@@ -1078,7 +1078,7 @@ function pointCard(id) {
   const mg = S.role === 'mgr';
   // у менеджера значения правятся прямо в карточке кнопками − и +
   const stp = (call, val) => `<div class="step"><button onclick="${call},-1)">−</button><span>${val}</span><button onclick="${call},1)">+</button></div>`;
-  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${g.n}</span><span>${mg ? stp(`mgBack(${p.id},'${g.id}'`, p.back[g.id] + ' ' + g.u) : `<b>${p.back[g.id]} ${g.u}</b>`}${nb > 0 ? ` <span class="pill warn">с базы ${nb}</span>` : ''}</span></div>`; }).join('') + '</div>';
+  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${g.n}</span><span>${mg ? stp(`mgBack(${p.id},'${g.id}'`, p.back[g.id] + ' ' + g.u) : `<b>${p.back[g.id]} ${g.u}</b>`}${nb > 0 ? ` <span class="pill warn">с базы ${nb}</span>` : ''}</span></div>`; }).join('') + '</div>';
   h += '<h3>Остатки на последний визит</h3>';
   p.units.forEach((u, i) => {
     if (p.units.length > 1) h += `<h3>Станция ${i + 1} · ${STN[u.st]}</h3>`;
@@ -1102,7 +1102,7 @@ const CHK3 = ['Вымыть станцию внутри и снаружи, вк�
 const CHK2 = ['Снять миксеры и промыть их с разбором', 'Проверить чистоту кофейни со всех сторон', 'Очистить зону сиропов', 'Собрать миксеры и запустить промывку через меню'];
 function startVisit(id, quick) {
   const p = pt(id), item = L(S.me, TODAY).find(x => x.pid === id);
-  const v = {pid:id, quick, type:quick ? 0 : item.type, step:quick ? 1 : 0, u:0, arrive:{clean:null, trash:null}, checks:{}, A:[], D:[], NP:[], SP:[], NO:[], B:Object.assign({}, p.back), BR:{}};
+  const v = {pid:id, quick, type:quick ? 0 : item.type, step:quick ? 1 : 0, u:0, arrive:{clean:null, trash:null}, checks:{}, A:[], D:[], NP:[], SP:[], NO:[], B:Object.assign({}, p.back, {water:0}), BR:{}};
   p.units.forEach(u => { const a = {}, d = {}; ING.forEach(g => { a[g.id] = u.cur[g.id]; d[g.id] = quick ? 0 : rec(u, g); }); v.A.push(a); v.D.push(d); });
   // для текущей станции (v.u) остатки и фото читаются как v.after / v.nozzlePhoto / v.stationPhoto
   Object.defineProperties(v, {
@@ -1124,7 +1124,7 @@ function bdAdj(id, d) { const g = ING.find(x => x.id === id); S.visit.B[id] = Ma
 function brAdj(id, d) { const v = S.visit, g = ING.find(x => x.id === id); v.BR[id] = Math.max(0, +(broughtOf(v, g) + d * stepFor(g)).toFixed(1)); render(true); }
 function backroomHTML(v, quick) {
   let h = '';
-  ING.forEach(g => {
+  ING.filter(g => g.id !== 'water').forEach(g => {
     const added = sumD(v, g), fromBack = Math.min(v.B[g.id], added), br = broughtOf(v, g), left = Math.max(0, +(v.B[g.id] + br - added).toFixed(1));
     h += `<div class="card" style="padding:10px 12px"><div class="row"><div class="grow t1" style="font-size:14px">${g.n}</div><div class="tiny">лежит</div><div class="step"><button onclick="bdAdj('${g.id}',-1)">−</button><span>${v.B[g.id]}</span><button onclick="bdAdj('${g.id}',1)">+</button></div></div>`;
     if (!quick) h += `<div class="row" style="margin-top:6px"><div class="tiny grow">на станции добавлено ${+added.toFixed(1)} ${g.u}, из подтоварки ${+fromBack.toFixed(1)}<br>останется в подтоварке: ${left} ${g.u}</div><div class="tiny">привёз</div><div class="step"><button onclick="brAdj('${g.id}',-1)">−</button><span>${br}</span><button onclick="brAdj('${g.id}',1)">+</button></div></div>`;
@@ -1827,9 +1827,9 @@ function hopperSVG(id, f) {
     <polygon points="52,250 76,250 108,298 90,304" fill="#e7eef0" fill-opacity=".85" stroke="#aeb9bc" stroke-width="1.5"/>
     <rect x="46" y="172" width="58" height="${lh}" rx="3" fill="#e9eaec" stroke="#9aa0a5"/>${lab.map((t, i) => `<text x="75" y="${(lab.length > 1 ? 186 : 188) + i * 13}" font-size="9.5" font-weight="700" fill="#222" text-anchor="middle" font-family="Arial">${t}</text>`).join('')}${ticks}</svg>`;
 }
-const lvRange = id => id === 'trash' ? [288, 72] : isHopper(id) ? [248, 24] : isStack(id) || isRows(id) ? [290, 40] : id === 'coffee' ? [258, 50] : isBottle(id) ? [292, 78] : [292, 66];
+const lvRange = id => id === 'trash' ? [288, 72] : isHopper(id) ? [248, 24] : isStack(id) || isRows(id) ? [290, 40] : id === 'coffee' ? [258, 50] : isBottle(id) ? [292, 78] : id === 'water' ? [284, 124] : [292, 66];
 const lvIcon = id => ic({raf:'mug', milk:'milk', choc:'choc', cup:'cup', lid:'lid', straw:'straw', cell:'tray', hold:'holder', stir:'stir', nap:'napkin', coffee:'bean', water:'drop', sugar:'jar'}[id] || (isBottle(id) ? 'syrup' : 'jar'), 15);
-const lvName = id => isHopper(id) ? 'ячейке для засыпания' : isStack(id) ? 'стопке' : id === 'stir' ? 'пачке палочек' : id === 'nap' ? 'стопке салфеток' : id === 'coffee' ? 'зёрнышку' : isBottle(id) ? 'бутылке' : 'ёмкости';
+const lvName = id => isHopper(id) ? 'ячейке для засыпания' : isStack(id) ? 'стопке' : id === 'stir' ? 'пачке палочек' : id === 'nap' ? 'стопке салфеток' : id === 'coffee' ? 'зёрнышку' : isBottle(id) ? 'бутылке' : id === 'water' ? 'бидону' : 'ёмкости';
 function stackRows(id, n) {
   const rows = Math.round(n / 10), rh = 250 / (ING.find(x => x.id === id).cap / 10), out = [];
   for (let i = 0; i < rows; i++) {
@@ -1856,7 +1856,20 @@ function stackRows(id, n) {
 }
 const openLevel = id => { S.lvOrig = {id, u:S.visit.u, val:S.visit.after[id]}; go({sheet:'level', lv:id}); };
 const openTrash = () => { S.lvOrig = {id:'trash', val:S.visit.arrive.trash}; go({sheet:'trash', lv:'trash'}); };
-function levelSVG(id, f) {
+function jugSVG(f) {
+  const [yB, yT] = lvRange('water'), y = yB - f * (yB - yT), body = 'M14 134 Q14 118 30 118 H120 Q136 118 136 134 V274 Q136 292 118 292 H32 Q14 292 14 274 Z';
+  const ticks = [.25, .5, .75].map(t => { const ty = yB - t * (yB - yT); return `<line x1="14" x2="30" y1="${ty}" y2="${ty}" stroke="#fff" stroke-opacity=".7" stroke-width="2"/><text x="139" y="${ty + 4}" font-size="10" fill="#9db" font-family="Arial">${t * 40}</text>`; }).join('');
+  return `<svg id="lvsvg" viewBox="0 0 150 310" style="width:230px;height:350px;touch-action:none;cursor:ns-resize;display:block;margin:0 auto">
+    <defs><clipPath id="lvclip"><path d="${body}"/></clipPath><linearGradient id="jugG" x1="0" x2="1"><stop offset="0" stop-color="#1a3fc4"/><stop offset=".5" stop-color="#2554e0"/><stop offset="1" stop-color="#1535a0"/></linearGradient></defs>
+    <path d="M16 132 q-12 0 -12 12 q0 10 12 10" fill="none" stroke="#d62a2a" stroke-width="7" stroke-linecap="round"/><path d="M134 132 q12 0 12 12 q0 10 -12 10" fill="none" stroke="#d62a2a" stroke-width="7" stroke-linecap="round"/>
+    <path d="${body}" fill="url(#jugG)"/>
+    <g clip-path="url(#lvclip)"><rect id="lvfill" x="0" y="${y}" width="150" height="${310 - y}" fill="#8fd4ff" opacity=".78"/><rect id="lvtop" x="0" y="${y}" width="150" height="4" fill="#fff" opacity=".7"/>
+      <rect x="52" y="170" width="46" height="62" rx="22" fill="#000a3c" opacity=".28"/><rect x="52" y="170" width="46" height="62" rx="22" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="1.5"/>
+      <ellipse cx="75" cy="262" rx="28" ry="12" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="2"/></g>
+    <path d="${body}" fill="none" stroke="#0c1f6e" stroke-width="2.5"/>
+    <rect x="30" y="84" width="90" height="38" rx="10" fill="#d62a2a" stroke="#8f1414" stroke-width="2"/><rect x="26" y="76" width="98" height="14" rx="7" fill="#e83a3a" stroke="#8f1414" stroke-width="2"/><rect x="40" y="94" width="70" height="4" rx="2" fill="#8f1414" opacity=".35"/>${ticks}</svg>`;
+}function levelSVG(id, f) {
+  if (id === 'water') return jugSVG(f);
   if (isHopper(id)) return hopperSVG(id, f);
   if (isRows(id)) {
     const ticks = [.25, .5, .75].map(t => { const ty = 290 - t * 250; return `<line x1="20" x2="130" y1="${ty}" y2="${ty}" stroke="#fff" stroke-opacity=".25" stroke-dasharray="3 3"/><text x="132" y="${ty + 4}" font-size="11" fill="#9db" font-family="Arial">${t * 100}%</text>`; }).join('');
