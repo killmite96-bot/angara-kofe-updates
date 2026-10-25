@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 103;
+const APP_VERSION = 104;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -911,7 +911,7 @@ function routeScreen() {
       <button class="btn sec sm" onclick="doOpt()">Построить по ближайшим</button></div></div>`;
     h += `<div class="row" style="margin:6px 2px"><div class="grow tiny">Осталось ${lg.out.length} точек · ${lg.tot.toFixed(1)} км · ≈ ${Math.floor(mins / 60)} ч ${mins % 60} мин</div></div>`;
     h += `<div class="btns" style="margin-top:0"><button class="btn sec sm" onclick="go({sheet:'load'})">Погрузка</button><button class="btn sec sm" onclick="go({sheet:'map'})">Весь маршрут в картах</button></div>`;
-  } else h += TODAY === 6 ? '<div class="card"><div class="t1">Сегодня выходной</div><div class="t2">Воскресенье: точек в маршруте нет. Хорошего отдыха!</div></div>' : '<div class="card"><div class="t1">Маршрут выполнен</div><div class="t2">Все точки на сегодня сданы.</div>' + (shActive() ? '<button class="btn" style="margin-top:10px" onclick="shiftEnd()">Завершить смену</button>' : '') + '</div>';
+  } else h += TODAY === 6 ? '<div class="card"><div class="t1">Сегодня выходной</div><div class="t2">Воскресенье: точек в маршруте нет. Хорошего отдыха!</div></div>' : '<div class="card"><div class="t1">Маршрут выполнен</div><div class="t2">Все точки на сегодня сданы.</div>' + (shActive() ? '<button class="btn" style="margin-top:10px" onclick="shiftEndAsk()">Завершить смену</button>' : '') + '</div>';
   let prev = posOf(c), n = 0;
   list.forEach(x => {
     const p = pt(x.pid), d = km(prev, p); if (!x.done) { n++; prev = p; }
@@ -1622,7 +1622,7 @@ function chatScreen() {
   if (th[0] === 'm') msgs.forEach(m => { if (m.from !== me) m.read = true; });
   else if (msgs.length) rdMark(th, msgs[msgs.length - 1].ts);
   NOTIFS.forEach(n => { if (n.kind === 'chat' && n.to === nkey() && (n.th || 'm:' + n.cid) === th) n.read = true; });
-  const inc = msgs.slice().reverse().find(m => String(m.from) !== String(me) && m.pid), ctx = S.chatPid || (inc && !S.ctxOff ? inc.pid : null);
+  const ctx = chatCtxPid(th, me);
   let h = topbar(thTitle(th), '<button class="back" style="margin:0" onclick="go({th:null})">‹ Все чаты</button>' + (thPk(th) ? ' ' + prHTML(thPk(th), mgr) : '') + typingHTML(th));
   h += '<div class="body">';
   if (!msgs.length) h += '<div class="card t2">Пока сообщений нет.</div>';
@@ -1646,12 +1646,20 @@ function saveSyr() {
   p.syr = m; go({sheet:null, sy:null, toast:v ? 'Вкус сохранён' : 'Название вкуса убрано'});
 }
 function chatPtFilter(q) { q = q.trim().toLowerCase(); document.querySelectorAll('#chatptlist .card').forEach(e => { e.style.display = !q || e.dataset.s.includes(q) ? '' : 'none'; }); }
+// точка, по которой идёт разговор: берётся из последнего чужого сообщения с точкой, но только пока вы на него не ответили (после вашего сообщения подсказка пропадает)
+function chatCtxPid(th, me) {
+  if (S.chatPid) return S.chatPid;
+  if (S.ctxOff) return null;
+  const msgs = thMsgs(th).filter(m => !m.del), rev = msgs.slice().reverse();
+  const mine = rev.find(m => String(m.from) === String(me)), inc = rev.find(m => String(m.from) !== String(me) && m.pid);
+  return inc && (!mine || inc.ts > mine.ts) ? inc.pid : null;
+}
 function sendChat() {
   const t = S.chatDraft.trim(), th = S.th; if (!t || !th) return;
   if (S.edit && S.edit.th === th) { const em = findMsg(th, S.edit.id); if (em && em.text !== t) { em.text = t; em.ed = Date.now(); } S.edit = null; S.chatDraft = ''; S.focusChat = true; return render(); }
   const mgr = S.role === 'mgr', me = th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey();
   const inc = thMsgs(th).slice().reverse().find(m => String(m.from) !== String(me) && m.pid);
-  const pid = S.chatPid || (inc && !S.ctxOff ? inc.pid : null);
+  const pid = chatCtxPid(th, me);
   const extra = S.reTo && S.reTo.th === th ? {re:{id:S.reTo.id, name:S.reTo.name, text:S.reTo.text}} : null;
   if (th[0] === 'm') sendMsg(+th.slice(2), me, t, pid, extra); else sendTeamMsg(th, t, pid, extra);
   S.reTo = null; S.chatDraft = ''; S.ctxOff = false; S.chatPid = null; S.focusChat = true; render();
@@ -3261,7 +3269,7 @@ function celebrate() {
   if (document.getElementById('celeb')) return;
   const d = document.createElement('div'); d.id = 'celeb';
   d.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:97;background:rgba(14,20,17,.95);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;opacity:0;transition:opacity .35s ease;text-align:center;padding:24px';
-  d.innerHTML = '<div style="position:relative;width:132px;height:132px;display:flex;align-items:center;justify-content:center"><div style="position:absolute;left:0;top:0;right:0;bottom:0;border-radius:50%;border:2px solid var(--g);animation:ring 1.6s ease-out infinite"></div><div style="position:absolute;left:0;top:0;right:0;bottom:0;border-radius:50%;border:2px solid var(--g);animation:ring 1.6s ease-out .7s infinite"></div><div style="animation:rxpop .6s cubic-bezier(.2,1.4,.4,1)">' + splashLogo(124) + '</div></div><div style="font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:8px">Смена закончена</div><div class="t2" style="font-size:14px">Все точки сданы. Спасибо, ' + esc(S.role === 'mgr' ? MGR.name : (cr(S.me) || {name: ''}).name) + '!</div>' + (shActive() ? '<div style="margin-top:18px;display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px"><button class="btn" onclick="event.stopPropagation();shiftEnd()">Завершить смену</button><button class="btn sec" onclick="event.stopPropagation();celebClose()">Позже</button></div>' : '');
+  d.innerHTML = '<div style="position:relative;width:132px;height:132px;display:flex;align-items:center;justify-content:center"><div style="position:absolute;left:0;top:0;right:0;bottom:0;border-radius:50%;border:2px solid var(--g);animation:ring 1.6s ease-out infinite"></div><div style="position:absolute;left:0;top:0;right:0;bottom:0;border-radius:50%;border:2px solid var(--g);animation:ring 1.6s ease-out .7s infinite"></div><div style="animation:rxpop .6s cubic-bezier(.2,1.4,.4,1)">' + splashLogo(124) + '</div></div><div style="font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:8px">Смена закончена</div><div class="t2" style="font-size:14px">Все точки сданы. Спасибо, ' + esc(S.role === 'mgr' ? MGR.name : (cr(S.me) || {name: ''}).name) + '!</div>' + (shActive() ? '<div style="margin-top:18px;display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px"><button class="btn" onclick="event.stopPropagation();celebClose();shiftEndAsk()">Завершить смену</button><button class="btn sec" onclick="event.stopPropagation();celebClose()">Позже</button></div>' : '');
   const close = () => { d.style.opacity = '0'; setTimeout(() => d.remove(), 380); };
   d.addEventListener('click', () => { if (!shActive()) close(); }); document.body.appendChild(d);
   requestAnimationFrame(() => { d.style.opacity = '1'; });
@@ -4172,7 +4180,7 @@ function shiftBlock() {
   if (S.role !== 'cour') return '';
   const ok0 = offKind(S.me, TODAY); if (ok0) return `<div class="card"><div class="row"><div style="color:var(--o)">${ic('calendar', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Сегодня у вас ${OFFK[ok0].toLowerCase()}</div><div class="t2">Отдыхайте: выходить на смену не нужно</div></div></div></div>`;
   const s = shMine(), today = s && new Date(s.s).toDateString() === new Date(sNow()).toDateString();
-  if (shActive()) return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('clock', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Вы на смене</div><div class="t2">с ${hm(s.s)} · <span data-shiftt>${shiftDur()}</span></div><div class="tiny" data-geoi style="color:var(--g);margin-top:2px">${geoActive() ? ic('pin', 13) + ' Геолокация включена' : ''}</div></div><button class="btn sec sm" onclick="shiftEnd()">Завершить смену</button></div></div>`;
+  if (shActive()) return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('clock', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Вы на смене</div><div class="t2">с ${hm(s.s)} · <span data-shiftt>${shiftDur()}</span></div><div class="tiny" data-geoi style="color:var(--g);margin-top:2px">${geoActive() ? ic('pin', 13) + ' Геолокация включена' : ''}</div></div><button class="btn sec sm" onclick="shiftEndAsk()">Завершить смену</button></div></div>`;
   if (s && s.e && today && sNow() - s.e < 6 * 3600000) return `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Смена завершена${s.auto ? ' автоматически' : ''}</div><div class="t2">${hm(s.s)}–${hm(s.e)} · ${shiftDur()}</div></div><button class="btn sec sm" onclick="shiftResume()">Вернуться на смену</button></div></div>`;
   if (s && s.e && today) return `<div class="tiny" style="margin:0 2px 8px;opacity:.85">Смена завершена${s.auto ? ' автоматически' : ''}: ${hm(s.s)}–${hm(s.e)} · ${shiftDur()}</div>`;
   if (!L(S.me, TODAY).length) return '';
@@ -4182,6 +4190,10 @@ function shiftStart() {
   const r = prMine(), now = sNow(); r.sh = {s: now}; r.lc = {k: 'base', pid: 0, ts: now};
   notify('mgr', 'loc', cr(S.me).name + ' заступил(а) на смену', {sub: 'shift_start'}); uiSnd('done'); haptic([14, 30, 14]);
   PRLAST = 0; prBeat(); pushSoon(); go({toast: 'Смена началась. Хорошей работы!'});
+}
+function shiftEndAsk() {
+  if (!shActive()) return;
+  go({sheet: 'endshift'});
 }
 function shiftEnd() {
   const r = prMine(), s = r.sh; if (!s || s.e) return celebClose();
@@ -4539,7 +4551,8 @@ function selfTest() {
       T('курьер: выход с визита', () => go({view: null, visit: null}));
       T('курьер: выйти на смену', () => { go({tab: 'route', view: null, sheet: null}); shiftStart(); });
       T('курьер: экран на смене', () => go({tab: 'route', view: null}));
-      T('курьер: завершить смену', () => shiftEnd());
+      T('курьер: окно подтверждения конца смены', () => { go({tab: 'route', view: null}); shiftEndAsk(); });
+      T('курьер: завершить смену', () => { go({sheet: null}); shiftEnd(); });
       T('курьер: вернуться на смену', () => { go({tab: 'route', view: null}); shiftResume(); });
     }
   });
@@ -4624,6 +4637,11 @@ function sheetNew() {
       <button class="btn sec" style="margin-top:8px" onclick="GEO.denied=false;go({sheet:null})">Закрыть</button>`;
   }
   if (s === 'geolog') return geoLogSheet(S.gl);
+  if (s === 'endshift') {
+    const l = L(S.me, TODAY), n = l.length, d = l.filter(x => x.done).length, all = n > 0 && d === n;
+    return `<h2>Завершить смену?</h2><div class="card"><div class="row"><div style="color:${all ? 'var(--g)' : 'var(--o)'}">${ic(all ? 'check' : 'flag', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${n ? (all ? 'Все точки сданы: ' + d + ' из ' + n : 'Сдано ' + d + ' из ' + n + ' точек') : 'Точек на сегодня нет'}</div><div class="t2">На смене: ${shiftDur()}. ${all ? '' : 'Не сданные точки останутся в маршруте. '}Если нажали случайно, вернуться на смену можно в течение 6 часов.</div></div></div></div>
+      <button class="btn" style="margin-top:10px" onclick="go({sheet:null});shiftEnd()">Завершить смену</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Продолжить смену</button>`;
+  }
   if (s === 'mustpw') {
     const f = S.mp2 || (S.mp2 = {n1: '', n2: '', err: '', busy: false});
     return `<h2>Придумайте новый пароль</h2><div class="card"><div class="row"><div style="color:var(--o)">${ic('shield', 32)}</div><div class="grow t2">Сейчас у вас временный или слишком простой пароль. Придумайте свой: не короче 6 символов, не «123456» и не логин. Пока пароль не сменён, приложение не сохранит ваши данные.</div></div></div>
