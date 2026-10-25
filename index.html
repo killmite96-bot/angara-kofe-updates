@@ -6,7 +6,7 @@
 <script>
 /* журнал ошибок запуска: сообщения уходят на сервер, чтобы находить причины сбоев на телефонах */
 window.__t0 = Date.now();
-window.__log = function (o) { try { if (!/^https?:$/.test(location.protocol)) return; o.ua = navigator.userAgent.slice(0, 120); o.v = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 0); o.sa = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ? 1 : 0; var x = new XMLHttpRequest(); x.open('POST', '/api/clientlog'); x.setRequestHeader('Content-Type', 'application/json'); x.send(JSON.stringify(o)); } catch (e) {} };
+window.__log = function (o) { try { var web = /^https?:$/.test(location.protocol); if (!web && !window.__logBase) return; if ((window.__logN = (window.__logN || 0) + 1) > 12) return; o.ua = navigator.userAgent.slice(0, 120); o.v = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 0); o.sa = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ? 1 : 0; var x = new XMLHttpRequest(); x.open('POST', (web ? '' : window.__logBase) + '/api/clientlog'); x.setRequestHeader('Content-Type', 'application/json'); x.send(JSON.stringify(o)); } catch (e) {} };
 window.addEventListener('error', function (e) { window.__log({k: 'error', m: String(e.message), l: e.lineno, c: e.colno, st: ((e.error && e.error.stack) || '').slice(0, 500)}); });
 window.addEventListener('unhandledrejection', function (e) { window.__log({k: 'reject', m: String((e.reason && e.reason.message) || e.reason)}); });
 </script>
@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 84;
+const APP_VERSION = 85;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2618,7 +2618,7 @@ let SRV = '';   // адрес сервера; пусто = режим без с�
 try { SRV = localStorage.getItem(SRV_KEY) || ''; } catch (e) {}
 if (!SRV) { try { SRV = window.AndroidBridge && AndroidBridge.serverUrl ? String(AndroidBridge.serverUrl() || '') : ''; } catch (e) {} }
 if (!SRV && /^https?:$/.test(location.protocol)) SRV = location.origin;
-SRV = SRV.trim().replace(/\/+$/, '');
+SRV = SRV.trim().replace(/\/+$/, ''); window.__logBase = SRV;
 const SY = {token:'', role:'', cid:0, login:'', seq:0, mirror:{}, base:{}, on:false, net:false, pend:{}, pushing:false, es:null};
 try { const t = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (t && t.url === SRV && t.token) Object.assign(SY, {token:t.token, role:t.role, cid:t.cid, login:t.login || ''}); } catch (e) {}
 // сообщаем оболочке Android данные входа: пока приложение закрыто, она раз в ~15 минут проверяет новые уведомления
@@ -3112,7 +3112,7 @@ function uiAfterRender() {
   SHEETSEEN = S.sheet || null;
   if (S.shade && !SHADESEEN) { const o = $('sheetshade'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
   SHADESEEN = !!S.shade;
-  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); } catch (e) {}
+  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); } catch (e) {}
 }
 // шапка сжимается, только если у экрана достаточно прокрутки: иначе после сжатия прокрутка «съедается», шапка снова растёт, и всё дёргается по кругу
 function hdrState(tp, bd) {
@@ -4077,15 +4077,7 @@ function lcSet(k, pid, text) {
   if (text) notify('mgr', 'loc', text);
   PRLAST = 0; prBeat(); pushSoon();
 }
-function lcTick() {
-  if (S.role !== 'cour') return; const r = PR[String(S.me)], l = r && r.lc;
-  if (l && l.k === 'prep' && Date.now() - l.ts >= 300000) {
-    const fresh = Date.now() - l.ts < 1800000;
-    r.lc = {k: 'way', pid: l.pid, ts: Date.now()};
-    if (fresh && pt(l.pid)) notify('mgr', 'loc', cr(S.me).name + ' в пути на «' + pt(l.pid).name + '»');
-    pushSoon();
-  }
-}
+function lcTick() {}   // «в пути на …» через 5 минут, автозакрытие смены и напоминания теперь делает сервер (работает и при закрытом приложении)
 {
   const _sv = startVisit;
   startVisit = function (id, quick) { const r = _sv.apply(this, arguments); if (!quick && S.role === 'cour' && S.visit) lcSet('at', id, cr(S.me).name + ' сейчас на точке «' + pt(id).name + '»'); return r; };
@@ -4104,7 +4096,7 @@ function shiftBlock() {
   if (S.role !== 'cour') return '';
   const s = shMine(), today = s && new Date(s.s).toDateString() === new Date().toDateString();
   if (shActive()) return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('clock', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Вы на смене</div><div class="t2">с ${hm(s.s)} · <span data-shiftt>${shiftDur()}</span></div></div><button class="btn sec sm" onclick="shiftEnd()">Завершить смену</button></div></div>`;
-  if (s && s.e && today) return `<div class="tiny" style="margin:0 2px 8px;opacity:.85">Смена завершена: ${hm(s.s)}–${hm(s.e)} · ${shiftDur()}</div>`;
+  if (s && s.e && today) return `<div class="tiny" style="margin:0 2px 8px;opacity:.85">Смена завершена${s.auto ? ' автоматически' : ''}: ${hm(s.s)}–${hm(s.e)} · ${shiftDur()}</div>`;
   if (!L(S.me, TODAY).length) return '';
   return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('flag', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Начало смены</div><div class="t2">Нажмите, когда приедете на склад: менеджер увидит, что вы вышли</div></div><button class="btn sm" onclick="shiftStart()">Выйти на смену</button></div></div>`;
 }
@@ -4143,6 +4135,22 @@ function saveCam() {
   const f = S.cs, u = f.url.trim(); if (u && !/^https?:\/\/\S+$/i.test(u)) return go({toast: 'Ссылка должна начинаться с http:// или https://'});
   if (u) pt(f.pid).cam = u.slice(0, 300); else delete pt(f.pid).cam;
   go({sheet: null, cs: null, toast: u ? 'Ссылка на камеру сохранена' : 'Ссылка на камеру убрана'});
+}
+
+/* ----- подсказка «включите уведомления» ----- */
+const PHINT_KEY = 'angara_pushhint';
+function pushHint() {
+  if (!S.role || S.sheet || S.view || S.shade || document.getElementById('pushhint')) return;
+  if (S.tab !== 'route' && S.tab !== 'plan') return;
+  let need = false, app = pushIsApp();
+  if (app) { try { need = typeof AndroidBridge.notifAllowed === 'function' && !AndroidBridge.notifAllowed(); } catch (e) {} }
+  else need = pushCan() && SY.on && !pushOn();
+  if (!need) return;
+  try { if (Date.now() - (+localStorage.getItem(PHINT_KEY) || 0) < 3 * 86400000) return; } catch (e) {}
+  const body = document.querySelector('#app .body'); if (!body) return;
+  const d = document.createElement('div'); d.className = 'card'; d.id = 'pushhint'; d.style.borderColor = 'var(--o)';
+  d.innerHTML = `<div class="row"><div style="color:var(--o)">${ic('chat', 26)}</div><div class="grow"><div class="t1" style="font-size:14px">Включите уведомления</div><div class="t2">Без них сообщения, фото и статусы не придут, пока приложение закрыто</div></div></div><div class="btns" style="margin:8px 0 0"><button class="btn sm" onclick="${app ? 'try{AndroidBridge.openNotifSettings()}catch(e){}' : 'pushEnable()'}">Включить</button><button class="btn sec sm" onclick="try{localStorage.setItem('${PHINT_KEY}',Date.now())}catch(e){};this.closest('#pushhint').remove()">Позже</button></div>`;
+  body.insertBefore(d, body.firstChild);
 }
 
 /* ----- окна ----- */

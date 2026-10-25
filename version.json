@@ -1,9 +1,9 @@
 {
-    "content":  84,
+    "content":  85,
     "apk":  19,
-    "notes":  "Исправлена запись голосовых в Android-приложении: микрофон теперь включается.",
+    "notes":  "Сервер сам ведёт «в пути на…», закрывает забытые смены и напоминает курьерам; подсказка про уведомления; журнал ошибок из Android-приложения.",
     "contentFile":  "index.html",
-    "contentSha256":  "c8b7457c2bc2a6437f19fa5e924fa25f9dfea5b570620555c56aceaf01d4d2c9",
+    "contentSha256":  "723c5ea72c033ea67bb86cd7e0f4d692843dfb38e70eca5a32eda7bd8b2ad251",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "08078f3093bb889c4eaa9097c97e8a044acdf501a57ac927e064aff5d3ace410"
 }
