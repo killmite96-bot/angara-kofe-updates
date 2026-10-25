@@ -115,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 47;
+const APP_VERSION = 48;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -444,10 +444,10 @@ const CHAT = {
 };
 const GCHAT = [], DMS = {}, RD = {};   // RD[беседа][читатель] = время последнего прочитанного сообщения (беседа: 'g' или пара 'a-b')   // общий чат команды и личные чаты курьер↔курьер (ключ «меньший id-больший id»)
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-function sendMsg(cid, from, text, pid) {
+function sendMsg(cid, from, text, pid, extra) {   // extra: {re:{id,name,text}} — ответ на сообщение, {fw:'Имя'} — переслано от
   const d = new Date(), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  (CHAT[cid] = CHAT[cid] || []).push({id:uid(), ts:Date.now(), from, text, t, pid:pid || null, read:false});
-  notify(from === 'mgr' ? cid : 'mgr', 'chat', (from === 'mgr' ? MGR.name : cr(cid).name) + ': ' + text, {cid, pid:pid || null});
+  (CHAT[cid] = CHAT[cid] || []).push(Object.assign({id:uid(), ts:Date.now(), from, text, t, pid:pid || null, read:false}, extra || {}));
+  notify(from === 'mgr' ? cid : 'mgr', 'chat', (from === 'mgr' ? MGR.name : cr(cid).name) + ': ' + (extra && extra.fw ? '↪ ' : '') + text, {cid, pid:pid || null});
 }
 
 /* ===================== ИЛЛЮСТРАЦИИ ===================== */
@@ -1487,9 +1487,10 @@ function chatScreen() {
   if (!msgs.length) h += '<div class="card t2">Пока сообщений нет.</div>';
   msgs.forEach(m => {
     const mine = String(m.from) === String(me);
-    h += `<div class="msg ${mine ? 'me' : 'them'}">${!mine && th === 'g' ? `<div class="tiny" style="margin-bottom:3px;color:var(--g)">${esc(sender(m.from))}</div>` : ''}${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="openPoint(${m.pid})">${ic('pin', 13)} ${pt(m.pid) ? pt(m.pid).name : 'точка'}</div>` : ''}<div>${esc(m.text)}</div><div class="mt">${m.t}${mine ? ' ' + ticks(th, m) : ''}</div></div>`;
+    h += `<div class="msg ${mine ? 'me' : 'them'}" style="cursor:pointer" onclick="openMsg('${m.id}')">${!mine && th === 'g' ? `<div class="tiny" style="margin-bottom:3px;color:var(--g)">${esc(sender(m.from))}</div>` : ''}${m.fw ? `<div class="tiny" style="margin-bottom:4px;opacity:.85">↪ Переслано от ${esc(m.fw)}</div>` : ''}${m.re ? `<div style="border-left:3px solid var(--g);padding:2px 8px;margin-bottom:5px;background:rgba(255,255,255,.06);border-radius:4px"><div class="tiny" style="color:var(--g);font-weight:700">${esc(m.re.name)}</div><div class="tiny">${esc(m.re.text)}</div></div>` : ''}${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="event.stopPropagation();openPoint(${m.pid})">${ic('pin', 13)} ${pt(m.pid) ? pt(m.pid).name : 'точка'}</div>` : ''}<div>${esc(m.text)}</div><div class="mt">${m.t}${mine ? ' ' + ticks(th, m) : ''}</div></div>`;
   });
-  h += `</div><div style="background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">Ответ по точке: ${pt(ctx) ? pt(ctx).name : ''} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true,chatPid:null})">✕</span></div>`
+  const rt = S.reTo && S.reTo.th === th ? S.reTo : null;
+  h += `</div><div style="background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${rt ? `<div style="border-left:3px solid var(--g);padding:3px 8px;margin-bottom:6px;background:rgba(255,255,255,.06);border-radius:4px" class="row"><div class="grow"><div class="tiny" style="color:var(--g);font-weight:700">Ответ: ${esc(rt.name)}</div><div class="tiny">${esc(rt.text)}</div></div><span style="cursor:pointer;padding:4px 8px" onclick="go({reTo:null})">✕</span></div>` : ''}${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">Ответ по точке: ${pt(ctx) ? pt(ctx).name : ''} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true,chatPid:null})">✕</span></div>`
     : `<div style="margin-bottom:6px"><button class="btn sec sm" onclick="go({sheet:'chatpt'})">${ic('pin', 15)} Привязать точку</button></div>`}
     <div class="row"><input type="text" id="chatin" placeholder="Сообщение" value="${esc(S.chatDraft)}" oninput="S.chatDraft=this.value" onkeydown="if(event.key==='Enter')sendChat()" style="margin:0"><button class="btn sm" onclick="sendChat()">${ic('send', 17)}</button></div></div>`;
   return h;
@@ -1506,17 +1507,30 @@ function sendChat() {
   const mgr = S.role === 'mgr', me = th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey();
   const inc = thMsgs(th).slice().reverse().find(m => String(m.from) !== String(me) && m.pid);
   const pid = S.chatPid || (inc && !S.ctxOff ? inc.pid : null);
-  if (th[0] === 'm') sendMsg(+th.slice(2), me, t, pid); else sendTeamMsg(th, t, pid);
-  S.chatDraft = ''; S.ctxOff = false; S.chatPid = null; S.focusChat = true; render();
+  const extra = S.reTo && S.reTo.th === th ? {re:{id:S.reTo.id, name:S.reTo.name, text:S.reTo.text}} : null;
+  if (th[0] === 'm') sendMsg(+th.slice(2), me, t, pid, extra); else sendTeamMsg(th, t, pid, extra);
+  S.reTo = null; S.chatDraft = ''; S.ctxOff = false; S.chatPid = null; S.focusChat = true; render();
 }
-function sendTeamMsg(th, text, pid) {
+const msgSender = (th, m) => th[0] === 'm' ? (m.from === 'mgr' ? MGR.name : (cr(+th.slice(2)) || {name:'?'}).name) : sender(m.from);
+const findMsg = (th, id) => thMsgs(th).find(m => sameId(m.id, id));
+function openMsg(id) { go({sheet:'msgact', ma:{th:S.th, id}}); }
+function msgReply() { const f = S.ma, m = findMsg(f.th, f.id); if (!m) return go({sheet:null}); go({sheet:null, ma:null, reTo:{th:f.th, id:m.id, name:msgSender(f.th, m), text:String(m.text).slice(0, 80)}, focusChat:true}); }
+function msgCopy() { const m = findMsg(S.ma.th, S.ma.id); if (m) copyText(m.text); go({sheet:null, ma:null, toast:'Сообщение скопировано'}); }
+// пересылка: сообщение уходит от вас, с подписью «переслано от» исходного автора (если оно само было пересланным, остаётся первый автор)
+function msgForward(target) {
+  const f = S.ma, m = findMsg(f.th, f.id); if (!m) return go({sheet:null, ma:null});
+  const mgr = S.role === 'mgr', extra = {fw:m.fw || msgSender(f.th, m)};
+  if (target[0] === 'm') sendMsg(+target.slice(2), mgr ? 'mgr' : 'cour', m.text, m.pid, extra); else sendTeamMsg(target, m.text, m.pid, extra);
+  go({sheet:null, ma:null, toast:'Переслано: ' + (target === 'm:' + S.me ? 'Менеджер' : thTitle(target))});
+}
+function sendTeamMsg(th, text, pid, extra) {
   const d = new Date(), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), from = meKey();
-  const m = {id:uid(), ts:Date.now(), from, text, t, pid:pid || null};
+  const m = Object.assign({id:uid(), ts:Date.now(), from, text, t, pid:pid || null}, extra || {});
   let to = [];
   if (th === 'g') { GCHAT.push(m); to = ['mgr', ...COUR.filter(c => c.active).map(c => c.id)].filter(x => String(x) !== String(from)); }
   else { const other = +th.slice(2), k = dmKey(S.me, other); (DMS[k] = DMS[k] || []).push(m); to = [other]; }
   const label = th === 'g' ? 'Общий чат · ' + sender(from) : sender(from);
-  to.forEach(x => notify(x, 'chat', label + ': ' + text, {th:th === 'g' ? 'g' : 'd:' + S.me, pid:m.pid}));
+  to.forEach(x => notify(x, 'chat', label + ': ' + (m.fw ? '↪ ' : '') + text, {th:th === 'g' ? 'g' : 'd:' + S.me, pid:m.pid}));
 }
 function askComment(id) { go({shade:false, sheet:'rcomment', rc:{id, text:''}}); }
 function sendRC(accept) {
@@ -1733,6 +1747,17 @@ function sheet() {
     const row = (x, ok) => `<div class="chk"><div class="box ${ok ? 'on' : ''}">${ok ? '✓' : ''}</div><div class="grow t1" style="font-size:14px">${esc(nm(x))}</div></div>`;
     return `<h2>Кто прочитал</h2><div class="tiny">${esc(m.text.slice(0, 80))}</div><div class="card" style="margin-top:8px">${yes.map(x => row(x, true)).join('') + no.map(x => row(x, false)).join('') || '<div class="t2">Получателей нет.</div>'}</div>
       <div class="tiny">Одна серая галочка: отправлено. Две серые: прочитали не все. Две зелёные: прочитали все.</div><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
+  }
+  if (S.sheet === 'msgact') {
+    const f = S.ma, m = findMsg(f.th, f.id); if (!m) return '<h2>Сообщение удалено</h2><button class="btn sec" onclick="go({sheet:null,ma:null})">Закрыть</button>';
+    const prev = `<div class="card" style="margin-top:8px"><div class="tiny" style="color:var(--g);font-weight:700">${esc(msgSender(f.th, m))}${m.fw ? ' · переслано от ' + esc(m.fw) : ''}</div><div style="font-size:14px;margin-top:2px;white-space:pre-wrap">${esc(m.text)}</div></div>`;
+    if (f.fwd) return `<h2>Переслать в…</h2>${prev}<div style="margin-top:8px">${thList().map(t => `<button class="btn sec" style="margin-bottom:6px;text-align:left" onclick="msgForward('${t}')">${t === 'g' ? ic('users', 16) : ic('chat', 16)} ${t === 'm:' + S.me ? 'Менеджер' : esc(thTitle(t))}</button>`).join('')}</div>
+      <button class="btn sec" onclick="go({ma:{th:'${f.th}',id:'${f.id}'}})">Назад</button>`;
+    return `<h2>Сообщение</h2>${prev}
+      <button class="btn" style="margin:10px 0 6px" onclick="msgReply()">${ic('chat', 16)} Ответить</button>
+      <button class="btn sec" style="margin-bottom:6px" onclick="go({ma:{th:'${f.th}',id:'${f.id}',fwd:true}})">${ic('send', 16)} Переслать</button>
+      <button class="btn sec" style="margin-bottom:6px" onclick="msgCopy()">${ic('copy', 16)} Копировать</button>
+      <button class="btn sec" onclick="go({sheet:null,ma:null})">Закрыть</button>`;
   }
   if (S.sheet === 'info') return infoSheet();
   if (S.sheet === 'move') return mvSheet();
@@ -2598,7 +2623,13 @@ function pushDisable() {
 }
 function pushResync() { if (pushCan() && SY.token && pushOn()) pushSubscribe().catch(() => {}); }
 function pushBlock() {
-  if (pushIsApp() || !SRV) return '';
+  if (pushIsApp()) {   // приложение для Android: можно отключить постоянную связь «на связи», чтобы экономить батарею
+    let on = true, can = false;
+    try { can = typeof AndroidBridge.liveEnabled === 'function'; if (can) on = AndroidBridge.liveEnabled(); } catch (e) {}
+    if (!can) return '';
+    return '<h3>Мгновенные сообщения</h3><div class="card"><div class="tiny" style="margin-bottom:8px">' + (on ? 'Включены: сообщения и фото приходят сразу, в шторке висит значок «Ангара Кофе на связи». Он нужен Android, чтобы не усыплять соединение; расход батареи небольшой, но постоянный.' : 'Выключены: уведомления проверяются примерно раз в 15 минут, значок в шторке не нужен, батарея экономится. Пока приложение открыто, сообщения приходят сразу.') + '</div><button class="btn ' + (on ? 'sec ' : '') + 'sm" onclick="try{AndroidBridge.setLive(' + (!on) + ')}catch(e){};render(true)">' + (on ? 'Выключить мгновенные сообщения' : 'Включить мгновенные сообщения') + '</button></div>';
+  }
+  if (!SRV) return '';
   if (!pushCan()) return '<h3>Уведомления</h3><div class="card"><div class="tiny">На iPhone: откройте адрес приложения в Safari, затем «Поделиться» → «На экран Домой», запустите приложение с иконки и включите уведомления здесь. Нужен iOS 16.4 или новее.</div></div>';
   return '<h3>Уведомления</h3><div class="card"><div class="tiny" style="margin-bottom:8px">' + (pushOn() ? 'Включены: сообщения и задачи придут, даже если приложение закрыто.' : 'Включите, чтобы получать сообщения и задачи, когда приложение закрыто.') + '</div>' + (pushOn() ? '<button class="btn sec sm" onclick="pushDisable()">Выключить уведомления</button>' : '<button class="btn sm" onclick="pushEnable()">Включить уведомления</button>') + '</div>';
 }
