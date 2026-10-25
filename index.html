@@ -128,7 +128,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 58;
+const APP_VERSION = 59;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2756,7 +2756,7 @@ const splashLogo = s => {
 if (pushIsApp() || window.navigator.standalone) {
   const sp = document.createElement('div'); sp.id = 'splash';
   sp.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:99;background:#0e1411;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .5s ease';
-  sp.innerHTML = '<div style="animation:rxpop .6s cubic-bezier(.2,1.4,.4,1)">' + splashLogo(104) + '</div><div style="font-size:22px;font-weight:700;letter-spacing:.3px;color:#e9f1eb">Ангара Кофе</div>';
+  sp.innerHTML = '<div style="animation:rxpop .6s cubic-bezier(.2,1.4,.4,1)">' + splashLogo(104) + '</div><div style="position:absolute;left:0;right:0;bottom:calc(56px + env(safe-area-inset-bottom));text-align:center;font-size:20px;font-weight:700;letter-spacing:.3px;color:#e9f1eb">Ангара Кофе</div>';
   document.body.appendChild(sp); setTimeout(() => { sp.style.opacity = '0'; setTimeout(() => sp.remove(), 520); }, 2000);
 }
 // запуск: при ошибке один раз сбрасываем сохранённый на телефоне снимок (все данные на сервере) и пробуем снова; если не вышло — понятное сообщение вместо пустого экрана

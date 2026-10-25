@@ -1,9 +1,9 @@
 {
-    "content":  58,
+    "content":  59,
     "apk":  13,
-    "notes":  "Приложение из Chrome: возвращена одна родная заставка Chrome (без второй).",
+    "notes":  "Заставка приложения: логотип по центру, надпись «Ангара Кофе» внизу.",
     "contentFile":  "index.html",
-    "contentSha256":  "cf544751ab60c89a218b262aea7fbf1db4f59094c695bed6cd6f6fec358fdb70",
+    "contentSha256":  "2100eb40172ff48cbe9d5a86da9be3a3bfff77d6082959fc084de1312a0d3c62",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "950fc24661d3a10c9505ed29af2c83ed41cfa3e0eded498c6feed43ef855cbb0"
+    "apkSha256":  "260970b3caa4a5c83c55e42721e4c81ddde2d2d459397ad2c5076c8149b22093"
 }
