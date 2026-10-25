@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 106;
+const APP_VERSION = 107;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -687,7 +687,17 @@ function bindNotifSwipe() {
     }, {passive:false});
     const end = () => {
       if (!on) { x0 = null; return; } on = false; x0 = null; el.style.transition = 'transform .18s ease, opacity .18s ease';
-      if (Math.abs(dx) > 90) { el.style.transform = `translateX(${dx > 0 ? '110%' : '-110%'})`; el.style.opacity = '0'; setTimeout(() => dismissNotif(el.dataset.id), 170); } else { el.style.transform = ''; el.style.opacity = ''; }
+      if (Math.abs(dx) > 90) {
+        el.style.transition = 'transform .22s cubic-bezier(.3,.7,.4,1), opacity .22s ease'; el.style.transform = `translateX(${dx > 0 ? '115%' : '-115%'})`; el.style.opacity = '0'; haptic(8);
+        // как в iPhone: карточка улетает, а остальные плавно съезжают на её место (высота и отступы схлопываются), и только потом запись убирается
+        setTimeout(() => {
+          if (!el.isConnected) return dismissNotif(el.dataset.id);
+          el.style.boxSizing = 'border-box'; el.style.height = el.offsetHeight + 'px'; el.style.overflow = 'hidden'; void el.offsetHeight;
+          el.style.transition = 'height .32s cubic-bezier(.22,1,.36,1), margin .32s cubic-bezier(.22,1,.36,1), padding .32s cubic-bezier(.22,1,.36,1), border-width .32s ease';
+          el.style.height = '0px'; el.style.marginTop = '0px'; el.style.marginBottom = '0px'; el.style.paddingTop = '0px'; el.style.paddingBottom = '0px'; el.style.borderWidth = '0px';
+          setTimeout(() => dismissNotif(el.dataset.id), 330);
+        }, 200);
+      } else { el.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1), opacity .25s ease'; el.style.transform = ''; el.style.opacity = ''; }
     };
     el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
   });

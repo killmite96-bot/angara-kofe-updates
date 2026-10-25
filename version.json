@@ -1,9 +1,9 @@
 {
-    "content":  106,
+    "content":  107,
     "apk":  20,
-    "notes":  "«На базе» теперь определяется по геолокации; при выходе на смену пишется «Вышел на смену».",
+    "notes":  "Плавное смахивание уведомлений: остальные карточки съезжают на место без скачка.",
     "contentFile":  "index.html",
-    "contentSha256":  "269179eef5f05046c8464f9d32e5be94e32f99239058638169e6e3a151b52763",
+    "contentSha256":  "9c5fef020dfebb292f095e6bacad3ba60534f54bbc8133d1beebee454e535672",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }
