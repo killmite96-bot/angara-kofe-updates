@@ -1,9 +1,9 @@
 {
-    "content":  87,
+    "content":  88,
     "apk":  19,
-    "notes":  "Время смены и статусов теперь ставит сервер: часы телефона на них не влияют.",
+    "notes":  "Кольца прогресса нажимаются и показывают детали; барабан на складе; кнопка «Отметить прочитанным»; подписи и статусы в общем чате; «Лучшее время заезда» у точек.",
     "contentFile":  "index.html",
-    "contentSha256":  "d57bd5bc64291e90c329f91c588efc393f9b1a8fc13993e151cbb79ecd442850",
+    "contentSha256":  "0b869bad8a4ef035fcab867be6bc08aae4aebd25cf490c648abc4bd1f059f5ac",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "08078f3093bb889c4eaa9097c97e8a044acdf501a57ac927e064aff5d3ace410"
 }
