@@ -1,9 +1,9 @@
 {
-    "content":  88,
+    "content":  89,
     "apk":  19,
-    "notes":  "Кольца прогресса нажимаются и показывают детали; барабан на складе; кнопка «Отметить прочитанным»; подписи и статусы в общем чате; «Лучшее время заезда» у точек.",
+    "notes":  "Голосовые можно слушать прямо в шторке уведомлений; исправлены ручки окон и свайп вниз.",
     "contentFile":  "index.html",
-    "contentSha256":  "0b869bad8a4ef035fcab867be6bc08aae4aebd25cf490c648abc4bd1f059f5ac",
+    "contentSha256":  "6bd972eb7fdda2c6d38dff2cc95cbdc85495575e9f7038006dbef0aebb2a4b7f",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "08078f3093bb889c4eaa9097c97e8a044acdf501a57ac927e064aff5d3ace410"
 }
