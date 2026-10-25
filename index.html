@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 92;
+const APP_VERSION = 93;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -563,6 +563,7 @@ const CHAT = {
   1:[{id:'seed1', ts:1, from:'mgr', text:'Доброе утро! Сегодня 7 точек, 4 из них с мойкой. Начните с базы.', t:'08:05', pid:null, read:true}, {id:'seed2', ts:2, from:'cour', text:'Принял, выезжаю на базу.', t:'08:07', pid:null, read:true}],
   2:[]
 };
+const GCS = {me: null, all: {}, log: []};   // геолокация: моё согласие (курьер), согласия курьеров (менеджер), журнал «прибыл на точку» за 7 дней
 const NS = {off: [], q: {on: false, from: 22, to: 8}};   // настройки уведомлений менеджера (документ ns/mgr): какие виды отключены и тихие часы
 const PR = {};   // статусы людей: PR[«mgr» или номер курьера] = {t: последний сигнал, v: приложение открыто, a: последнее действие, lc: где находится, sh: смена}
 const GCHAT = [], DMS = {}, RD = {}, RX = {};   // RX[беседа][кто] = {id сообщения: вид реакции}   // RD[беседа][читатель] = время последнего прочитанного сообщения (беседа: 'g' или пара 'a-b')   // общий чат команды и личные чаты курьер↔курьер (ключ «меньший id-больший id»)
@@ -1812,8 +1813,8 @@ function teamScreen() {
     let n = 0; for (let d = 0; d < 7; d++) n += L(c.id, d).length;
     h += `<div class="card" data-sw="${c.active ? 'Отключить' : 'Включить'}|toggleCour(${c.id})|#8a5a14;Изменить|openCF(${c.id})|#2d5aa0" style="${c.active ? '' : 'opacity:.6'}"><div class="row"><div class="grow"><div class="t1">${esc(c.name)}</div>
       <div class="t2">Логин: ${c.login} · тип 1 ${money(c.r1)} · тип 2 ${money(c.r2)} · Г ${money(c.r3)}</div></div><span class="pill ${c.active ? 'ok' : 'bad'}">${c.active ? 'активен' : 'отключён'}</span></div>
-      <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div>
-      <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button><button class="btn sec sm" onclick="go({sheet:'cologout',clo:${c.id}})">Выйти на всех телефонах</button></div></div>`;
+      <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div><div class="tiny" style="margin-top:3px">${esc(gcLine(c.id))}</div>
+      <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button><button class="btn sec sm" onclick="go({sheet:'cologout',clo:${c.id}})">Выйти на всех телефонах</button><button class="btn sec sm" onclick="go({sheet:'geolog',gl:${c.id}})">Прибытия</button></div></div>`;
   });
   return h + '<div class="tiny" style="margin-top:8px">Отключённый курьер не может войти, но его история и зарплата сохраняются. Пароль курьер получает от менеджера.</div></div>';
 }
@@ -1997,7 +1998,7 @@ function sheet() {
       <input type="password" placeholder="Повторите новый пароль" autocomplete="off" value="${esc(f.n2)}" oninput="S.pw.n2=this.value">
       ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${f.err}</div>` : ''}
       <button class="btn sec" style="margin:8px 0" onclick="changePass()">Сменить пароль</button>`;
-    h += (mgr ? nsBlock() : '') + fxBlock() + pushBlock() + tipsBlock() + updBlock();
+    h += (mgr ? nsBlock() : '') + fxBlock() + pushBlock() + geoBlock() + tipsBlock() + updBlock();
     return h + `<button class="btn" style="background:#4a1a1a;color:#ffb0b0;margin-top:12px" onclick="doLogout()">Выйти из профиля</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
   }
   if (S.sheet === 'water') {
@@ -2685,12 +2686,15 @@ function docsFromState() {
   Object.keys(DMS).forEach(k => DMS[k].forEach(m => { d['dm/' + k + '/' + m.id] = m; }));
   Object.keys(PR).forEach(k => { d['pr/' + k] = PR[k]; });
   if (SY.role === 'mgr') d['ns/mgr'] = NS;
+  if (SY.role === 'cour' && GCS.me) d['gc/' + SY.cid] = GCS.me;
   reviews.forEach(r => { d['rev/' + r.id] = r; });
   return d;
 }
 // те же правила, что на сервере: сервер всё равно перепроверит
 function canWriteKey(k, v) {
   if (k.startsWith('pr/')) return k === 'pr/' + (SY.role === 'mgr' ? 'mgr' : SY.cid);   // свой статус пишет только сам человек
+  if (k.startsWith('geo/')) return false;   // журнал прибытий ведёт сервер
+  if (k.startsWith('gc/')) return SY.role === 'cour' && k === 'gc/' + SY.cid;   // согласие даёт только сам курьер
   if (SY.role === 'mgr') return k !== 'cour' && k !== 'wk' && !k.startsWith('dm/');
   const p = k.split('/'), h = p[0], me = String(SY.cid);
   if (h === 'gmsg') return !v || String(v.from) === me;
@@ -2765,6 +2769,12 @@ function applyDoc(k, v, dele) {
     const c = +p[1]; ensureCour(c); upsert(CHAT[c], dele ? {id:p[2]} : v, dele, byTsAsc);
   } else if (h === 'tp') {
     const m = TP[p[1]] = TP[p[1]] || {}; if (dele || !v) delete m[p[2]]; else { m[p[2]] = v.n; if (!TP_LOADING) { TPSEEN[p[1] + '|' + p[2]] = Date.now(); setTimeout(() => { if (S.tab === 'chat' && S.th && !S.sheet) render(true); }, 4700); } }
+  } else if (h === 'gc') {
+    if (SY.role === 'mgr') { if (dele || !v) delete GCS.all[p[1]]; else GCS.all[p[1]] = v; }
+    else if (SY.role === 'cour' && p[1] === String(SY.cid)) GCS.me = (dele || !v) ? null : v;
+  } else if (h === 'geo') {
+    GCS.log = GCS.log.filter(x => !(x.cid === p[1] && x.id === p[2]));
+    if (!dele && v) { GCS.log.push(Object.assign({cid: p[1], id: p[2]}, v)); if (GCS.log.length > 400) GCS.log = GCS.log.slice(-400); }
   } else if (h === 'ns') {
     if (v && p[1] === 'mgr') { NS.off = Array.isArray(v.off) ? v.off.filter(x => typeof x === 'string').slice(0, 12) : []; const q = v.q || {}; NS.q = {on: !!q.on, from: (+q.from || 0) % 24, to: (+q.to || 0) % 24}; }
   } else if (h === 'pr') {
@@ -2786,7 +2796,7 @@ function resetFromDocs(docs) { TP_LOADING = true; try { resetFromDocs0(docs); } 
 function resetFromDocs0(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
   [CHAT, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
-  NS.off = []; NS.q = {on: false, from: 22, to: 8};
+  NS.off = []; NS.q = {on: false, from: 22, to: 8}; GCS.me = null; GCS.all = {}; GCS.log = [];
   SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
     if (d.dele) return;
@@ -3128,7 +3138,7 @@ function uiAfterRender() {
   SHEETSEEN = S.sheet || null;
   if (S.shade && !SHADESEEN) { const o = $('sheetshade'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
   SHADESEEN = !!S.shade;
-  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); } catch (e) {}
+  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); geoSync(); } catch (e) {}
 }
 // шапка сжимается, только если у экрана достаточно прокрутки: иначе после сжатия прокрутка «съедается», шапка снова растёт, и всё дёргается по кругу
 function hdrState(tp, bd) {
@@ -3830,6 +3840,7 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 #sheetshade .grab.up{bottom:0;margin:6px -16px 0;padding:12px 0 calc(12px + env(safe-area-inset-bottom));border-radius:0 0 20px 20px;z-index:3}
 #netp{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-90px);z-index:29;background:#4a3414;color:#ffd9a0;border:1px solid #8a5a14;padding:6px 12px;border-radius:16px;font-size:12px;max-width:90%;text-align:center;transition:transform .35s cubic-bezier(.22,1,.36,1)}
 #netp.in{transform:translate(-50%,0)}
+#geop{position:fixed;left:12px;bottom:calc(var(--tabh,64px) + 12px + env(safe-area-inset-bottom));z-index:21;background:rgba(23,64,42,.92);color:#7be3a0;border:1px solid #2f9a4e;padding:5px 10px;border-radius:14px;font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer}
 #upl{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translate(-50%,-80px);z-index:30;background:#1c2b22;border:1px solid var(--line);padding:8px 14px;border-radius:20px;font-size:13px;display:flex;align-items:center;gap:8px;transition:transform .35s cubic-bezier(.22,1,.36,1)}
 #upl.in{transform:translate(-50%,0)}
 #upl i{width:14px;height:14px;border-radius:50%;border:2px solid var(--g);border-top-color:transparent;animation:spin .8s linear infinite}
@@ -4090,7 +4101,7 @@ function lcText(key) {
   const r = PR[key], l = r && r.lc; if (!l || new Date(l.ts).toDateString() !== new Date(sNow()).toDateString()) return '';
   const p = l.pid ? pt(l.pid) : null, nm = p ? '«' + p.name + '»' : '';
   const k = l.k === 'prep' && sNow() - l.ts >= 300000 ? 'way' : l.k;
-  return k === 'at' ? 'Сейчас на точке ' + nm : k === 'prep' ? 'Собирается на ' + nm : k === 'way' ? 'В пути на ' + nm : k === 'base' ? 'На базе' : k === 'done' ? 'Закончил(а) маршрут' : k === 'end' ? 'Смена завершена' : '';
+  return k === 'at' ? 'Сейчас на точке ' + nm + (l.src === 'geo' ? ' (по геолокации)' : '') : k === 'prep' ? 'Собирается на ' + nm : k === 'way' ? 'В пути на ' + nm : k === 'base' ? 'На базе' : k === 'done' ? 'Закончил(а) маршрут' : k === 'end' ? 'Смена завершена' : '';
 }
 function prInner(key, withLoc) { let t = prInfo(key).txt; if (withLoc) { const l = lcText(key); if (l) t += ' · ' + l; } return '<i></i>' + esc(t); }
 const prHTML = (key, withLoc) => `<span class="pres ${prInfo(key).s}" data-prh="${key}" data-wl="${withLoc ? 1 : 0}">${prInner(key, withLoc)}</span>`;
@@ -4286,6 +4297,86 @@ function tipDone(id) { const a = tipsSeen(); if (!a.includes(id)) a.push(id); tr
 function tipsReset() { try { localStorage.removeItem(TIPS_KEY); } catch (e) {} go({toast: 'Подсказки покажутся снова'}); }
 const tipsBlock = () => '<h3>Подсказки</h3><div class="card"><div class="tiny" style="margin-bottom:8px">Короткие подсказки по новым возможностям показываются один раз.</div><button class="btn sec sm" onclick="tipsReset()">Показать подсказки заново</button></div>';
 
+/* ----- геолокация: «курьер приехал на точку» определяется сам ----- */
+// Работает только если курьер дал согласие и включил переключатель, и только пока идёт смена (между «Выйти на смену» и «Завершить смену»).
+// Координаты уходят на сервер, лишь когда курьер ближе 300 м к какой-нибудь точке; сервер их не сохраняет, а записывает только отметку «прибыл на точку» (хранится 7 дней).
+const GEO = {w: null, last: 0, native: '', nt: 0, denied: false, asked: false};
+const distM = (la1, lo1, la2, lo2) => { const r = 6371000, p1 = la1 * Math.PI / 180, p2 = la2 * Math.PI / 180, dp = p2 - p1, dl = (lo2 - lo1) * Math.PI / 180, a = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2; return 2 * r * Math.asin(Math.sqrt(a)); };
+const geoApp = () => { try { return !!(window.AndroidBridge && AndroidBridge.geoSet); } catch (e) { return false; } };
+const geoPermApp = () => { try { return +AndroidBridge.geoPerm() || 0; } catch (e) { return 0; } };   // 0 нет, 1 только при использовании, 2 всегда
+const geoWanted = () => S.role === 'cour' && !!(GCS.me && GCS.me.on) && shActive();
+function geoSync() {
+  const want = geoWanted();
+  if (geoApp()) {   // в приложении для Android отправку ведёт фоновая служба, она работает и при свёрнутом приложении
+    const key = want ? 'on' : 'off';
+    if (want && geoPermApp() === 0 && !GEO.asked) { GEO.asked = true; try { AndroidBridge.geoRequest(); } catch (e) {} }
+    if (GEO.native !== key || (want && Date.now() - GEO.nt > 600000)) {
+      GEO.native = key; GEO.nt = Date.now();
+      try { AndroidBridge.geoSet(want, JSON.stringify(P.filter(p => typeof p.lat === 'number').map(p => ({id: p.id, lat: p.lat, lon: p.lon})))); } catch (e) {}
+    }
+  } else if (want && GEO.w === null && !GEO.denied) geoWatchStart();
+  else if (!want && GEO.w !== null) geoWatchStop();
+  if (!want) GEO.asked = false;
+  geoPill();
+}
+function geoWatchStart() {
+  if (!navigator.geolocation) return;
+  try {
+    GEO.w = navigator.geolocation.watchPosition(pos => geoFix(pos.coords), err => {
+      if (err && err.code === 1) { geoWatchStop(); GEO.denied = true; go({sheet: 'geoperm'}); }
+    }, {enableHighAccuracy: true, maximumAge: 20000, timeout: 40000});
+  } catch (e) { GEO.w = null; }
+}
+function geoWatchStop() { if (GEO.w !== null) { try { navigator.geolocation.clearWatch(GEO.w); } catch (e) {} GEO.w = null; } }
+function geoFix(c) {
+  const now = Date.now(); if (now - GEO.last < 45000 || !geoWanted()) return;
+  let near = false; for (const p of P) { if (typeof p.lat === 'number' && distM(c.latitude, c.longitude, p.lat, p.lon) <= 300) { near = true; break; } }
+  if (!near) return;   // далеко от всех точек: на сервер ничего не отправляем
+  GEO.last = now;
+  api('/api/geo', {lat: c.latitude, lon: c.longitude, acc: c.accuracy}).catch(() => {});
+}
+function geoPill() {
+  let e = document.getElementById('geop');
+  const on = geoWanted() && (geoApp() ? geoPermApp() > 0 : GEO.w !== null);
+  if (!on) { if (e) e.remove(); return; }
+  if (!e) { e = document.createElement('div'); e.id = 'geop'; e.innerHTML = ic('pin', 13) + ' Геолокация включена'; e.onclick = () => go({sheet: 'profile'}); document.body.appendChild(e); }
+}
+function geoToggle() {
+  if (!GCS.me) return go({sheet: 'geoconsent', gcx: {ok: false}});
+  GCS.me = Object.assign({}, GCS.me, {on: !GCS.me.on}); GEO.denied = false; haptic(8); pushSoon(); render(true); geoSync();
+}
+function geoAccept() {
+  if (!S.gcx || !S.gcx.ok) return go({toast: 'Отметьте, что согласны'});
+  GCS.me = {v: 1, on: true, ts: Date.now(), name: cr(S.me).name}; GEO.denied = false; GEO.asked = false;
+  pushSoon(); go({sheet: null, gcx: null, toast: 'Определение прибытия включено, оно работает только во время смены'}); setTimeout(geoSync, 300);
+}
+function geoRevoke() { GCS.me = null; geoWatchStop(); GEO.native = ''; try { if (geoApp()) AndroidBridge.geoSet(false, '[]'); } catch (e) {} pushSoon(); go({sheet: null, toast: 'Согласие отозвано, определение выключено'}); geoPill(); }
+function geoBlock() {
+  if (S.role !== 'cour' || !SRV) return '';
+  const g = GCS.me, on = !!(g && g.on), app = geoApp(), perm = app ? geoPermApp() : -1;
+  let h = '<h3>Геолокация</h3><div class="card"><div class="row" style="cursor:pointer" onclick="geoToggle()"><div class="grow"><div class="t1" style="font-size:14px">Определять прибытие на точку</div><div class="t2">Приложение само отметит, что вы приехали, без нажатий. Только во время смены.</div></div>' + swHTML(on) + '</div>';
+  if (on) {
+    h += '<div class="tiny" style="margin-top:8px">Включено. Работает только между «Выйти на смену» и «Завершить смену». Пока определение идёт, приложение показывает значок «Геолокация включена».</div>';
+    if (app) h += perm === 0 ? '<div class="tiny" style="margin-top:6px;color:var(--o)">Для работы нужен доступ к геолокации.</div><button class="btn sm" style="margin-top:6px" onclick="try{AndroidBridge.geoRequest()}catch(e){}">Разрешить геолокацию</button>'
+      : perm === 1 ? '<div class="tiny" style="margin-top:6px">Работает, пока идёт смена. Чтобы определение не прерывалось при перезапуске телефона, можно разрешить «Всегда» (необязательно).</div><button class="btn sec sm" style="margin-top:6px" onclick="try{AndroidBridge.geoBgHelp()}catch(e){}">Открыть настройки приложения</button>'
+      : '<div class="tiny" style="margin-top:6px;color:var(--g)">Разрешён доступ «Всегда»: работает и при свёрнутом приложении.</div>';
+    else h += '<div class="tiny" style="margin-top:6px">В браузере определение работает, пока приложение открыто на экране.</div>';
+  }
+  if (g) h += '<button class="btn sec sm" style="margin-top:10px" onclick="geoRevoke()">Отозвать согласие</button>';
+  return h + '</div><div class="tiny">Координаты на сервере не сохраняются: остаётся только отметка «прибыл на точку» на 7 дней. Включить и выключить определение можно в любой момент.</div>';
+}
+const GEO_TEXT = 'Я даю согласие работодателю (сеть «Ангара Кофе») на определение местоположения моего телефона <b>только в рабочее время: с момента нажатия «Выйти на смену» до «Завершить смену»</b>. Цель: автоматически отмечать, что я приехал(а) на точку. Координаты на сервере не сохраняются: сохраняется только отметка «прибыл на точку, во столько-то» на 7 дней. Пока определение идёт, приложение показывает значок. Я могу отключить определение или отозвать это согласие в любой момент в «Профиле», на мою работу и оплату это не повлияет.';
+const gcLine = cid => { const g = GCS.all[String(cid)]; return g ? 'Геолокация: согласие дано ' + new Date(g.ts).toLocaleDateString('ru-RU') + ', ' + (g.on ? 'включено' : 'выключено курьером') : 'Геолокация: согласия нет'; };
+function geoLogSheet(cid) {
+  const c = cr(cid), week = Date.now() - 7 * 86400000, list = GCS.log.filter(x => String(x.cid) === String(cid) && x.ts > week).sort((a, b) => b.ts - a.ts);
+  return `<h2>Прибытия по геолокации</h2><div class="t2" style="margin-bottom:8px">${esc(c ? c.name : '')} · за последние 7 дней</div><div class="tiny" style="margin-bottom:8px">${esc(gcLine(cid))}</div>`
+    + (list.length ? list.map(x => { const d = new Date(x.ts); return rgRow(pt(x.pid) ? pt(x.pid).name : 'точка', WD[(d.getDay() + 6) % 7] + ', ' + d.toLocaleDateString('ru-RU') + ' ' + hm(x.ts), `<span class="pill ok">${x.d} м</span>`); }).join('') : '<div class="card t2">Отметок пока нет.</div>')
+    + '<button class="btn sec" style="margin-top:10px" onclick="go({sheet:null,gl:null})">Закрыть</button>';
+}
+{ const _ss2 = syncStop; syncStop = function () { try { geoWatchStop(); GEO.native = ''; if (geoApp()) AndroidBridge.geoSet(false, '[]'); } catch (e) {} const e = document.getElementById('geop'); if (e) e.remove(); return _ss2.apply(this, arguments); }; }
+document.addEventListener('visibilitychange', () => { if (S.role) geoSync(); });
+setInterval(() => { if (S.role) geoSync(); }, 20000);
+
 /* ----- подсказка «включите уведомления» ----- */
 const PHINT_KEY = 'angara_pushhint';
 function pushHint() {
@@ -4338,6 +4429,21 @@ function ringSheet(k) {
 function sheetNew() {
   const s = S.sheet;
   if (s === 'ring') return ringSheet(S.rg);
+  if (s === 'geoconsent') {
+    const f = S.gcx || (S.gcx = {ok: false});
+    return `<h2>Согласие на определение местоположения</h2><div class="card"><div class="t2" style="line-height:1.45">${GEO_TEXT}</div></div>
+      <div class="row" style="margin-top:10px;cursor:pointer" onclick="S.gcx.ok=!S.gcx.ok;render(true)"><div class="box${f.ok ? ' on' : ''}" style="flex:none">${f.ok ? ic('check', 16) : ''}</div><div class="grow" style="font-size:14px">Я прочитал(а) и согласен(на)</div></div>
+      <button class="btn" style="margin-top:10px;${f.ok ? '' : 'opacity:.5'}" onclick="geoAccept()">Согласен(на) и включить</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null,gcx:null})">Не сейчас</button>`;
+  }
+  if (s === 'geoperm') {
+    const apk = geoApp(), txt = apk ? 'Откройте настройки приложения: Разрешения → Геолокация → «Разрешить только при использовании». Затем вернитесь сюда.'
+      : isIOS ? 'Откройте «Настройки» iPhone → Конфиденциальность → Службы геолокации → Safari → «При использовании». Затем вернитесь в приложение.'
+      : 'Нажмите на значок замка рядом с адресом сайта → «Разрешения» → «Геолокация» → «Разрешить». Для установленного приложения: Настройки телефона → Приложения → Ангара Кофе → Разрешения → Геолокация.';
+    return `<h2>Геолокация выключена</h2><div class="card"><div class="row"><div style="color:var(--o)">${ic('pin', 36)}</div><div class="grow t2">Телефон не дал доступ к местоположению, поэтому прибытие на точку определяется только вручную. ${txt}</div></div></div>
+      ${apk ? '<button class="btn" style="margin-top:10px" onclick="AndroidBridge.openAppSettings()">Открыть настройки</button>' : ''}
+      <button class="btn sec" style="margin-top:8px" onclick="GEO.denied=false;go({sheet:null})">Закрыть</button>`;
+  }
+  if (s === 'geolog') return geoLogSheet(S.gl);
   if (s === 'mustpw') {
     const f = S.mp2 || (S.mp2 = {n1: '', n2: '', err: '', busy: false});
     return `<h2>Придумайте новый пароль</h2><div class="card"><div class="row"><div style="color:var(--o)">${ic('shield', 32)}</div><div class="grow t2">Сейчас у вас временный или слишком простой пароль. Придумайте свой: не короче 6 символов, не «123456» и не логин. Пока пароль не сменён, приложение не сохранит ваши данные.</div></div></div>
