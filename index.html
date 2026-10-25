@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 102;
+const APP_VERSION = 103;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -4173,6 +4173,7 @@ function shiftBlock() {
   const ok0 = offKind(S.me, TODAY); if (ok0) return `<div class="card"><div class="row"><div style="color:var(--o)">${ic('calendar', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Сегодня у вас ${OFFK[ok0].toLowerCase()}</div><div class="t2">Отдыхайте: выходить на смену не нужно</div></div></div></div>`;
   const s = shMine(), today = s && new Date(s.s).toDateString() === new Date(sNow()).toDateString();
   if (shActive()) return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('clock', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Вы на смене</div><div class="t2">с ${hm(s.s)} · <span data-shiftt>${shiftDur()}</span></div><div class="tiny" data-geoi style="color:var(--g);margin-top:2px">${geoActive() ? ic('pin', 13) + ' Геолокация включена' : ''}</div></div><button class="btn sec sm" onclick="shiftEnd()">Завершить смену</button></div></div>`;
+  if (s && s.e && today && sNow() - s.e < 6 * 3600000) return `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Смена завершена${s.auto ? ' автоматически' : ''}</div><div class="t2">${hm(s.s)}–${hm(s.e)} · ${shiftDur()}</div></div><button class="btn sec sm" onclick="shiftResume()">Вернуться на смену</button></div></div>`;
   if (s && s.e && today) return `<div class="tiny" style="margin:0 2px 8px;opacity:.85">Смена завершена${s.auto ? ' автоматически' : ''}: ${hm(s.s)}–${hm(s.e)} · ${shiftDur()}</div>`;
   if (!L(S.me, TODAY).length) return '';
   return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('flag', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Начало смены</div><div class="t2">Нажмите, когда приедете на склад: менеджер увидит, что вы вышли</div></div><button class="btn sm" onclick="shiftStart()">Выйти на смену</button></div></div>`;
@@ -4188,6 +4189,15 @@ function shiftEnd() {
   const m = Math.round((now - s.s) / 60000);
   notify('mgr', 'loc', cr(S.me).name + ' завершил(а) смену · ' + durTxt(m), {sub: 'shift_end'});
   celebClose(); uiSnd('done'); PRLAST = 0; prBeat(); pushSoon(); go({toast: 'Смена завершена · ' + durTxt(m)});
+}
+// вернуться на смену, если её завершили по ошибке (в течение 6 часов; время начала остаётся прежним)
+function shiftResume() {
+  const r = prMine(), s = r.sh; if (!s || !s.e) return;
+  r.sh = {s: s.s};
+  const l = L(S.me, TODAY), rest = l.filter(x => !x.done), now = sNow();
+  r.lc = !rest.length && l.length ? {k: 'done', pid: 0, ts: now} : rest.length && l.length > rest.length ? {k: 'way', pid: rest[0].pid, ts: now} : {k: 'base', pid: 0, ts: now};
+  notify('mgr', 'loc', cr(S.me).name + ' вернулся(ась) на смену', {sub: 'shift_start'});
+  haptic([14, 30, 14]); PRLAST = 0; prBeat(); pushSoon(); go({toast: 'Вы снова на смене'});
 }
 setInterval(() => { if (!S.role) return; skewSync(); prBeat(); lcTick(); prRefresh(); }, 20000);
 
@@ -4530,6 +4540,7 @@ function selfTest() {
       T('курьер: выйти на смену', () => { go({tab: 'route', view: null, sheet: null}); shiftStart(); });
       T('курьер: экран на смене', () => go({tab: 'route', view: null}));
       T('курьер: завершить смену', () => shiftEnd());
+      T('курьер: вернуться на смену', () => { go({tab: 'route', view: null}); shiftResume(); });
     }
   });
   T('менеджер: вход', () => login('mgr', 0));

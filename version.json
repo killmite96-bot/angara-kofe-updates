@@ -1,9 +1,9 @@
 {
-    "content":  102,
+    "content":  103,
     "apk":  20,
-    "notes":  "Значок «Геолокация включена» перенесён в карточку «Вы на смене».",
+    "notes":  "Можно вернуться на смену, если случайно нажали «Завершить смену» (в течение 6 часов).",
     "contentFile":  "index.html",
-    "contentSha256":  "87479458f9616519db1703e31ce0a57dc6d2df0eb3a1e728ffcd08a0a73d549b",
+    "contentSha256":  "fd91a3a677d576b853e0c853ee764c3f42e70d7c4ffad351773b0ea766b67075",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }
