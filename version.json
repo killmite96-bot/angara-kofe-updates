@@ -1,9 +1,9 @@
 {
     "content":  84,
-    "apk":  18,
-    "notes":  "Голосовые: точнее определяется причина, если микрофон не включается; на iPhone запись стала надёжнее.",
+    "apk":  19,
+    "notes":  "Исправлена запись голосовых в Android-приложении: микрофон теперь включается.",
     "contentFile":  "index.html",
     "contentSha256":  "c8b7457c2bc2a6437f19fa5e924fa25f9dfea5b570620555c56aceaf01d4d2c9",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "06de9753363363d439675b942e7217765b87ae8ee61e1093b9cad437f9c27500"
+    "apkSha256":  "08078f3093bb889c4eaa9097c97e8a044acdf501a57ac927e064aff5d3ace410"
 }
