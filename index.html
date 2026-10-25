@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 100;
+const APP_VERSION = 101;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -4362,12 +4362,11 @@ function geoFix(c) {
 }
 function geoPill() {
   let e = document.getElementById('geop');
-  const act = geoWanted() && (geoApp() ? geoPermApp() > 0 : GEO.w !== null);
-  const wait = !act && S.role === 'cour' && !!(GCS.me && GCS.me.on) && !shActive() && !offKind(S.me, TODAY);   // определение включено, но смена ещё не началась
-  if (!act && !wait) { if (e) e.remove(); return; }
-  const txt = act ? ic('pin', 13) + ' Геолокация включена' : ic('pin', 13) + ' Геолокация: включится на смене';
+  const act = geoWanted() && (geoApp() ? geoPermApp() > 0 : GEO.w !== null);   // зелёный значок только пока определение действительно идёт (во время смены)
+  if (!act) { if (e) e.remove(); return; }
+  const txt = ic('pin', 13) + ' Геолокация включена';
   if (!e) { e = document.createElement('div'); e.id = 'geop'; e.onclick = () => go({sheet: 'profile'}); document.body.appendChild(e); }
-  e.classList.toggle('wait', !act);
+  e.classList.remove('wait');
   if (e.dataset.t !== txt) { e.dataset.t = txt; e.innerHTML = txt; }
 }
 const geoActive = () => geoWanted() && (geoApp() ? geoPermApp() > 0 : GEO.w !== null);
