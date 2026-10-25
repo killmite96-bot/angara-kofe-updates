@@ -1,9 +1,9 @@
 {
-    "content":  112,
+    "content":  113,
     "apk":  20,
-    "notes":  "Текст сообщения в цитате ответа белый и крупнее.",
+    "notes":  "Точка в цитате ответа ярче.",
     "contentFile":  "index.html",
-    "contentSha256":  "5984f21c85001b227ea4548b08101e9a11f10b342dda9e98231dd2601fd1eca8",
+    "contentSha256":  "8ed0fbc5a3bd011284efa7c0a0cf0e9c55e982a477aa4efb89fc2d6a510e1a99",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }
