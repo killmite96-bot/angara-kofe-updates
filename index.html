@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 96;
+const APP_VERSION = 97;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -3771,7 +3771,7 @@ const DET = {name: null, v: 'med'};
 function sheetExtras() {
   const sh = $('sheetmain'); if (!sh) { DET.name = null; return; }
   if (S.sheet === 'gsearch' && DET.name !== 'gsearch') setTimeout(() => { const i = $('gsq'); if (i) i.focus(); }, 380);
-  if (DET.name !== S.sheet) { DET.name = S.sheet; DET.v = 'med'; }
+  if (DET.name !== S.sheet) { DET.name = S.sheet; DET.v = ['geoconsent'].includes(S.sheet) ? 'large' : 'med'; }   // окно согласия сразу высокое: кнопки видны без прокрутки
   const H = $('app').clientHeight, grab = $('grab'), skip = ['level', 'trash', 'wheel'].includes(S.sheet);
   const tall = !skip && sh.scrollHeight > H * 0.64;
   if (!tall || !grab) return;
