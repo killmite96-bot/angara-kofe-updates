@@ -1,9 +1,9 @@
 {
-    "content":  113,
+    "content":  114,
     "apk":  20,
-    "notes":  "Точка в цитате ответа ярче.",
+    "notes":  "Точка в цитате ответа на тёмной плашке, не сливается с фоном.",
     "contentFile":  "index.html",
-    "contentSha256":  "8ed0fbc5a3bd011284efa7c0a0cf0e9c55e982a477aa4efb89fc2d6a510e1a99",
+    "contentSha256":  "cc15f321b413c1e5ec315fb7c77d5f813b8030cc0a62943b6ec7e9f91b66556e",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }
