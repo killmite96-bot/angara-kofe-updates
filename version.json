@@ -1,9 +1,9 @@
 {
-    "content":  71,
+    "content":  72,
     "apk":  16,
-    "notes":  "Исправлены прыжки заголовков при смене вкладок, дней, открытии шторки и профиля; единый размер заголовков вкладок.",
+    "notes":  "При переключении дней недели и курьеров список тоже плавно появляется.",
     "contentFile":  "index.html",
-    "contentSha256":  "e6d9fcf4871e66edddc133294b39ac1404111cc1b942405fca0ea2387eb775d5",
+    "contentSha256":  "b6ee0a9af50505be80a5a52337885191ba5eb9f88d836e8c1cfddaee0d91e7a5",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "195f44a54739d02e949ba86d4e9e5179d63f6d6641479bbe10f7d92661d8282e"
 }
