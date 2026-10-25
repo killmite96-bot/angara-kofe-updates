@@ -1,9 +1,9 @@
 {
-    "content":  94,
+    "content":  95,
     "apk":  20,
-    "notes":  "Календарь отпусков и выходных, статус уведомлений у курьеров, качество геолокации за 60 дней.",
+    "notes":  "Менеджер может напомнить курьеру включить геолокацию.",
     "contentFile":  "index.html",
-    "contentSha256":  "cb3abbd781502d3d72d5bf5713a56e7111a359c53c16bceec559965ab86e68b9",
+    "contentSha256":  "08d3070a4b0567ddaaa740565d3c85bcc401a459a43eeb167f4db0910edeab82",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }

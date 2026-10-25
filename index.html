@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 94;
+const APP_VERSION = 95;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1818,7 +1818,7 @@ function teamScreen() {
     let n = 0; for (let d = 0; d < 7; d++) n += L(c.id, d).length;
     h += `<div class="card" data-sw="${c.active ? 'Отключить' : 'Включить'}|toggleCour(${c.id})|#8a5a14;Изменить|openCF(${c.id})|#2d5aa0" style="${c.active ? '' : 'opacity:.6'}"><div class="row"><div class="grow"><div class="t1">${esc(c.name)}</div>
       <div class="t2">Логин: ${c.login} · тип 1 ${money(c.r1)} · тип 2 ${money(c.r2)} · Г ${money(c.r3)}</div></div><span class="pill ${c.active ? 'ok' : 'bad'}">${c.active ? 'активен' : 'отключён'}</span></div>
-      <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div><div class="tiny" style="margin-top:3px">${esc(gcLine(c.id))}</div>${nstLine(c.id)}
+      <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div><div class="tiny" style="margin-top:3px">${esc(gcLine(c.id))}</div>${geoNudgeLine(c.id)}${nstLine(c.id)}
       <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button><button class="btn sec sm" onclick="go({sheet:'cologout',clo:${c.id}})">Выйти на всех телефонах</button><button class="btn sec sm" onclick="go({sheet:'geolog',gl:${c.id}})">Прибытия</button></div></div>`;
   });
   h += '<div class="card" style="margin-top:8px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Качество геолокации</div><div class="t2">Как часто определение прибытия срабатывает, за 60 дней</div></div><button class="btn sec sm" onclick="openGeoStat()">Открыть</button></div></div>';
@@ -4397,6 +4397,15 @@ function nstLine(cid) {
   const k = NST.s[String(cid)]; if (!k) return '';
   return k === 'none' ? `<div class="row" style="margin-top:6px"><span class="pill warn">Уведомления не включены</span><div class="grow"></div><button class="btn sec sm" onclick="nudgeNotif(${cid})">Напомнить</button></div>`
     : `<div style="margin-top:6px"><span class="pill ok">Уведомления ${k === 'push' ? 'включены' : 'работают в приложении'}</span></div>`;
+}
+function geoNudgeLine(cid) {
+  if (S.role !== 'mgr') return '';
+  const g = GCS.all[String(cid)]; if (g && g.on) return '';
+  return `<div class="row" style="margin-top:6px"><span class="pill warn">${g ? 'Геолокация выключена' : 'Геолокация не включена'}</span><div class="grow"></div><button class="btn sec sm" onclick="nudgeGeo(${cid})">Напомнить</button></div>`;
+}
+function nudgeGeo(cid) {
+  sendMsg(cid, 'mgr', 'Включите, пожалуйста, определение прибытия на точку: «Профиль» → «Геолокация» → переключатель «Определять прибытие на точку» (нужно прочитать и принять согласие). Оно работает только во время смены, координаты на сервере не сохраняются, статус «на точке» ставится сам.', null);
+  go({toast: 'Напоминание про геолокацию отправлено в чат'});
 }
 function nudgeNotif(cid) {
   sendMsg(cid, 'mgr', 'Включите, пожалуйста, уведомления: в приложении «Профиль» → «Включить уведомления» (на Android разрешите уведомления в настройках телефона). Так вы не пропустите сообщения, маршруты и фото на проверку.', null);
