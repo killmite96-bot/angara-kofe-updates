@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 122;
+const APP_VERSION = 123;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -344,7 +344,9 @@ function pickImage(max, cb, capture) {
 }
 const exReplace = st => pickImage(640, d => { EX[st] = d; go({toast:'Пример станции обновлён'}); });
 const AV = {};   // аватарки: 'mgr' или номер курьера -> уменьшенное фото (data URL)
+const logoAmber = sz => logo(sz).replace('#1F7A45', '#B7791F').replace('#BFEACB', '#FFE7B0');
 function avatar(key, name, size) {
+  if (key === 'mgr2' && !AV[key]) return `<div style="min-width:${size}px;width:${size}px;height:${size}px;flex:none">${logoAmber(size)}</div>`;
   const st = `min-width:${size}px;width:${size}px;height:${size}px;border-radius:50%`;
   return /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(AV[key] || '') ? `<img src="${AV[key]}" alt="" style="${st};object-fit:cover;flex:none;display:block">` : `<div class="badge b1" style="${st};font-size:${Math.round(size / 2.4)}px">${esc((name || '?')[0])}</div>`;
 }
@@ -575,10 +577,19 @@ const NS = {off: [], q: {on: false, from: 22, to: 8}, ld: false};   // наст�
 const PR = {};   // статусы людей: PR[«mgr» или номер курьера] = {t: последний сигнал, v: приложение открыто, a: последнее действие, lc: где находится, sh: смена}
 const GCHAT = [], DMS = {}, RD = {}, RX = {};   // RX[беседа][кто] = {id сообщения: вид реакции}   // RD[беседа][читатель] = время последнего прочитанного сообщения (беседа: 'g' или пара 'a-b')   // общий чат команды и личные чаты курьер↔курьер (ключ «меньший id-больший id»)
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-function sendMsg(cid, from, text, pid, extra) {   // extra: {re:{id,name,text}} — ответ на сообщение, {fw:'Имя'} — переслано от
+const CHATN = {};   // переписка курьеров со вторым менеджером: беседа «n:<id курьера>» (у основного менеджера — CHAT, беседа «m:<id>»)
+const MGR2 = {name:'Илья'};
+const mkey = () => SY.mk || 'mgr';   // кто вошёл: 'mgr' — основной менеджер, 'mgr2' — второй
+const mkind = () => mkey() === 'mgr2' ? 'n' : 'm';   // буква беседы менеджера
+const isMT = th => th[0] === 'm' || th[0] === 'n';   // беседа курьера с менеджером
+const mgrOf = th => th[0] === 'n' ? 'mgr2' : 'mgr';   // чей менеджерский ключ у беседы
+const mgrNm = k => k === 'mgr2' ? MGR2.name : MGR.name;
+const selfNm = () => S.role === 'mgr' ? mgrNm(mkey()) : cr(S.me).name;
+function sendMsg(cid, from, text, pid, extra, k) {   // extra: {re:{id,name,text}} — ответ на сообщение, {fw:'Имя'} — переслано от
   const d = new Date(), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  (CHAT[cid] = CHAT[cid] || []).push(Object.assign({id:uid(), ts:Date.now(), from, text, t, pid:pid || null, read:false}, extra || {}));
-  notify(from === 'mgr' ? cid : 'mgr', 'chat', (from === 'mgr' ? MGR.name : cr(cid).name) + ': ' + (extra && extra.fw ? '↪ ' : '') + (text || mdNote(extra && extra.md)), Object.assign({cid, pid:pid || null}, extra && extra.md ? {md: extra.md} : {}));
+  k = k === 'n' ? 'n' : 'm'; const st = k === 'n' ? CHATN : CHAT, mk = mgrOf(k);
+  (st[cid] = st[cid] || []).push(Object.assign({id:uid(), ts:Date.now(), from, text, t, pid:pid || null, read:false}, extra || {}));
+  notify(from === 'mgr' ? cid : mk, 'chat', (from === 'mgr' ? mgrNm(mk) : cr(cid).name) + ': ' + (extra && extra.fw ? '↪ ' : '') + (text || mdNote(extra && extra.md)), Object.assign({cid, pid:pid || null, th:k + ':' + cid}, extra && extra.md ? {md: extra.md} : {}));
 }
 
 /* ===================== ИЛЛЮСТРАЦИИ ===================== */
@@ -650,10 +661,10 @@ const cid = () => S.role === 'cour' ? S.me : S.mc;
 function login(role, id) {
   go({role, me:id || 1, mc:1, tab:role === 'mgr' ? 'plan' : 'route', view:null, sheet:null, day:TODAY});
 }
-const nkey = () => S.role === 'mgr' ? 'mgr' : S.me;
+const nkey = () => S.role === 'mgr' ? mkey() : S.me;
 const unread = () => NOTIFS.filter(n => n.to === nkey() && !n.read).length;
 const pendCount = () => reviews.filter(r => r.status === 'pending').length;
-const topbar = (t, s) => `<div class="top"><div class="trow"><h1 style="--fs:${FITFS[t + '|' + innerWidth] || 28}px">${t}</h1><div class="tact"><button class="logout" onclick="go({sheet:'profile',pf:null,pw:{old:'',n1:'',n2:'',err:''}})">${avatar(S.role === 'mgr' ? 'mgr' : S.me, S.role === 'mgr' ? MGR.name : cr(S.me).name, 24)}<span>${esc(S.role === 'mgr' ? MGR.name : cr(S.me).name)}</span></button><button class="bell" onclick="go({sheet:'gsearch',gq:''})">${ic('search', 19)}</button><button class="bell" onclick="go({shade:true})">${ic('bell', 20)}${unread() ? `<i>${unread()}</i>` : ''}</button></div></div><div class="sub">${s || ''}</div></div>`;
+const topbar = (t, s) => `<div class="top"><div class="trow"><h1 style="--fs:${FITFS[t + '|' + innerWidth] || 28}px">${t}</h1><div class="tact"><button class="logout" onclick="go({sheet:'profile',pf:null,pw:{old:'',n1:'',n2:'',err:''}})">${avatar(avKey(), selfNm(), 24)}<span>${esc(selfNm() === 'Техническая поддержка приложения' ? 'Техподдержка' : selfNm())}</span></button><button class="bell" onclick="go({sheet:'gsearch',gq:''})">${ic('search', 19)}</button><button class="bell" onclick="go({shade:true})">${ic('bell', 20)}${unread() ? `<i>${unread()}</i>` : ''}</button></div></div><div class="sub">${s || ''}</div></div>`;
 function closeShade() { NOTIFS.forEach(n => { if (n.to === nkey()) n.read = true; }); go({shade:false}); }
 function clearNotifs() { const k = nkey(), old = NOTIFS.slice(), keep = NOTIFS.filter(n => n.to !== k); NOTIFS.length = 0; NOTIFS.push(...keep); render(); if (old.length > keep.length) undoPush('Уведомления очищены', () => { NOTIFS.length = 0; NOTIFS.push(...old); render(true); }); }
 function askRedo(id) { go({shade:false, sheet:'redo', redo:id}); }
@@ -674,7 +685,7 @@ function dismissNotif(id) { const i = NOTIFS.findIndex(x => sameId(x.id, id)), n
 function replyNotif(id) {
   const n = NOTIFS.find(x => sameId(x.id, id)), text = (S.nr && sameId(S.nr.id, id) ? S.nr.text : '').trim(); if (!n || !text) return;
   const th = n.th || 'm:' + n.cid, mgr = S.role === 'mgr';
-  if (th[0] === 'm') sendMsg(+th.slice(2), mgr ? 'mgr' : 'cour', text, n.pid || null); else sendTeamMsg(th, text, n.pid || null);
+  if (isMT(th)) sendMsg(+th.slice(2), mgr ? 'mgr' : 'cour', text, n.pid || null, undefined, th[0]); else sendTeamMsg(th, text, n.pid || null);
   const i = NOTIFS.indexOf(n); if (i >= 0) NOTIFS.splice(i, 1);   // на сообщение ответили: плашка больше не нужна
   S.nr = null; POP = null; go({toast:'Ответ отправлен'});
 }
@@ -773,7 +784,7 @@ function loginScreen() {
   <div class="tiny" style="margin-top:10px">Адрес сервера (оставьте пустым для режима без сервера)</div>
   <input type="text" placeholder="http://192.168.1.10:8787" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(SRV)}" onchange="setServer(this.value)"></div>`;
 }
-const avKey = () => S.role === 'mgr' ? 'mgr' : String(S.me);
+const avKey = () => S.role === 'mgr' ? mkey() : String(S.me);
 // фото выбирается из галереи, обрезается по центру до квадрата 160x160 и хранится как маленькая картинка
 let CROP = null;   // окно выбора области: s — масштаб, x/y — смещение центра картинки от центра рамки
 function avPicked(inp) {
@@ -838,7 +849,7 @@ function saveProfile() {
     const done = () => {
       const old = SRV && SY.login ? SY.login : MGR.login, k = ACCS.findIndex(a => a.login.toLowerCase() === old.toLowerCase());
       if (k >= 0) { ACCS[k].login = login; ACCS[k].name = name; saveAccs(); }
-      MGR.name = name; MGR.login = login; if (SRV) { SY.login = login; saveSync(); }
+      if (mkey() === 'mgr2') MGR2.name = name; else MGR.name = name; MGR.login = login; if (SRV) { SY.login = login; saveSync(); }
       go({sheet:null, pf:null, toast:'Имя и логин сохранены'});
     };
     if (SRV) { render(); return api('/api/profile', {name, login}).then(done).catch(e => { f.err = e.message; render(); }); }
@@ -1252,7 +1263,7 @@ function pruneOld() {
   const now = Date.now(), D = 86400000;
   for (let i = reviews.length - 1; i >= 0; i--) if (reviews[i].id > 1e12 && now - reviews[i].id > 30 * D) reviews.splice(i, 1);
   for (let i = NOTIFS.length - 1; i >= 0; i--) if (NOTIFS[i].ts > 1e12 && now - NOTIFS[i].ts > 30 * D) NOTIFS.splice(i, 1);
-  [...Object.values(CHAT), ...Object.values(DMS), GCHAT].forEach(a => { for (let i = a.length - 1; i >= 0; i--) if (a[i].ts > 1e12 && now - a[i].ts > 90 * D) a.splice(i, 1); });
+  [...Object.values(CHAT), ...Object.values(CHATN), ...Object.values(DMS), GCHAT].forEach(a => { for (let i = a.length - 1; i >= 0; i--) if (a[i].ts > 1e12 && now - a[i].ts > 90 * D) a.splice(i, 1); });
 }function refreshDay() {
   pruneOld();
   if (todayIdx() !== TODAY) { TODAY = todayIdx(); S.day = TODAY; if (S.role) render(true); }
@@ -1586,19 +1597,19 @@ const whAdj = (id, d) => { const g = ING.find(x => x.id === id); WH[id] = Math.m
 
 /* ===================== ЧАТ ===================== */
 // Беседы: 'g' — общий чат всей команды, 'm:<id курьера>' — курьер и менеджер, 'd:<id курьера>' — личный чат курьер↔курьер (виден только им двоим)
-const meKey = () => S.role === 'mgr' ? 'mgr' : S.me;
+const meKey = () => S.role === 'mgr' ? mkey() : S.me;
 const dmKey = (a, b) => Math.min(a, b) + '-' + Math.max(a, b);
 // «прочитано до»: время последнего прочитанного сообщения у каждого читателя хранится на сервере (RD), поэтому видно и отправителю, и на других телефонах
 const rdKey = th => th === 'g' ? 'g' : th[0] === 'd' ? dmKey(S.me, +th.slice(2)) : null;
 const rdGet = (th, who) => { const k = rdKey(th); return (k && RD[k] && RD[k][who]) || 0; };
 function rdMark(th, ts) { const k = rdKey(th), me = String(meKey()); if (!k || !ts || rdGet(th, me) >= ts) return; (RD[k] = RD[k] || {})[me] = ts; }
-const grpRecips = m => ['mgr', ...COUR.filter(c => c.active).map(c => c.id)].filter(x => String(x) !== String(m.from));
+const grpRecips = m => ['mgr', 'mgr2', ...COUR.filter(c => c.active).map(c => c.id)].filter(x => String(x) !== String(m.from));
 // галочки у своих сообщений: ✓ отправлено на сервер, ✓✓ серые — прочитали не все (в общем чате), ✓✓ зелёные — прочитал собеседник / все
 function ticks(th, m) {
-  const key = th[0] === 'm' ? 'msg/' + th.slice(2) + '/' + m.id : th === 'g' ? 'gmsg/' + m.id : 'dm/' + rdKey(th) + '/' + m.id;
+  const key = isMT(th) ? (th[0] === 'n' ? 'msgn/' : 'msg/') + th.slice(2) + '/' + m.id : th === 'g' ? 'gmsg/' + m.id : 'dm/' + rdKey(th) + '/' + m.id;
   if (SRV && SY.mirror[key] === undefined) return '<span style="opacity:.6">…</span>';
   let lv = 1;
-  if (th[0] === 'm') lv = m.read ? 3 : 1;
+  if (isMT(th)) lv = m.read ? 3 : 1;
   else if (th === 'g') { const r = grpRecips(m), n = r.filter(x => rdGet('g', x) >= m.ts).length; lv = !r.length || !n ? 1 : n < r.length ? 2 : 3; }
   else lv = rdGet(th, +th.slice(2)) >= m.ts ? 3 : 1;
   const col = lv === 3 ? '#5dffa0' : '#9fb5aa';
@@ -1608,42 +1619,43 @@ function ticks(th, m) {
 function thMsgs(th) {
   if (th === 'g') return GCHAT;
   if (th[0] === 'd') return DMS[dmKey(S.me, +th.slice(2))] || [];
-  return CHAT[th.slice(2)] || [];
+  return (th[0] === 'n' ? CHATN : CHAT)[th.slice(2)] || [];
 }
 const thUnread = th => {
   const a = thMsgs(th);
-  if (th[0] === 'm') { const me = S.role === 'mgr' ? 'mgr' : 'cour'; return a.filter(m => m.from !== me && !m.read).length; }
+  if (isMT(th)) { const me = S.role === 'mgr' ? 'mgr' : 'cour'; return a.filter(m => m.from !== me && !m.read).length; }
   const k = String(meKey()), seen = rdGet(th, meKey());
   return a.filter(m => String(m.from) !== k && m.ts > seen).length;
 };
 function thList() {
   const act = COUR.filter(c => c.active && (S.role === 'mgr' || c.id !== S.me));
-  if (S.role === 'mgr') return ['g', ...act.map(c => 'm:' + c.id)];
-  return ['g', 'm:' + S.me, ...act.map(c => 'd:' + c.id)];
+  if (S.role === 'mgr') return ['g', ...act.map(c => mkind() + ':' + c.id)];
+  return ['g', 'm:' + S.me, 'n:' + S.me, ...act.map(c => 'd:' + c.id)];
 }
 const chatUnread = () => thList().reduce((n, th) => n + thUnread(th), 0);
 const tabBadge = k => { const n = k === 'mgr' ? pendCount() : k === 'chat' ? chatUnread() : 0; return n ? `<i class="tb">${n}</i>` : ''; };
 function openTh(th) { closeShade(); go({tab:'chat', view:null, th:th || null}); }
-const thTitle = th => th === 'g' ? 'Общий чат' : th[0] === 'd' ? cr(+th.slice(2)).name : S.role === 'mgr' ? cr(+th.slice(2)).name : 'Менеджер';
-const sender = f => f === 'mgr' ? MGR.name : (cr(+f) || {name:'?'}).name;
+const thTitle = th => th === 'g' ? 'Общий чат' : th[0] === 'd' ? cr(+th.slice(2)).name : S.role === 'mgr' ? cr(+th.slice(2)).name : mgrNm(mgrOf(th));
+const sender = f => f === 'mgr' || f === 'mgr2' ? mgrNm(f) : (cr(+f) || {name:'?'}).name;
 const CHAT_SEEN = {};   // какие сообщения уже показаны в беседе: новые «выезжают» с анимацией
 function chatScreen() {
   const mgr = S.role === 'mgr';
   if (!S.th) {
     let h = topbar('Чат', mgr ? 'Общий чат и переписка с курьерами' : 'Команда и менеджер') + '<div class="body">';
     thList().forEach(th => {
-      const m = thMsgs(th), last = m[m.length - 1], un = thUnread(th), you = last && String(last.from) === String(th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey());
+      const m = thMsgs(th), last = m[m.length - 1], un = thUnread(th), you = last && String(last.from) === String(isMT(th) ? (mgr ? 'mgr' : 'cour') : meKey());
       const who = last ? (you ? 'Вы: ' : (th === 'g' ? sender(last.from) + ': ' : '')) : '';
       const av = th === 'g' ? `<div class="av" style="width:38px;height:38px;border-radius:50%;background:var(--g);display:flex;align-items:center;justify-content:center;color:#06210f">${ic('users', 20)}</div>`
-        : th === 'm:' + S.me ? `<div class="av" style="width:38px;height:38px;border-radius:50%;background:#26382e;display:flex;align-items:center;justify-content:center">${ic('shield', 20)}</div>`
+        : S.role !== 'mgr' && th[0] === 'm' ? `<div class="av" style="width:38px;height:38px;border-radius:50%;background:#26382e;display:flex;align-items:center;justify-content:center">${ic('shield', 20)}</div>`
+        : S.role !== 'mgr' && th[0] === 'n' ? avatar('mgr2', MGR2.name, 38)
         : avatar(+th.slice(2), thTitle(th), 38);
       h += `<div class="card" onclick="go({th:'${th}'})"><div class="row">${av}
-        <div class="grow"><div class="t1">${th === 'm:' + S.me ? 'Менеджер' : thTitle(th)}</div>${thPk(th) ? `<div>${prHTML(thPk(th), mgr)}</div>` : ''}<div class="t2">${last ? (last.del ? 'Сообщение удалено' : who + (last.md ? esc(mdLabel(last.md)) : esc((last.text || '').slice(0, 46)))) : 'Сообщений нет'}</div></div>${un ? `<span class="pill warn">${un}</span>` : ''}</div></div>`;
+        <div class="grow"><div class="t1">${esc(thTitle(th))}</div>${thPk(th) ? `<div>${prHTML(thPk(th), mgr)}</div>` : ''}<div class="t2">${last ? (last.del ? 'Сообщение удалено' : who + (last.md ? esc(mdLabel(last.md)) : esc((last.text || '').slice(0, 46)))) : 'Сообщений нет'}</div></div>${un ? `<span class="pill warn">${un}</span>` : ''}</div></div>`;
     });
     return h + '</div>';
   }
-  const th = S.th, msgs = thMsgs(th), me = th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey();
-  if (th[0] === 'm') msgs.forEach(m => { if (m.from !== me) m.read = true; });
+  const th = S.th, msgs = thMsgs(th), me = isMT(th) ? (mgr ? 'mgr' : 'cour') : meKey();
+  if (isMT(th)) msgs.forEach(m => { if (m.from !== me) m.read = true; });
   else if (msgs.length) rdMark(th, msgs[msgs.length - 1].ts);
   NOTIFS.forEach(n => { if (n.kind === 'chat' && n.to === nkey() && (n.th || 'm:' + n.cid) === th) n.read = true; });
   const ctx = chatCtxPid(th, me);
@@ -1699,20 +1711,20 @@ function chatCtxPid(th, me) {
 function sendChat() {
   const t = S.chatDraft.trim(), th = S.th; if (!t || !th) return;
   if (S.edit && S.edit.th === th) { const em = findMsg(th, S.edit.id); if (em && em.text !== t) { em.text = t; em.ed = Date.now(); } S.edit = null; S.chatDraft = ''; S.focusChat = true; return render(); }
-  const mgr = S.role === 'mgr', me = th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey();
+  const mgr = S.role === 'mgr', me = isMT(th) ? (mgr ? 'mgr' : 'cour') : meKey();
   const inc = thMsgs(th).slice().reverse().find(m => String(m.from) !== String(me) && m.pid);
   const pid = chatCtxPid(th, me);
   const extra = S.reTo && S.reTo.th === th ? {re:{id:S.reTo.id, name:S.reTo.name, text:S.reTo.text, pid:S.reTo.pid || null}} : null;
-  if (th[0] === 'm') sendMsg(+th.slice(2), me, t, pid, extra); else sendTeamMsg(th, t, pid, extra);
+  if (isMT(th)) sendMsg(+th.slice(2), me, t, pid, extra, th[0]); else sendTeamMsg(th, t, pid, extra);
   S.reTo = null; S.chatDraft = ''; S.ctxOff = false; S.chatPid = null; S.focusChat = true; render();
 }
-const msgSender = (th, m) => th[0] === 'm' ? (m.from === 'mgr' ? MGR.name : (cr(+th.slice(2)) || {name:'?'}).name) : sender(m.from);
+const msgSender = (th, m) => isMT(th) ? (m.from === 'mgr' ? mgrNm(mgrOf(th)) : (cr(+th.slice(2)) || {name:'?'}).name) : sender(m.from);
 const findMsg = (th, id) => thMsgs(th).find(m => sameId(m.id, id));
 /* ----- реакции: пять простых значков в стиле приложения ----- */
 const RXS = [['up', 'rxup', '#5dffa0'], ['down', 'rxdown', '#ff9b6b'], ['smile', 'rxsmile', '#ffd34d'], ['sad', 'sad', '#6ab7ff'], ['cup', 'rxcup', '#d9a066']];
 const rxIcon = (k, s) => { const r = RXS.find(x => x[0] === k) || RXS[0]; return `<span style="color:${r[2]};display:inline-flex">${ic(r[1], s)}</span>`; };
-const rxKey = th => th === 'g' ? 'g' : th[0] === 'd' ? dmKey(S.me, +th.slice(2)) : 'm' + th.slice(2);
-const rxName = x => String(x) === 'mgr' ? MGR.name : (cr(+x) || {name:'?'}).name;
+const rxKey = th => th === 'g' ? 'g' : th[0] === 'd' ? dmKey(S.me, +th.slice(2)) : th[0] + th.slice(2);
+const rxName = x => String(x) === 'mgr' || String(x) === 'mgr2' ? mgrNm(String(x)) : (cr(+x) || {name:'?'}).name;
 function rxList(th, id) {   // [{k, users:[...]}] по видам реакций
   const all = RX[rxKey(th)] || {}, out = {};
   Object.keys(all).forEach(u => { const k = (all[u] || {})[id]; if (k) (out[k] = out[k] || []).push(u); });
@@ -1759,14 +1771,14 @@ function msgCopy() { const m = findMsg(S.ma.th, S.ma.id); if (m && m.text) copyT
 function msgForward(target) {
   const f = S.ma, m = findMsg(f.th, f.id); if (!m) return go({sheet:null, ma:null});
   const mgr = S.role === 'mgr', extra = {fw:m.fw || msgSender(f.th, m)}; if (m.md) extra.md = m.md;
-  if (target[0] === 'm') sendMsg(+target.slice(2), mgr ? 'mgr' : 'cour', m.text, m.pid, extra); else sendTeamMsg(target, m.text, m.pid, extra);
-  go({sheet:null, ma:null, toast:'Переслано: ' + (target === 'm:' + S.me ? 'Менеджер' : thTitle(target))});
+  if (isMT(target)) sendMsg(+target.slice(2), mgr ? 'mgr' : 'cour', m.text, m.pid, extra, target[0]); else sendTeamMsg(target, m.text, m.pid, extra);
+  go({sheet:null, ma:null, toast:'Переслано: ' + thTitle(target)});
 }
 function sendTeamMsg(th, text, pid, extra) {
   const d = new Date(), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), from = meKey();
   const m = Object.assign({id:uid(), ts:Date.now(), from, text, t, pid:pid || null}, extra || {});
   let to = [];
-  if (th === 'g') { GCHAT.push(m); to = ['mgr', ...COUR.filter(c => c.active).map(c => c.id)].filter(x => String(x) !== String(from)); }
+  if (th === 'g') { GCHAT.push(m); to = ['mgr', 'mgr2', ...COUR.filter(c => c.active).map(c => c.id)].filter(x => String(x) !== String(from)); }
   else { const other = +th.slice(2), k = dmKey(S.me, other); (DMS[k] = DMS[k] || []).push(m); to = [other]; }
   const label = th === 'g' ? 'Общий чат · ' + sender(from) : sender(from);
   to.forEach(x => notify(x, 'chat', label + ': ' + (m.fw ? '↪ ' : '') + (text || mdNote(m.md)), Object.assign({th:th === 'g' ? 'g' : 'd:' + S.me, pid:m.pid}, m.md ? {md: m.md} : {})));
@@ -1775,7 +1787,7 @@ function askComment(id) { go({shade:false, sheet:'rcomment', rc:{id, text:''}});
 function sendRC(accept) {
   const r = reviews.find(x => x.id === S.rc.id), t = S.rc.text.trim();
   if (!accept && !t) return go({toast:'Напишите комментарий'});
-  if (t) sendMsg(r.cid, 'mgr', t, r.pid);
+  if (t) sendMsg(r.cid, 'mgr', t, r.pid, undefined, mkind());
   if (accept) rv(r.id, 'ok'); else go({sheet:null, rc:null, toast:'Комментарий отправлен курьеру'});
 }
 
@@ -1797,7 +1809,7 @@ function shiftCard() {
     const s = shiftStatus(c.id);
     h += `<div style="margin-top:10px"><div class="row">${avatar(c.id, c.name, 32)}
       <div class="grow"><div class="t1" style="font-size:14px">${esc(c.name)}</div><div class="t2">${s.done} из ${s.n} точек · ${s.info}</div><div data-mgl="${c.id}">${mglInner(c.id)}</div></div>
-      <span class="pill ${s.cls}">${s.t}</span><button class="btn sec sm" style="padding:5px 9px" onclick="go({tab:'chat',th:'m:${c.id}'})">${ic('chat', 16)}</button></div>
+      <span class="pill ${s.cls}">${s.t}</span><button class="btn sec sm" style="padding:5px 9px" onclick="go({tab:'chat',th:'${mkind()}:${c.id}'})">${ic('chat', 16)}</button></div>
       <div class="bar"><i style="width:${Math.round(s.done / s.n * 100)}%;background:var(--g)"></i></div></div>`;
   });
   if (off.length) h += `<div class="tiny" style="margin-top:10px">Выходной: ${esc(off.map(c => c.name).join(', '))}</div>`;
@@ -1993,7 +2005,7 @@ function sheet() {
   }
   if (S.sheet === 'readers') {
     const m = GCHAT.find(x => sameId(x.id, S.rdm)); if (!m) return '<h2>Сообщение удалено</h2><button class="btn sec" onclick="go({sheet:null})">Закрыть</button>';
-    const r = grpRecips(m), yes = r.filter(x => rdGet('g', x) >= m.ts), no = r.filter(x => rdGet('g', x) < m.ts), nm = x => x === 'mgr' ? MGR.name : (cr(+x) || {name:'?'}).name;
+    const r = grpRecips(m), yes = r.filter(x => rdGet('g', x) >= m.ts), no = r.filter(x => rdGet('g', x) < m.ts), nm = x => x === 'mgr' || x === 'mgr2' ? mgrNm(x) : (cr(+x) || {name:'?'}).name;
     const row = (x, ok) => `<div class="chk"><div class="box ${ok ? 'on' : ''}">${ok ? '✓' : ''}</div><div class="grow t1" style="font-size:14px">${esc(nm(x))}</div></div>`;
     return `<h2>Кто прочитал</h2><div class="tiny">${esc(m.text.slice(0, 80))}</div><div class="card" style="margin-top:8px">${yes.map(x => row(x, true)).join('') + no.map(x => row(x, false)).join('') || '<div class="t2">Получателей нет.</div>'}</div>
       <div class="tiny">Одна серая галочка: отправлено. Две серые: прочитали не все. Две зелёные: прочитали все.</div><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
@@ -2001,9 +2013,9 @@ function sheet() {
   if (S.sheet === 'msgact') {
     const f = S.ma, m = findMsg(f.th, f.id); if (!m) return '<h2>Сообщение удалено</h2><button class="btn sec" onclick="go({sheet:null,ma:null})">Закрыть</button>';
     const prev = `<div class="card" style="margin-top:8px"><div class="tiny" style="color:var(--g);font-weight:700">${esc(msgSender(f.th, m))}${m.fw ? ' · переслано от ' + esc(m.fw) : ''}</div><div style="font-size:14px;margin-top:2px;white-space:pre-wrap">${esc(m.text)}</div></div>`;
-    if (f.fwd) return `<h2>Переслать в…</h2>${prev}<div style="margin-top:8px">${thList().map(t => `<button class="btn sec" style="margin-bottom:6px;text-align:left" onclick="msgForward('${t}')">${t === 'g' ? ic('users', 16) : ic('chat', 16)} ${S.role !== 'mgr' && t === 'm:' + S.me ? 'Менеджер' : esc(thTitle(t))}</button>`).join('')}</div>
+    if (f.fwd) return `<h2>Переслать в…</h2>${prev}<div style="margin-top:8px">${thList().map(t => `<button class="btn sec" style="margin-bottom:6px;text-align:left" onclick="msgForward('${t}')">${t === 'g' ? ic('users', 16) : ic('chat', 16)} ${esc(thTitle(t))}</button>`).join('')}</div>
       <button class="btn sec" onclick="go({ma:{th:'${f.th}',id:'${f.id}'}})">Назад</button>`;
-    const own = String(m.from) === String(f.th[0] === 'm' ? (S.role === 'mgr' ? 'mgr' : 'cour') : meKey());
+    const own = String(m.from) === String(isMT(f.th) ? (S.role === 'mgr' ? 'mgr' : 'cour') : meKey());
     if (f.del) return `<h2>Удалить сообщение?</h2>${prev}<div class="tiny" style="margin-top:8px">В чате останется надпись «${esc(msgSender(f.th, m))}: сообщение удалено», текст пропадёт у всех.</div>
       <button class="btn" style="margin:10px 0 6px;background:#4a1a1a;color:#ffb0b0" onclick="msgDelete()">${ic('trash', 16)} Удалить</button><button class="btn sec" onclick="go({ma:{th:'${f.th}',id:'${f.id}'}})">Отмена</button>`;
     const mine = ((RX[rxKey(f.th)] || {})[String(meKey())] || {})[m.id], rl = rxList(f.th, m.id);
@@ -2047,8 +2059,8 @@ function sheet() {
     return h + `<button class="btn" style="margin-top:8px" onclick="go({sheet:null});startVisit(${p.id},false)">Начать визит ▸</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
   }
   if (S.sheet === 'profile') {
-    const mgr = S.role === 'mgr', name = mgr ? MGR.name : cr(S.me).name, login = SRV && SY.login ? SY.login : mgr ? MGR.login : cr(S.me).login, f = S.pw || {old:'', n1:'', n2:'', err:''};
-    const pf = S.pf || (S.pf = {name:MGR.name, login, err:''}), key = avKey();
+    const mgr = S.role === 'mgr', name = selfNm(), login = SRV && SY.login ? SY.login : mgr ? MGR.login : cr(S.me).login, f = S.pw || {old:'', n1:'', n2:'', err:''};
+    const pf = S.pf || (S.pf = {name:selfNm(), login, err:''}), key = avKey();
     let h = `<h2>Профиль</h2><div class="card"><div class="row">${avatar(key, name, 56)}<div class="grow"><div class="t1">${esc(name)}</div><div class="t2">${mgr ? 'Менеджер' : 'Курьер'} · логин: ${esc(login)}</div></div></div>
       <div class="btns" style="margin:10px 0 0"><button class="btn sec sm" onclick="document.getElementById('avfile').click()">Сменить фото</button>${AV[key] ? '<button class="btn sec sm" onclick="avClear()">Убрать фото</button>' : ''}</div><input id="avfile" type="file" accept="image/*" style="display:none" onchange="avPicked(this)"></div>`;
     if (mgr) h += `<h3>Имя и логин для входа</h3>
@@ -2607,7 +2619,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, ex2: 1,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, ex2: 1,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -2617,7 +2629,7 @@ function restoreData(txt) {
   replaceArr(P, d.P); P.forEach(p => { p.units.forEach(u => { u.loc = p; }); const s = PTS_SRC[p.id - 1]; if (s && s[0] === p.name) { p.lat = s[5]; p.lon = s[6]; } });
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
-  replaceObj(CHAT, d.CHAT); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
+  replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
   nid = d.nid; CITY = d.CITY;
   if (d.NS) { Object.assign(NS, d.NS); } if (d.NST) Object.assign(NST, d.NST);
@@ -2708,8 +2720,8 @@ try { SRV = localStorage.getItem(SRV_KEY) || ''; } catch (e) {}
 if (!SRV) { try { SRV = window.AndroidBridge && AndroidBridge.serverUrl ? String(AndroidBridge.serverUrl() || '') : ''; } catch (e) {} }
 if (!SRV && /^https?:$/.test(location.protocol)) SRV = location.origin;
 SRV = SRV.trim().replace(/\/+$/, ''); window.__logBase = SRV;
-const SY = {token:'', role:'', cid:0, login:'', seq:0, mirror:{}, base:{}, on:false, net:false, pend:{}, pushing:false, es:null};
-try { const t = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (t && t.url === SRV && t.token) Object.assign(SY, {token:t.token, role:t.role, cid:t.cid, login:t.login || ''}); } catch (e) {}
+const SY = {token:'', role:'', cid:0, mk:'', login:'', seq:0, mirror:{}, base:{}, on:false, net:false, pend:{}, pushing:false, es:null};
+try { const t = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (t && t.url === SRV && t.token) Object.assign(SY, {token:t.token, role:t.role, cid:t.cid, mk:t.mk || '', login:t.login || ''}); } catch (e) {}
 // сообщаем оболочке Android данные входа: пока приложение закрыто, она раз в ~15 минут проверяет новые уведомления
 let swTokLast = null;
 function swTok(tok) {   // вход приложения для service worker: уведомление сможет само отметить прочитанным или отправить ответ
@@ -2718,11 +2730,11 @@ function swTok(tok) {   // вход приложения для service worker: 
 }
 function bgSession(on) {
   swTok(on ? SY.token : '');
-  try { if (window.AndroidBridge && AndroidBridge.setSession) { if (on) AndroidBridge.setSession(SRV, SY.token, SY.role, SY.cid | 0, SY.seq | 0); else AndroidBridge.clearSession(); } } catch (e) {}
+  try { if (window.AndroidBridge && AndroidBridge.setSession) { if (on) AndroidBridge.setSession(SRV, SY.token, SY.role === 'mgr' ? (SY.mk || 'mgr') : SY.role, SY.cid | 0, SY.seq | 0); else AndroidBridge.clearSession(); } } catch (e) {}
 }
 // Отметки «что уже на сервере» (seq, mirror, base) хранятся в одном снимке вместе с самими данными: если снимок записать не удалось, остаются и старые данные, и старые отметки, и они согласованы.
 // Раньше отметки сохранялись отдельно: при сбое записи данных приложение после перезапуска видело «пропавшие» документы и отправляло их удаление на сервер.
-function saveSyncKey() { bgSession(true); try { localStorage.setItem(SYNC_KEY, JSON.stringify({url:SRV, token:SY.token, role:SY.role, cid:SY.cid, login:SY.login})); } catch (e) {} }
+function saveSyncKey() { bgSession(true); try { localStorage.setItem(SYNC_KEY, JSON.stringify({url:SRV, token:SY.token, role:SY.role, cid:SY.cid, mk:SY.mk, login:SY.login})); } catch (e) {} }
 function saveSync() { saveSyncKey(); clearTimeout(saveT); saveT = setTimeout(saveAll, 400); }
 function setServer(v) {
   v = (v || '').trim().replace(/\/+$/, '');
@@ -2743,7 +2755,7 @@ function api(path, body) {
   }), () => { throw new Error('Нет связи с сервером'); });
 }
 function docsFromState() {
-  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, LSEED, INGN}}, ld = {};
+  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN}}, ld = {};
   Object.keys(AV).forEach(k => { d['av/' + k] = AV[k]; });
   Object.keys(EX).forEach(k => { d['ex/' + k] = EX[k]; });
   Object.keys(INFO).forEach(k => { d['info/' + k] = INFO[k]; });
@@ -2758,13 +2770,14 @@ function docsFromState() {
   Object.keys(ld).forEach(c => { d['ld/' + c] = ld[c]; });
   NOTIFS.forEach(n => { d['ntf/' + n.to + '/' + n.id] = n; });
   Object.keys(CHAT).forEach(c => CHAT[c].forEach(m => { d['msg/' + c + '/' + m.id] = m; }));
+  Object.keys(CHATN).forEach(c => CHATN[c].forEach(m => { d['msgn/' + c + '/' + m.id] = m; }));
   GCHAT.forEach(m => { d['gmsg/' + m.id] = m; });
   Object.keys(RD).forEach(k => Object.keys(RD[k]).forEach(u => { d['rd/' + k + '/' + u] = {ts:RD[k][u]}; }));
   Object.keys(RX).forEach(k => Object.keys(RX[k]).forEach(u => { d['rx/' + k + '/' + u] = {r:RX[k][u]}; }));
   Object.keys(TP).forEach(k => Object.keys(TP[k]).forEach(u => { d['tp/' + k + '/' + u] = {n:TP[k][u]}; }));
   Object.keys(DMS).forEach(k => DMS[k].forEach(m => { d['dm/' + k + '/' + m.id] = m; }));
   Object.keys(PR).forEach(k => { d['pr/' + k] = PR[k]; });
-  if (SY.role === 'mgr' && NS.ld) d['ns/mgr'] = {off: NS.off, q: NS.q};
+  if (SY.role === 'mgr' && NS.ld) d['ns/' + mkey()] = {off: NS.off, q: NS.q};
   if (SY.role === 'cour' && GCS.me) d['gc/' + SY.cid] = GCS.me;
   if (SY.role === 'mgr') Object.keys(OFF).forEach(k => { if (Object.keys(OFF[k].days || {}).length || SY.mirror['off/' + k] !== undefined) d['off/' + k] = OFF[k]; });
   reviews.forEach(r => { d['rev/' + r.id] = r; });
@@ -2772,18 +2785,18 @@ function docsFromState() {
 }
 // те же правила, что на сервере: сервер всё равно перепроверит
 function canWriteKey(k, v) {
-  if (k.startsWith('pr/')) return k === 'pr/' + (SY.role === 'mgr' ? 'mgr' : SY.cid);   // свой статус пишет только сам человек
+  if (k.startsWith('pr/')) return k === 'pr/' + (SY.role === 'mgr' ? mkey() : SY.cid);   // свой статус пишет только сам человек
   if (k.startsWith('geo/') || k.startsWith('nst/') || k.startsWith('gs/')) return false;   // журнал прибытий, статус уведомлений и счётчики геолокации ведёт сервер
   if (k.startsWith('gc/')) return SY.role === 'cour' && k === 'gc/' + SY.cid;   // согласие даёт только сам курьер
   if (SY.role === 'mgr') return k !== 'cour' && k !== 'wk' && !k.startsWith('dm/');
   const p = k.split('/'), h = p[0], me = String(SY.cid);
   if (h === 'gmsg') return !v || String(v.from) === me;
   if (h === 'rd') return p[2] === me && (p[1] === 'g' || p[1].split('-').includes(me));
-  if (h === 'rx' || h === 'tp') return p[2] === me && (p[1] === 'g' || (p[1][0] === 'm' && p[1].slice(1) === me) || p[1].split('-').includes(me));
+  if (h === 'rx' || h === 'tp') return p[2] === me && (p[1] === 'g' || ((p[1][0] === 'm' || p[1][0] === 'n') && p[1].slice(1) === me) || p[1].split('-').includes(me));
   if (h === 'dm') return p[1].split('-').includes(me) && (!v || String(v.from) === me);
   if (h === 'pt' || h === 'wh') return v !== null;   // удалять точки может только менеджер
-  if (h === 'sched' || h === 'ld' || h === 'msg' || h === 'av' || h === 'prog' || h === 'mv') return p[1] === me;
-  if (h === 'ntf') return p[1] === 'mgr' || p[1] === me || (!!v && v.kind === 'chat');
+  if (h === 'sched' || h === 'ld' || h === 'msg' || h === 'msgn' || h === 'av' || h === 'prog' || h === 'mv') return p[1] === me;
+  if (h === 'ntf') return p[1] === 'mgr' || p[1] === 'mgr2' || p[1] === me || (!!v && v.kind === 'chat');
   if (h === 'rev') return !v || String(v.cid) === me;
   return false;
 }
@@ -2799,6 +2812,7 @@ function ensureCour(c) {
   if (!sched[c]) sched[c] = emptyWeek();
   if (!TEMPLATE[c]) TEMPLATE[c] = emptyWeek();
   if (!CHAT[c]) CHAT[c] = [];
+  if (!CHATN[c]) CHATN[c] = [];
 }
 // фото-«картинки» приходят от курьеров как разметка SVG: убираем из неё скрипты и обработчики событий (защита от вставки вредного кода)
 const safeSvg = s => String(s || '').replace(/<\s*(script|iframe|object|embed|foreignObject|style)[\s\S]*?(<\s*\/\s*\1\s*>|$)/gi, '').replace(/[\s"'\/]on[a-z]{3,}\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, ' ').replace(/javascript:/gi, '');
@@ -2814,7 +2828,7 @@ function applyDoc(k, v, dele) {
     COUR.forEach(c => ensureCour(c.id));
     if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
   } else if (h === 'core') {
-    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.LSEED) LSEED = true; ingApply(v.INGN); }
+    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingApply(v.INGN); }
   } else if (h === 'av') {
     if (dele || !v) delete AV[p[1]]; else AV[p[1]] = v;
   } else if (h === 'ex') {
@@ -2845,8 +2859,8 @@ function applyDoc(k, v, dele) {
     if (!dele && v) { Object.assign(LOADED, v.L); Object.assign(PASS, v.P); }
   } else if (h === 'ntf') {
     upsert(NOTIFS, dele ? {id:p[2]} : v, dele, byTsDesc);
-  } else if (h === 'msg') {
-    const c = +p[1]; ensureCour(c); upsert(CHAT[c], dele ? {id:p[2]} : v, dele, byTsAsc);
+  } else if (h === 'msg' || h === 'msgn') {
+    const c = +p[1]; ensureCour(c); upsert((h === 'msgn' ? CHATN : CHAT)[c], dele ? {id:p[2]} : v, dele, byTsAsc);
   } else if (h === 'tp') {
     const m = TP[p[1]] = TP[p[1]] || {}; if (dele || !v) delete m[p[2]]; else { m[p[2]] = v.n; if (!TP_LOADING) { TPSEEN[p[1] + '|' + p[2]] = Date.now(); setTimeout(() => { if (S.tab === 'chat' && S.th && !S.sheet) render(true); }, 4700); } }
   } else if (h === 'nst') {
@@ -2862,7 +2876,7 @@ function applyDoc(k, v, dele) {
     GCS.log = GCS.log.filter(x => !(x.cid === p[1] && x.id === p[2]));
     if (!dele && v) { GCS.log.push(Object.assign({cid: p[1], id: p[2]}, v)); if (GCS.log.length > 400) GCS.log = GCS.log.slice(-400); }
   } else if (h === 'ns') {
-    if (v && p[1] === 'mgr') { NS.ld = true; NS.off = Array.isArray(v.off) ? v.off.filter(x => typeof x === 'string').slice(0, 12) : []; const q = v.q || {}; NS.q = {on: !!q.on, from: (+q.from || 0) % 24, to: (+q.to || 0) % 24}; }
+    if (v && p[1] === mkey()) { NS.ld = true; NS.off = Array.isArray(v.off) ? v.off.filter(x => typeof x === 'string').slice(0, 12) : []; const q = v.q || {}; NS.q = {on: !!q.on, from: (+q.from || 0) % 24, to: (+q.to || 0) % 24}; }
   } else if (h === 'pr') {
     if (dele || !v) delete PR[p[1]]; else PR[p[1]] = v;
   } else if (h === 'rx') {
@@ -2881,7 +2895,7 @@ function applyDoc(k, v, dele) {
 function resetFromDocs(docs) { TP_LOADING = true; try { resetFromDocs0(docs); } finally { TP_LOADING = false; } }
 function resetFromDocs0(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
-  [CHAT, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
+  [CHAT, CHATN, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
   NS.off = []; NS.q = {on: false, from: 22, to: 8}; NS.ld = false; GCS.me = null; GCS.all = {}; GCS.log = []; NST.s = {}; Object.keys(GSD).forEach(k => delete GSD[k]); Object.keys(OFF).forEach(k => delete OFF[k]);
   SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
@@ -2970,7 +2984,7 @@ function pushChanges() {
     ch.push({key:k, value:JSON.parse(js)}); sig[k] = s; bas[k] = js;
   });
   Object.keys(SY.mirror).forEach(k => {
-    if (!(k in cur) && canWriteKey(k, null)) { if (/^(msg|gmsg|dm|rd)\//.test(k)) { delete SY.mirror[k]; return; } if (/^(ns|nst|gs|off|gc|geo|pr)\//.test(k)) return; ch.push({key:k, value:null, del:true}); sig[k] = null; }   // переписку чистит сервер, телефон её не удаляет
+    if (!(k in cur) && canWriteKey(k, null)) { if (/^(msg|msgn|gmsg|dm|rd)\//.test(k)) { delete SY.mirror[k]; return; } if (/^(ns|nst|gs|off|gc|geo|pr)\//.test(k)) return; ch.push({key:k, value:null, del:true}); sig[k] = null; }   // переписку чистит сервер, телефон её не удаляет
   });
   const dels = ch.filter(x => x.del).length;
   if (dels > 15 && dels > Object.keys(SY.mirror).length * .25) { SY.mirror = {}; SY.base = {}; SY.seq = 0; syncResume(); return; }   // слишком много «пропавших» документов: данные на телефоне повреждены, берём всё заново с сервера
@@ -3138,7 +3152,7 @@ function pushBlock() {
 function startServerSession(j, l, rem) {
   let seed = false;
   {
-    Object.assign(SY, {token:j.token, role:j.role, cid:j.cid, login:l}); setTimeout(pushResync, 4000);
+    Object.assign(SY, {token:j.token, role:j.role, cid:j.cid, mk:j.mk || '', login:l}); setTimeout(pushResync, 4000);
     return api('/api/state?since=0').then(st => {
       if (st.empty) {
         if (j.role !== 'mgr') throw new Error('Менеджер ещё не заполнил данные на сервере, зайдите позже');
@@ -3150,7 +3164,7 @@ function startServerSession(j, l, rem) {
       SY.seq = st.seq; SY.on = true; saveSync();
       if (rem) rememberAcc(l, null, j.name, j.role, j.token);
       S.lg = {login:'', pass:'', err:''};
-      if (j.role === 'mgr') MGR.name = j.name;
+      if (j.role === 'mgr') { if (j.mk === 'mgr2') MGR2.name = j.name; else MGR.name = j.name; }
       login(j.role, j.cid);
       if (j.must) setTimeout(mustPw, 400);
       openStream(); setNet(true);
@@ -3712,7 +3726,7 @@ function gsHTML(q) {
   const pts = P.filter(p => (p.name + ' ' + (p.addr || '')).toLowerCase().includes(ql)).slice(0, 6);
   if (pts.length) h += '<h3>Точки</h3>' + pts.map(p => row('pin', esc(p.name), esc(p.addr || ''), `go({sheet:null});openPoint(${p.id})`)).join('');
   const cs = COUR.filter(c => c.active && (c.name + ' ' + (c.login || '')).toLowerCase().includes(ql) && !(S.role === 'cour' && c.id === S.me)).slice(0, 5);
-  if (cs.length) h += '<h3>Курьеры</h3>' + cs.map(c => row('user', esc(c.name), 'Открыть чат', `go({sheet:null});openTh('${S.role === 'mgr' ? 'm:' : 'd:'}${c.id}')`)).join('');
+  if (cs.length) h += '<h3>Курьеры</h3>' + cs.map(c => row('user', esc(c.name), 'Открыть чат', `go({sheet:null});openTh('${S.role === 'mgr' ? mkind() + ':' : 'd:'}${c.id}')`)).join('');
   const ms = []; thList().forEach(th => thMsgs(th).forEach(m => { if (!m.del && String(m.text || '').toLowerCase().includes(ql)) ms.push({th, m}); }));
   ms.sort((a, b) => b.m.ts - a.m.ts);
   if (ms.length) h += '<h3>Сообщения</h3>' + ms.slice(0, 8).map(({th, m}) => row('chat', esc(thTitle(th)), esc(msgSender(th, m) + ': ' + String(m.text).slice(0, 70)), `go({sheet:null});openTh('${th}')`)).join('');
@@ -3944,6 +3958,7 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 .selbox{position:relative;z-index:2;width:22px;height:22px;border-radius:50%;border:2px solid #5a6b61;flex:none;display:flex;align-items:center;justify-content:center;color:#06150c;transition:background .15s,border-color .15s}
 .selbox.on{background:var(--g);border-color:var(--g)}
 #chatin:focus,#chatin:focus-visible{outline:none;box-shadow:none}
+.logout span{max-width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pen{display:inline-flex;vertical-align:-2px;margin-left:6px;color:var(--g);opacity:.85;cursor:pointer;padding:2px}.pen:active{opacity:.5}
 #netp{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-90px);z-index:29;background:#4a3414;color:#ffd9a0;border:1px solid #8a5a14;padding:6px 12px;border-radius:16px;font-size:12px;max-width:90%;text-align:center;transition:transform .35s cubic-bezier(.22,1,.36,1)}
 #netp.in{transform:translate(-50%,0)}
@@ -3969,7 +3984,7 @@ const mdOk = md => !!md && MDRX.test(String(md.f || '')) && ['voice', 'photo', '
 const mdLabel = md => !md ? '' : md.k === 'voice' ? 'Голосовое сообщение' : md.k === 'photo' ? 'Фото' : 'Видео';
 const mdNote = md => !md ? '' : (md.k === 'voice' ? '🎤 ' : md.k === 'photo' ? '📷 ' : '🎬 ') + mdLabel(md);
 const fmtDur = s => { s = Math.max(0, Math.round(+s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
-const thPk = th => !th || th === 'g' ? null : th[0] === 'm' ? (S.role === 'mgr' ? th.slice(2) : 'mgr') : th.slice(2);
+const thPk = th => !th || th === 'g' ? null : isMT(th) ? (S.role === 'mgr' ? th.slice(2) : mgrOf(th)) : th.slice(2);
 const hm = ts => { const d = new Date(ts); return d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); };
 const durTxt = m => (m >= 60 ? Math.floor(m / 60) + ' ч ' : '') + (m % 60) + ' мин';
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -4004,10 +4019,10 @@ function mediaSend(blob, type, md) {
   });
 }
 function sendMediaMsg(th, md, q) {
-  const mgr = S.role === 'mgr', me = th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey();
+  const mgr = S.role === 'mgr', me = isMT(th) ? (mgr ? 'mgr' : 'cour') : meKey();
   const extra = {md}; if (!q && S.reTo && S.reTo.th === th) extra.re = {id: S.reTo.id, name: S.reTo.name, text: S.reTo.text, pid: S.reTo.pid || null};
   const pid = q ? null : (S.chatPid || null);
-  if (th[0] === 'm') sendMsg(+th.slice(2), me, '', pid, extra); else sendTeamMsg(th, '', pid, extra);
+  if (isMT(th)) sendMsg(+th.slice(2), me, '', pid, extra, th[0]); else sendTeamMsg(th, '', pid, extra);
   if (!q) { S.reTo = null; S.ctxOff = false; S.chatPid = null; }
   render(true); uiSnd('send');
 }
@@ -4188,7 +4203,7 @@ function skewSync() {
 }
 let LASTACT = Date.now(), PRLAST = 0;
 ['touchstart', 'pointerdown', 'keydown', 'scroll', 'click'].forEach(ev => document.addEventListener(ev, () => { const was = Date.now() - LASTACT > 110000; LASTACT = Date.now(); if (was) { PRLAST = 0; prBeat(); } }, {passive: true, capture: true}));
-const prKey = () => S.role === 'mgr' ? 'mgr' : String(S.me);
+const prKey = () => S.role === 'mgr' ? mkey() : String(S.me);
 const prMine = () => (PR[prKey()] = PR[prKey()] || {});
 function prBeat() {
   if (!SY.on || !S.role) return; skewSync(); const now = Date.now();
@@ -4300,7 +4315,7 @@ function toolBlock(p, compact) {
   return compact ? '' : `<button class="btn sec sm" style="margin:2px 0 8px" onclick="openTool(${p.id})">${ic('pliers', 16)} Точка требует инструмент</button>`;
 }
 const openTool = pid => go({sheet: 'tool', tl: {pid, note: ((pt(pid).tool || {}).note) || ''}});
-function saveTool() { const f = S.tl, p = pt(f.pid); p.tool = {on: true, note: f.note.trim().slice(0, 120), by: S.role === 'mgr' ? MGR.name : cr(S.me).name, ts: Date.now()}; go({sheet: null, tl: null, toast: 'Точка помечена: требует инструмент'}); }
+function saveTool() { const f = S.tl, p = pt(f.pid); p.tool = {on: true, note: f.note.trim().slice(0, 120), by: selfNm(), ts: Date.now()}; go({sheet: null, tl: null, toast: 'Точка помечена: требует инструмент'}); }
 function clearTool() { delete pt(S.tl.pid).tool; go({sheet: null, tl: null, toast: 'Пометка снята'}); }
 function camBlock(p) {
   if (S.role !== 'mgr') return '';
@@ -4540,11 +4555,11 @@ function geoNudgeLine(cid) {
   return `<div class="row" style="margin-top:6px"><span class="pill warn">${g ? 'Геолокация выключена' : 'Геолокация не включена'}</span><div class="grow"></div><button class="btn sec sm" onclick="nudgeGeo(${cid})">Напомнить</button></div>`;
 }
 function nudgeGeo(cid) {
-  sendMsg(cid, 'mgr', 'Включите, пожалуйста, определение прибытия на точку: «Профиль» → «Геолокация» → переключатель «Определять прибытие на точку» (нужно прочитать и принять согласие). Оно работает только во время смены, координаты на сервере не сохраняются, статус «на точке» ставится сам.', null);
+  sendMsg(cid, 'mgr', 'Включите, пожалуйста, определение прибытия на точку: «Профиль» → «Геолокация» → переключатель «Определять прибытие на точку» (нужно прочитать и принять согласие). Оно работает только во время смены, координаты на сервере не сохраняются, статус «на точке» ставится сам.', null, undefined, mkind());
   go({toast: 'Напоминание про геолокацию отправлено в чат'});
 }
 function nudgeNotif(cid) {
-  sendMsg(cid, 'mgr', 'Включите, пожалуйста, уведомления: в приложении «Профиль» → «Включить уведомления» (на Android разрешите уведомления в настройках телефона). Так вы не пропустите сообщения, маршруты и фото на проверку.', null);
+  sendMsg(cid, 'mgr', 'Включите, пожалуйста, уведомления: в приложении «Профиль» → «Включить уведомления» (на Android разрешите уведомления в настройках телефона). Так вы не пропустите сообщения, маршруты и фото на проверку.', null, undefined, mkind());
   go({toast: 'Напоминание отправлено в чат'});
 }
 
@@ -4656,7 +4671,7 @@ function selfTest() {
 if (/[?&]selftest=1/.test(location.search) && !SRV) setTimeout(selfTest, 1500);
 
 /* ----- выбор нескольких сообщений: переслать (в другой чат или в этот же) и удалить пачкой (только свои) ----- */
-const thMe = th => th[0] === 'm' ? (S.role === 'mgr' ? 'mgr' : 'cour') : meKey();
+const thMe = th => isMT(th) ? (S.role === 'mgr' ? 'mgr' : 'cour') : meKey();
 function selStart() { const f = S.ma; if (!f) return; haptic(10); go({sheet: null, ma: null, sel: {th: f.th, ids: [String(f.id)]}}); }
 function selToggle(id) { const sl = S.sel; if (!sl) return; id = String(id); const i = sl.ids.indexOf(id); if (i >= 0) sl.ids.splice(i, 1); else sl.ids.push(id); haptic(6); render(true); }
 function selCancel() { go({sel: null}); }
@@ -4666,13 +4681,13 @@ function selBarHTML(th, msgs, me, ids) {
   return `<div id="composer" style="position:relative;z-index:7;background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px"><div class="row" style="gap:8px"><button class="btn sm" style="margin:0;${n ? '' : 'opacity:.45;pointer-events:none'}" onclick="selForward()">${ic('send', 15)} Переслать${n ? ' · ' + n : ''}</button>${own ? `<button class="btn sec sm" style="margin:0;color:#ffb0b0" onclick="selDeleteAsk()">${ic('trash', 15)} Удалить · ${n}</button>` : ''}<div class="grow"></div><button class="btn sec sm" style="margin:0" onclick="selCancel()">Отмена</button></div>${n && !own ? '<div class="tiny" style="margin-top:6px">Удалить можно, когда выбраны только ваши сообщения</div>' : ''}</div>`;
 }
 function selForward() { if (selMsgs().length) go({sheet: 'selfwd'}); }
-function lastOf(target) { return target === 'g' ? GCHAT[GCHAT.length - 1] : target[0] === 'd' ? (DMS[dmKey(S.me, +target.slice(2))] || []).slice(-1)[0] : (CHAT[target.slice(2)] || []).slice(-1)[0]; }
+function lastOf(target) { return target === 'g' ? GCHAT[GCHAT.length - 1] : target[0] === 'd' ? (DMS[dmKey(S.me, +target.slice(2))] || []).slice(-1)[0] : ((target[0] === 'n' ? CHATN : CHAT)[target.slice(2)] || []).slice(-1)[0]; }
 function selForwardTo(target) {
   const sl = S.sel, list = selMsgs(); if (!sl || !list.length) return go({sheet: null, sel: null});
   const mgr = S.role === 'mgr', base = Date.now();
   list.forEach((m, i) => {
     const extra = {fw: m.fw || msgSender(sl.th, m)}; if (m.md) extra.md = m.md;
-    if (target[0] === 'm') sendMsg(+target.slice(2), mgr ? 'mgr' : 'cour', m.text, m.pid, extra); else sendTeamMsg(target, m.text, m.pid, extra);
+    if (isMT(target)) sendMsg(+target.slice(2), mgr ? 'mgr' : 'cour', m.text, m.pid, extra, target[0]); else sendTeamMsg(target, m.text, m.pid, extra);
     const last = lastOf(target); if (last) last.ts = base + i;   // порядок сообщений сохраняется
   });
   go({sheet: null, sel: null, toast: 'Переслано сообщений: ' + list.length});
@@ -4763,7 +4778,7 @@ function sheetNew() {
   if (s === 'selfwd' && S.sel) {
     const n = selMsgs().length;
     return `<h2>Переслать сообщений: ${n}</h2><div class="t2" style="margin-bottom:8px">Выберите чат. Сообщения уйдут по порядку от вашего имени с подписью «Переслано от …». Можно отправить и в этот же чат, чтобы продублировать.</div>`
-      + thList().map(t => `<button class="btn sec" style="margin-bottom:6px;text-align:left" onclick="selForwardTo('${t}')">${t === 'g' ? ic('users', 16) : ic('chat', 16)} ${S.role !== 'mgr' && t === 'm:' + S.me ? 'Менеджер' : esc(thTitle(t))}${t === S.sel.th ? ' <span class="tiny">(этот чат, дублировать)</span>' : ''}</button>`).join('')
+      + thList().map(t => `<button class="btn sec" style="margin-bottom:6px;text-align:left" onclick="selForwardTo('${t}')">${t === 'g' ? ic('users', 16) : ic('chat', 16)} ${esc(thTitle(t))}${t === S.sel.th ? ' <span class="tiny">(этот чат, дублировать)</span>' : ''}</button>`).join('')
       + '<button class="btn sec" style="margin-top:4px" onclick="go({sheet:null})">Отмена</button>';
   }
   if (s === 'seldel' && S.sel) {
@@ -4840,7 +4855,7 @@ try { bootApp(); } catch (e1) {
 setTimeout(() => {
   let ls = 0; try { for (let i = 0; i < localStorage.length; i++) ls += (localStorage.getItem(localStorage.key(i)) || '').length; } catch (e) {}
   const empty = !($('app').innerText || '').trim();
-  const th = {}; try { Object.keys(CHAT).forEach(c => { th['m' + c] = CHAT[c].length; }); th.g = GCHAT.length; Object.keys(DMS).forEach(k => { th['d' + k] = DMS[k].length; }); } catch (e) {}
+  const th = {}; try { Object.keys(CHAT).forEach(c => { th['m' + c] = CHAT[c].length; }); Object.keys(CHATN).forEach(c => { th['n' + c] = CHATN[c].length; }); th.g = GCHAT.length; Object.keys(DMS).forEach(k => { th['d' + k] = DMS[k].length; }); } catch (e) {}
   __log({k: empty ? 'blank' : 'boot', ms: Date.now() - window.__t0, ls, role: S.role, tab: S.tab, me: S.me, seq: SY.seq, th});
   if (empty) fatalScreen('экран остался пустым');
 }, 4000);
