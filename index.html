@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>
+/* журнал ошибок запуска: сообщения уходят на сервер, чтобы находить причины сбоев на телефонах */
+window.__t0 = Date.now();
+window.__log = function (o) { try { if (!/^https?:$/.test(location.protocol)) return; o.ua = navigator.userAgent.slice(0, 120); o.v = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 0); o.sa = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ? 1 : 0; var x = new XMLHttpRequest(); x.open('POST', '/api/clientlog'); x.setRequestHeader('Content-Type', 'application/json'); x.send(JSON.stringify(o)); } catch (e) {} };
+window.addEventListener('error', function (e) { window.__log({k: 'error', m: String(e.message), l: e.lineno, c: e.colno, st: ((e.error && e.error.stack) || '').slice(0, 500)}); });
+window.addEventListener('unhandledrejection', function (e) { window.__log({k: 'reject', m: String((e.reason && e.reason.message) || e.reason)}); });
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -121,7 +128,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 54;
+const APP_VERSION = 55;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2751,8 +2758,22 @@ if (pushIsApp() || window.navigator.standalone) {
   sp.innerHTML = '<div style="animation:rxpop .6s cubic-bezier(.2,1.4,.4,1)">' + splashLogo(104) + '</div><div style="font-size:22px;font-weight:700;letter-spacing:.3px;color:#e9f1eb">Ангара Кофе</div>';
   document.body.appendChild(sp); setTimeout(() => { sp.style.opacity = '0'; setTimeout(() => sp.remove(), 520); }, 2000);
 }
-syncBoot();
-render();
+// запуск: при ошибке один раз сбрасываем сохранённый на телефоне снимок (все данные на сервере) и пробуем снова; если не вышло — понятное сообщение вместо пустого экрана
+function bootApp() { syncBoot(); render(); }
+function fatalScreen(msg) {
+  $('app').innerHTML = '<div style="padding:28px 20px;color:#e9f1eb"><h2 style="margin:0 0 10px">Не удалось запустить приложение</h2><div style="color:#8ea396;font-size:13px;margin-bottom:6px">Данные в безопасности: они хранятся на сервере.</div><div style="font-size:11px;color:#8ea396;word-break:break-all;margin-bottom:16px">' + esc(String(msg).slice(0, 160)) + '</div><button class="btn" style="width:100%;margin-bottom:8px" onclick="location.reload()">Перезапустить</button><button class="btn sec" style="width:100%" onclick="try{localStorage.removeItem(STORE_KEY);localStorage.removeItem(SYNC_KEY);}catch(e){};location.reload()">Сбросить данные на этом телефоне и войти заново</button></div>';
+}
+try { bootApp(); } catch (e1) {
+  __log({k: 'bootfail', m: String(e1 && e1.message), st: String((e1 && e1.stack) || '').slice(0, 500)});
+  try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+  try { Object.assign(SY, {seq:0, mirror:{}, base:{}}); Object.assign(S, {tab:SY.role === 'mgr' ? 'plan' : 'route', view:null, sheet:null, shade:false, th:null}); bootApp(); } catch (e2) { __log({k: 'bootfail2', m: String(e2 && e2.message)}); fatalScreen((e2 && e2.message) || e1.message); }
+}
+setTimeout(() => {
+  let ls = 0; try { for (let i = 0; i < localStorage.length; i++) ls += (localStorage.getItem(localStorage.key(i)) || '').length; } catch (e) {}
+  const empty = !($('app').innerText || '').trim();
+  __log({k: empty ? 'blank' : 'boot', ms: Date.now() - window.__t0, ls, role: S.role, tab: S.tab});
+  if (empty) fatalScreen('экран остался пустым');
+}, 4000);
 </script>
 </body>
 </html>
