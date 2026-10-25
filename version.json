@@ -1,9 +1,9 @@
 {
-    "content":  108,
+    "content":  109,
     "apk":  20,
-    "notes":  "Уведомления смахиваются с первого раза: быстрый щелчок пальцем, ранний захват жеста, экран не перерисовывается под пальцем.",
+    "notes":  "Чат: при открытии клавиатуры панель вкладок плавно скрывается, список не прыгает.",
     "contentFile":  "index.html",
-    "contentSha256":  "38b1257e287dbf83fd1c2b2b9d7de3ecec2ab28633738bf52c66c8a11a266210",
+    "contentSha256":  "79928800f7b5317a70ede25b7924ababb7f82fcf87be4d5edd757f61c43866f3",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }

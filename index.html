@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 108;
+const APP_VERSION = 109;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -3186,7 +3186,7 @@ function uiAfterRender() {
   SHEETSEEN = S.sheet || null;
   if (S.shade && !SHADESEEN) { const o = $('sheetshade'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
   SHADESEEN = !!S.shade;
-  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); geoSync(); } catch (e) {}
+  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); geoSync(); kbCheck(); } catch (e) {}
 }
 // шапка сжимается, только если у экрана достаточно прокрутки: иначе после сжатия прокрутка «съедается», шапка снова растёт, и всё дёргается по кругу
 function hdrState(tp, bd) {
@@ -3889,6 +3889,11 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 .grab[data-tall]{position:sticky;top:-16px;z-index:3;background:var(--bg);margin:-16px -16px 6px;padding:16px 0 12px;border-radius:26px 26px 0 0;cursor:grab}
 #sheetshade{padding-bottom:0}
 #sheetshade .grab.up{bottom:0;margin:6px -16px 0;padding:12px 0 calc(12px + env(safe-area-inset-bottom));border-radius:0 0 20px 20px;z-index:3}
+/* клавиатура открыта: панель вкладок плавно убирается (как в iMessage), поле ввода встаёт прямо над клавиатурой */
+#app .tabs{max-height:140px;transition:max-height .24s cubic-bezier(.22,1,.36,1),opacity .16s ease,padding .24s ease,border-width .24s ease}
+#app.kb .tabs{max-height:0;opacity:0;padding-top:0;padding-bottom:0;border-top-width:0;pointer-events:none}
+#app .body{transition:margin-bottom .24s cubic-bezier(.22,1,.36,1),padding-bottom .24s cubic-bezier(.22,1,.36,1)}
+#app.kb .body{margin-bottom:0;padding-bottom:16px}
 #netp{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-90px);z-index:29;background:#4a3414;color:#ffd9a0;border:1px solid #8a5a14;padding:6px 12px;border-radius:16px;font-size:12px;max-width:90%;text-align:center;transition:transform .35s cubic-bezier(.22,1,.36,1)}
 #netp.in{transform:translate(-50%,0)}
 #geop{position:fixed;left:12px;bottom:calc(var(--tabh,64px) + 12px + env(safe-area-inset-bottom));z-index:21;background:rgba(23,64,42,.92);color:#7be3a0;border:1px solid #2f9a4e;padding:5px 10px;border-radius:14px;font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer}
@@ -4262,9 +4267,16 @@ function saveCam() {
 /* ----- переписка всегда прижата к последнему сообщению, пока вы не прокрутили её вверх сами ----- */
 let CHATPIN = true, CHATTH = null;
 function chatPinNow() { [0, 150, 350, 700].forEach(t => setTimeout(() => { const b = document.querySelector('#app .body'); if (b && CHATPIN && S.tab === 'chat' && S.th && !S.view) b.scrollTop = b.scrollHeight; }, t)); }
+let CHATRO = null;
+function kbOn(on) { const app = $('app'); if (!app || app.classList.contains('kb') === on) return; app.classList.toggle('kb', on); if (on && S.tab === 'chat' && S.th) { CHATPIN = true; chatPinNow(); } }
+document.addEventListener('focusin', e => { const t = e.target; if (t && /^(INPUT|TEXTAREA)$/.test(t.tagName) && t.type !== 'checkbox' && t.type !== 'file' && t.type !== 'button' && t.closest && t.closest('#app')) kbOn(true); });
+document.addEventListener('focusout', () => setTimeout(() => { const a = document.activeElement; if (!(a && /^(INPUT|TEXTAREA)$/.test(a.tagName))) kbOn(false); }, 140));
+function kbCheck() { const a = document.activeElement; if (!(a && /^(INPUT|TEXTAREA)$/.test(a.tagName))) kbOn(false); }   // поле ввода пропало при перерисовке: клавиатура закрыта, вкладки возвращаются
 function chatStick() {
   const body = document.querySelector('#app .body');
+  if (CHATRO) { try { CHATRO.disconnect(); } catch (e) {} CHATRO = null; }
   if (S.tab !== 'chat' || !S.th || S.view || !body) { CHATTH = null; return; }
+  if (window.ResizeObserver) { CHATRO = new ResizeObserver(() => { if (CHATPIN) body.scrollTop = body.scrollHeight; }); CHATRO.observe(body); }   // пока окно меняет высоту (клавиатура, панель вкладок), список остаётся прижатым к последнему сообщению без рывков
   if (CHATTH !== S.th) { CHATTH = S.th; CHATPIN = true; }
   body.onscroll = () => { CHATPIN = body.scrollHeight - body.scrollTop - body.clientHeight < 120; };
   chatPinNow();
