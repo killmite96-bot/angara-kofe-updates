@@ -1,9 +1,9 @@
 {
-    "content":  119,
+    "content":  120,
     "apk":  20,
-    "notes":  "Исправлено тёмное пятно под галочкой при выборе нескольких сообщений.",
+    "notes":  "Исправлено: при открытии диалога нижние вкладки больше не темнеют и не дублируются.",
     "contentFile":  "index.html",
-    "contentSha256":  "be14975c18a084bdfd5946a6e5583ecd5f23a4df47262719fd688a27e6504b9f",
+    "contentSha256":  "ab98a6ad4054d1b38f14968290365fa4b5eeee7e1201c7b5688b5364d79460ce",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }

@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 119;
+const APP_VERSION = 120;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -3349,8 +3349,12 @@ function navAnimate(dir, snap) {
   const E = 'cubic-bezier(.22,1,.36,1)', T = 360, layer = (z, extra) => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;overflow:hidden;z-index:' + z + ';' + (extra || ''); return d; };
   const parts = []; for (const ch of Array.from(app.children)) { if (ch.classList.contains('tabs') || ch.classList.contains('overlay') || ch.classList.contains('cam') || ch.id === 'pop') break; parts.push(ch); }
   const old = layer(dir > 0 ? 20 : 30, 'background:var(--bg);display:flex;flex-direction:column;' + (dir < 0 ? 'box-shadow:-12px 0 30px rgba(0,0,0,.55);' : ''));
-  snap.forEach(n => old.appendChild(n));
+  // нижние вкладки есть и до, и после перехода: они стоят на месте, а слой старого экрана заканчивается над ними (иначе копия вкладок ехала поверх настоящих)
+  const rt = app.querySelector(':scope > .tabs');
+  snap.forEach(n => { if (rt && n.classList && n.classList.contains('tabs')) return; old.appendChild(n); });
+  if (rt && snap.some(n => n.classList && n.classList.contains('tabs'))) old.style.bottom = rt.offsetHeight + 'px';
   const dim = layer(dir > 0 ? 21 : 25, 'background:#000');
+  if (old.style.bottom !== '0px' && old.style.bottom) dim.style.bottom = old.style.bottom;
   const saved = parts.map(p => [p, p.style.position, p.style.zIndex, p.style.background]);
   if (dir > 0) {
     parts.forEach(p => { if (!p.style.position) p.style.position = 'relative'; p.style.zIndex = '30'; p.style.background = 'var(--bg)'; p.animate([{transform: 'translateX(100%)'}, {transform: 'none'}], {duration: T, easing: E}); });
