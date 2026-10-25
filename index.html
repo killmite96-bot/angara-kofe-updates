@@ -163,6 +163,24 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 .sendb{width:38px;height:38px;border-radius:50%;border:0;background:var(--g);color:#06150c;display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer;padding:0}
 .sendb.off{background:#2d3d34;color:#6f8a7a}
 @keyframes ring{0%{transform:scale(.6);opacity:.55}100%{transform:scale(2.2);opacity:0}}
+.sw{width:51px;height:31px;border-radius:16px;background:#3a433e;position:relative;flex:none;transition:background .25s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.4);transition:transform .3s cubic-bezier(.3,1.5,.5,1)}
+.sw.on{background:var(--g)}.sw.on::after{transform:translateX(20px)}
+.rings{display:flex;justify-content:space-around;padding:14px 8px}
+.rg{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.rgw{position:relative;width:76px;height:76px}.rgw svg{display:block}
+.rgw b{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;letter-spacing:-.02em}
+.rg span{font-size:11.5px;color:var(--mut)}
+@keyframes rgfill{from{stroke-dashoffset:var(--c)}to{stroke-dashoffset:var(--o)}}
+#app.enter .rgp{animation:rgfill .95s cubic-bezier(.22,1,.36,1) both}
+.sl-host{position:relative}
+.sl-host>button{position:relative;z-index:1}
+.sl-host>button.on{background:transparent !important;border-color:transparent !important}
+.sl-pill{position:absolute;z-index:0;border-radius:10px;background:var(--g2);border:1px solid var(--g);pointer-events:none;transition:left .32s cubic-bezier(.3,1.25,.5,1),top .3s,width .3s,height .3s}
+.chips .sl-pill{border-radius:20px}.seg .sl-pill{border-radius:8px}
+@keyframes drawchk{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes boxpop{0%{transform:scale(.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.box.draw{animation:boxpop .34s cubic-bezier(.3,1.6,.5,1)}.box.draw svg path{animation:drawchk .32s ease-out .04s both}
 .fxoff *,.fxoff *::before,.fxoff *::after{animation-duration:.001s !important;animation-delay:0s !important;transition:none !important}
 </style>
 </head>
@@ -170,7 +188,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 68;
+const APP_VERSION = 69;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -672,7 +690,7 @@ function loginScreen() {
   <input type="text" placeholder="Логин" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(S.lg.login)}" oninput="S.lg.login=this.value" onkeydown="if(event.key==='Enter')doLogin()">
   <input type="password" placeholder="Пароль" autocomplete="new-password" value="${esc(S.lg.pass)}" oninput="S.lg.pass=this.value" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--tx);font-size:14px;margin:6px 0">
   ${S.lg.err ? `<div style="color:var(--r);font-size:13px">${S.lg.err}</div>` : ''}
-  <div class="row" style="cursor:pointer" onclick="S.lg.rem=${!rem};render()"><div class="box ${rem ? 'on' : ''}">${rem ? '✓' : ''}</div><div style="font-size:14px">Запомнить аккаунт на этом телефоне</div></div>
+  <div class="row" style="cursor:pointer" onclick="S.lg.rem=${!rem};render()"><div class="grow" style="font-size:14px">Запомнить аккаунт на этом телефоне</div>${swHTML(rem)}</div>
   <button class="btn" onclick="doLogin()" ${S.lg.busy ? 'disabled' : ''}>${S.lg.busy ? 'Входим…' : 'Войти'}</button>
   <div class="tiny" style="margin-top:8px">${SRV ? 'Логин и пароль выдаёт менеджер. Данные общие для всех телефонов и обновляются сразу.' : 'Демо-доступы: ' + (MGR.pass === 'admin' ? 'менеджер — manager / admin' : 'менеджер — manager (пароль изменён вами)') + ', курьер — alex / 1234 или maria / 1234. Без сервера данные хранятся только на этом телефоне.'}</div>
   <div class="tiny" style="margin-top:10px">Адрес сервера (оставьте пустым для режима без сервера)</div>
@@ -825,7 +843,7 @@ function routeScreen() {
   const c = S.me, list = L(c, TODAY), done = list.filter(x => x.done).length, lg = legs(c);
   const mins = lg.out.reduce((s, o) => s + workMin(o.x.type) + eta(o.d), 0);
   let h = topbar('Маршрут на сегодня', `${WD[TODAY]} · ${list.length} точек · выполнено ${done}`);
-  h += '<div class="body">';
+  h += '<div class="body">' + (list.length ? courRings(c) : '');
   const loaded = LOADED[S.me + ':' + TODAY];
   h += `<div class="card" style="border-color:${loaded ? 'var(--line)' : 'var(--o)'}"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(DEPOT.name)}</div><div class="t2">${esc(DEPOT.addr || 'Адрес базы не указан')}</div>
     <div class="t2" style="color:${loaded ? 'var(--g)' : 'var(--o)'}">${loaded ? '✓ Загрузка подтверждена' : 'Начало смены: заедьте за ингредиентами'}</div>
@@ -1402,7 +1420,7 @@ const rate = (id, k, d) => { cr(id)[k] = Math.max(0, cr(id)[k] + d); render(true
 function planScreen() {
   const c = S.mc, list = L(c, S.day);
   let h = topbar('Планирование', 'Курьер, день, адреса и тип визита');
-  h += '<div class="body">' + mvBlock() + shiftCard() + '<div class="chips">' + COUR.filter(x => x.active).map(x => `<button class="${x.id === c ? 'on' : ''}" onclick="go({mc:${x.id}})">${esc(x.name)}</button>`).join('') + '</div>';
+  h += '<div class="body">' + mgrRings() + mvBlock() + shiftCard() + '<div class="chips">' + COUR.filter(x => x.active).map(x => `<button class="${x.id === c ? 'on' : ''}" onclick="go({mc:${x.id}})">${esc(x.name)}</button>`).join('') + '</div>';
   h += '<div class="days">' + WD.map((d, i) => `<button class="${i === S.day ? 'on' : ''} ${i === TODAY ? 'today' : ''}" onclick="go({day:${i}})">${d}<small>${L(c, i).length} т.</small></button>`).join('') + '</div>';
   let from = DEPOT, tot = 0;
   list.forEach(x => { tot += km(from, pt(x.pid)); from = pt(x.pid); });
@@ -2251,6 +2269,9 @@ function render(keep) {
   const shM = $('sheetmain'), shS = $('sheetshade'), scM = keep && shM ? shM.scrollTop : 0, scS = keep && shS ? shS.scrollTop : 0;   // прокрутка внутри окон тоже сохраняется
   const ae = document.activeElement, refocus = ae && ae.tagName === 'INPUT' ? ae.selectionStart : -1, refId = ae && ae.id ? ae.id : '';
   if (!S.role) { $('app').innerHTML = loginScreen(); return; }
+  const navD = navDepth(); let navDir = 0, navSnap = null;
+  if (LASTDEPTH !== null && navD !== LASTDEPTH && !NAV_SKIP && !FX_OFF && $('app').firstElementChild) { navDir = navD > LASTDEPTH ? 1 : -1; navSnap = navSnapshot(); }
+  LASTDEPTH = navD; NAV_SKIP = false;
   BK.on = false;
   $('app').innerHTML = screenHTML({})
     + (S.sheet ? `<div class="overlay" onclick="if(event.target===this)go({sheet:null})"><div class="sheet" id="sheetmain"><div class="grab" id="grab"><i></i></div>${sheet()}</div></div>` : '')
@@ -2272,6 +2293,7 @@ function render(keep) {
   if (S.tab === 'chat' && !S.view) { if (nb) nb.scrollTop = nb.scrollHeight; if (S.focusChat) { const ci = $('chatin'); if (ci) ci.focus(); S.focusChat = false; } }
   if (refocus >= 0) { const inp = (refId && document.getElementById(refId)) || document.querySelector('input[type=text]'); if (inp) { inp.focus(); inp.setSelectionRange(refocus, refocus); } }
   uiAfterRender();
+  if (navDir) navAnimate(navDir, navSnap);
   if (S.toast) { clearTimeout(window._t); window._t = setTimeout(() => { S.toast = ''; render(true); }, 2200); }
 }
 // кнопка «Назад» на телефоне (вызывается из Android-оболочки): закрывает окно, шторку, экран и т. д.
@@ -2318,7 +2340,7 @@ function bkEnd(st) {
   const dim = st.under.querySelector('#bkdim'); if (dim) dim.style.transition = 'opacity .24s ease-out';
   st.cur.style.transform = `translateX(${done ? st.W : 0}px)`; st.under.style.transform = `translateX(${done ? 0 : -28}%)`; if (dim) dim.style.opacity = done ? '0' : '.6';
   setTimeout(() => {
-    if (done) { BK.on = false; go(st.patch); }   // экран перерисовывается, слои исчезают
+    if (done) { BK.on = false; NAV_SKIP = true; go(st.patch); }   // экран перерисовывается, слои исчезают
     else { BK.on = false; st.cur.remove(); st.under.remove(); }
   }, 250);
 }
@@ -2976,7 +2998,7 @@ const fxApply = () => document.documentElement.classList.toggle('fxoff', FX_OFF)
 fxApply();
 function fxToggle() { FX_OFF = !FX_OFF; try { localStorage.setItem(FX_KEY, FX_OFF ? '1' : '0'); } catch (e) {} fxApply(); render(true); }
 function fxBlock() {
-  return `<h3>Оформление</h3><div class="card"><div class="row" onclick="fxToggle()" style="cursor:pointer"><div class="grow"><div class="t1" style="font-size:14px">Меньше анимаций</div><div class="tiny">Отключает плавные эффекты и вибрацию при нажатиях: полезно на слабом телефоне или для экономии батареи.</div></div><div class="box ${FX_OFF ? 'on' : ''}">${FX_OFF ? '✓' : ''}</div></div></div>`;
+  return `<h3>Оформление</h3><div class="card"><div class="row" onclick="fxToggle()" style="cursor:pointer"><div class="grow"><div class="t1" style="font-size:14px">Меньше анимаций</div><div class="tiny">Отключает плавные эффекты и вибрацию при нажатиях: полезно на слабом телефоне или для экономии батареи.</div></div>${swHTML(FX_OFF)}</div><div class="row" onclick="sndToggle()" style="cursor:pointer;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)"><div class="grow"><div class="t1" style="font-size:14px">Звуки интерфейса</div><div class="tiny">Тихие сигналы при отправке сообщения, сдаче точки и реакциях.</div></div>${swHTML(SNDUI)}</div></div>`;
 }
 function haptic(p) { if (FX_OFF) return; try { if (navigator.vibrate) navigator.vibrate(p || 8); } catch (e) {} }
 document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.btn,.tabs button,.box,.step button,.seg button,.days button,.chips button,.bell,.sendb,.lvp button')) haptic(8); }, true);
@@ -2996,6 +3018,7 @@ function uiAfterRender() {
   SHEETSEEN = S.sheet || null;
   if (S.shade && !SHADESEEN) { const o = $('sheetshade'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
   SHADESEEN = !!S.shade;
+  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); } catch (e) {}
 }
 // шапка сжимается, только если у экрана достаточно прокрутки: иначе после сжатия прокрутка «съедается», шапка снова растёт, и всё дёргается по кругу
 function hdrState(tp, bd) {
@@ -3106,6 +3129,131 @@ function celebrate() {
   d.addEventListener('click', close); document.body.appendChild(d);
   requestAnimationFrame(() => { d.style.opacity = '1'; });
   haptic([14, 40, 14, 40, 24]); setTimeout(close, 3200);
+}
+
+/* ===================== ЭФФЕКТЫ В СТИЛЕ IPHONE, ЧАСТЬ 2 ===================== */
+// ----- звуки интерфейса (отключаются в профиле) -----
+const SNDUI_KEY = 'angara_kofe_sndui';
+let SNDUI = true; try { SNDUI = localStorage.getItem(SNDUI_KEY) !== '0'; } catch (e) {}
+function sndToggle() { SNDUI = !SNDUI; try { localStorage.setItem(SNDUI_KEY, SNDUI ? '1' : '0'); } catch (e) {} render(true); if (SNDUI) uiSnd('tick'); }
+function uiSnd(kind) {
+  if (!SNDUI) return;
+  try {
+    sndUnlock(); const c = SND.ctx; if (!c) return; const t = c.currentTime;
+    const notes = {send: [[740, 0, .07], [1109, .06, .1]], done: [[523, 0, .12], [659, .1, .12], [784, .2, .22]], pop: [[880, 0, .06]], tick: [[1400, 0, .03]]}[kind] || [];
+    notes.forEach(([f, d, len]) => { const o = c.createOscillator(), g = c.createGain(), s = t + d; o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(.0001, s); g.gain.exponentialRampToValueAtTime(kind === 'tick' ? .06 : .13, s + .01); g.gain.exponentialRampToValueAtTime(.0001, s + len + .05); o.connect(g); g.connect(c.destination); o.start(s); o.stop(s + len + .08); });
+  } catch (e) {}
+}
+{
+  const _sc = sendChat; sendChat = function () { const t = (S.chatDraft || '').trim(); _sc.apply(this, arguments); if (t) uiSnd('send'); };
+  const _fv = finishVisit; finishVisit = function () { _fv.apply(this, arguments); uiSnd('done'); };
+}
+
+// ----- переключатель как в iPhone -----
+const swHTML = on => `<div class="sw${on ? ' on' : ''}"></div>`;
+
+// ----- переходы между экранами: вперёд — новый выезжает справа поверх сдвигающегося старого, назад — старый уезжает вправо -----
+let LASTDEPTH = null, NAV_SKIP = false;
+const navDepth = () => S.view ? (S.view.type === 'visit' || S.view.type === 'lessonedit' ? 2 : 1) : (S.tab === 'chat' && S.th ? 1 : 0);
+function navSnapshot() { const app = $('app'); return Array.from(app.children).filter(ch => !ch.id || !/^(ptr|bkcur|bkunder)$/.test(ch.id)).map(ch => ch.cloneNode(true)); }
+function navAnimate(dir, snap) {
+  const app = $('app'); if (!app || !snap || !snap.length || !app.animate) return;
+  const E = 'cubic-bezier(.22,1,.36,1)', T = 360, layer = (z, extra) => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;overflow:hidden;z-index:' + z + ';' + (extra || ''); return d; };
+  const parts = []; for (const ch of Array.from(app.children)) { if (ch.classList.contains('tabs') || ch.classList.contains('overlay') || ch.classList.contains('cam') || ch.id === 'pop') break; parts.push(ch); }
+  const old = layer(dir > 0 ? 20 : 30, 'background:var(--bg);display:flex;flex-direction:column;' + (dir < 0 ? 'box-shadow:-12px 0 30px rgba(0,0,0,.55);' : ''));
+  snap.forEach(n => old.appendChild(n));
+  const dim = layer(dir > 0 ? 21 : 25, 'background:#000');
+  const saved = parts.map(p => [p, p.style.position, p.style.zIndex, p.style.background]);
+  if (dir > 0) {
+    parts.forEach(p => { if (!p.style.position) p.style.position = 'relative'; p.style.zIndex = '30'; p.style.background = 'var(--bg)'; p.animate([{transform: 'translateX(100%)'}, {transform: 'none'}], {duration: T, easing: E}); });
+    app.appendChild(old); app.appendChild(dim);
+    old.animate([{transform: 'translateX(0)'}, {transform: 'translateX(-28%)'}], {duration: T, easing: E});
+    dim.animate([{opacity: 0}, {opacity: .55}], {duration: T, easing: E, fill: 'forwards'});
+  } else {
+    parts.forEach(p => { p.animate([{transform: 'translateX(-28%)'}, {transform: 'none'}], {duration: T, easing: E}); });
+    app.appendChild(dim); app.appendChild(old);
+    dim.animate([{opacity: .55}, {opacity: 0}], {duration: T, easing: E, fill: 'forwards'});
+    old.animate([{transform: 'translateX(0)'}, {transform: 'translateX(100%)'}], {duration: T, easing: E, fill: 'forwards'});
+  }
+  setTimeout(() => { old.remove(); dim.remove(); saved.forEach(([p, a, b, c]) => { p.style.position = a; p.style.zIndex = b; p.style.background = c; }); }, T + 40);
+}
+
+// ----- кольца прогресса (как «Активность» в iPhone) -----
+function ringsHTML(items) {
+  const R = 28, C = +(2 * Math.PI * R).toFixed(1);
+  return '<div class="card rings">' + items.map(it => {
+    const p = it.max > 0 ? Math.max(0, Math.min(1, it.val / it.max)) : 0, O = +(C * (1 - p)).toFixed(1);
+    return `<div class="rg"><div class="rgw"><svg width="76" height="76" viewBox="0 0 76 76"><circle cx="38" cy="38" r="${R}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="8"/><circle class="rgp" cx="38" cy="38" r="${R}" fill="none" stroke="${it.col}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${O}" transform="rotate(-90 38 38)" style="--c:${C};--o:${O}"/></svg><b>${it.txt}</b></div><span>${it.label}</span></div>`;
+  }).join('') + '</div>';
+}
+function courRings(c) {
+  const list = L(c, TODAY), done = list.filter(x => x.done), ok = done.filter(x => x.review === 'ok').length;
+  let wp = 0, wd = 0; for (let d = 0; d < 7; d++) { const l = L(c, d); wp += l.length; wd += l.filter(x => x.done).length; }
+  return ringsHTML([{label: 'Сегодня', val: done.length, max: list.length, col: '#35c26a', txt: done.length + '/' + list.length}, {label: 'Принято', val: ok, max: done.length, col: '#4aa3ff', txt: ok + '/' + done.length}, {label: 'Неделя', val: wd, max: wp, col: '#ffb02e', txt: wd + '/' + wp}]);
+}
+function mgrRings() {
+  const act = COUR.filter(c => c.active); let tp = 0, td = 0, on = 0;
+  act.forEach(c => { const l = L(c.id, TODAY); tp += l.length; td += l.filter(x => x.done).length; if (l.length) on++; });
+  const rv = reviews.filter(r => r.day === TODAY || r.day === undefined), okc = rv.filter(r => r.status === 'ok').length, pend = reviews.filter(r => r.status === 'pending').length;
+  return ringsHTML([{label: 'Сдано', val: td, max: tp, col: '#35c26a', txt: td + '/' + tp}, {label: 'Фото принято', val: okc, max: okc + pend, col: '#4aa3ff', txt: okc + '/' + (okc + pend)}, {label: 'На смене', val: on, max: act.length, col: '#ffb02e', txt: on + '/' + act.length}]);
+}
+
+// ----- числа «накручиваются»: суммы в рублях плавно пробегают от прежнего значения к новому -----
+const CNTLAST = {};
+function cntAnimate() {
+  if (FX_OFF) return;
+  $('app').querySelectorAll('.body .big').forEach((el, i) => {
+    const m = /^([\d\s ]+)\s*₽$/.exec((el.textContent || '').trim()); if (!m) return;
+    const to = +m[1].replace(/[\s ]/g, ''), key = [S.role, S.tab, S.view ? 1 : 0, i].join('|'), enter = $('app').classList.contains('enter');
+    const from = key in CNTLAST ? CNTLAST[key] : (enter ? 0 : to); CNTLAST[key] = to;
+    if (from === to) return;
+    const t0 = performance.now(), dur = 700;
+    const step = now => { const k = Math.max(0, Math.min(1, (now - t0) / dur)), e = 1 - Math.pow(1 - k, 3); if (!el.isConnected) return; el.textContent = money(Math.round(from + (to - from) * e)); if (k < 1) requestAnimationFrame(step); };
+    el.textContent = money(from); requestAnimationFrame(step);
+  });
+}
+
+// ----- галочки: «рисуются», когда отмечаешь -----
+let BOXCLICK = null;
+document.addEventListener('click', e => {
+  const row = e.target.closest && e.target.closest('.chk, .box'); if (!row) { BOXCLICK = null; return; }
+  const bx = row.classList.contains('box') ? row : row.querySelector('.box'); if (!bx) { BOXCLICK = null; return; }
+  const all = Array.from(document.querySelectorAll('.box')); BOXCLICK = {i: all.indexOf(bx), on: bx.classList.contains('on'), t: Date.now()};
+}, true);
+function boxesUpgrade() {
+  const all = Array.from($('app').querySelectorAll('.box'));
+  all.forEach((b, i) => {
+    if (!b.classList.contains('on') || b.textContent.trim() !== '✓') return;
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.6 4.6L19 7.4" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"/></svg>';
+    if (BOXCLICK && BOXCLICK.i === i && !BOXCLICK.on && Date.now() - BOXCLICK.t < 1500) { b.classList.add('draw'); haptic([10, 20, 10]); BOXCLICK = null; }
+  });
+}
+
+// ----- сегменты: выделение плавно переезжает на новую кнопку -----
+const SEGLAST = {};
+function segSlide() {
+  const app = $('app'), ctx = [S.role, S.tab, S.view ? 1 : 0, S.sheet || ''].join('|');
+  app.querySelectorAll('.days,.chips,.seg').forEach((c, i) => {
+    const on = c.querySelector('button.on'); if (!on || !on.offsetWidth) return;
+    c.classList.add('sl-host');
+    const key = ctx + '|' + c.className.split(' ')[0] + '|' + i;
+    const pill = document.createElement('div'); pill.className = 'sl-pill'; c.insertBefore(pill, c.firstChild);
+    const to = {l: on.offsetLeft, t: on.offsetTop, w: on.offsetWidth, h: on.offsetHeight}, from = SEGLAST[key] || to;
+    const put = p => { pill.style.left = p.l + 'px'; pill.style.top = p.t + 'px'; pill.style.width = p.w + 'px'; pill.style.height = p.h + 'px'; };
+    put(from);
+    if (!FX_OFF && (from.l !== to.l || from.t !== to.t || from.w !== to.w)) { void pill.offsetWidth; put(to); } else put(to);
+    SEGLAST[key] = to;
+  });
+}
+
+// ----- число на значке приложения (приложение из Chrome и значок «Домой» на iPhone) -----
+let BADGELAST = -1;
+function updBadge() {
+  try {
+    if (!navigator.setAppBadge || !S.role) return;
+    const n = unread(); if (n === BADGELAST) return; BADGELAST = n;
+    if (n > 0) navigator.setAppBadge(n); else navigator.clearAppBadge();
+  } catch (e) {}
 }
 
 // запуск: при ошибке один раз сбрасываем сохранённый на телефоне снимок (все данные на сервере) и пробуем снова; если не вышло — понятное сообщение вместо пустого экрана
