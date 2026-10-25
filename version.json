@@ -1,9 +1,9 @@
 {
-    "content":  90,
+    "content":  91,
     "apk":  19,
-    "notes":  "Чат: переписка всегда прижата к последнему сообщению, в том числе при появлении и скрытии клавиатуры.",
+    "notes":  "Чат: сообщения при прокрутке уходят за панель ввода, а не наезжают на неё.",
     "contentFile":  "index.html",
-    "contentSha256":  "1ba61ae7e2d02aba2fb7a044a508a8fe09e16fc93bbcb499c4b47a210a4b951a",
+    "contentSha256":  "b86c5e1940f04b4941ef59619a38b4c8467afd4c3866d5b048ba9847d13e352d",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "08078f3093bb889c4eaa9097c97e8a044acdf501a57ac927e064aff5d3ace410"
 }
