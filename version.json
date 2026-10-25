@@ -1,9 +1,9 @@
 {
-    "content":  118,
+    "content":  119,
     "apk":  20,
-    "notes":  "Чат: поле сообщения не остаётся в фокусе и без подсветки, панель вкладок не пропадает; компактные кнопки выбора сообщений.",
+    "notes":  "Исправлено тёмное пятно под галочкой при выборе нескольких сообщений.",
     "contentFile":  "index.html",
-    "contentSha256":  "4f8805ddb7873da634845e82384e0c3203e3c980af55266dbc56ac702e52ed8a",
+    "contentSha256":  "be14975c18a084bdfd5946a6e5583ecd5f23a4df47262719fd688a27e6504b9f",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }
