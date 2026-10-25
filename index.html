@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 126;
+const APP_VERSION = 127;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -777,9 +777,7 @@ function loginScreen() {
   ${S.lg.err ? `<div style="color:var(--r);font-size:13px">${S.lg.err}</div>` : ''}
   <div class="row" style="cursor:pointer" onclick="S.lg.rem=${!rem};render()"><div class="grow" style="font-size:14px">Запомнить аккаунт на этом телефоне</div>${swHTML(rem)}</div>
   <button class="btn" onclick="doLogin()" ${S.lg.busy ? 'disabled' : ''}>${S.lg.busy ? 'Входим…' : 'Войти'}</button>
-  <div class="tiny" style="margin-top:8px">${SRV ? 'Логин и пароль выдаёт менеджер. Данные общие для всех телефонов и обновляются сразу.' : 'Демо-доступы: ' + (MGR.pass === 'admin' ? 'менеджер — manager / admin' : 'менеджер — manager (пароль изменён вами)') + ', курьер — alex / 1234 или maria / 1234. Без сервера данные хранятся только на этом телефоне.'}</div>
-  <div class="tiny" style="margin-top:10px">Адрес сервера (оставьте пустым для режима без сервера)</div>
-  <input type="text" placeholder="http://192.168.1.10:8787" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(SRV)}" onchange="setServer(this.value)"></div>`;
+  ${SRV ? '<div class="tiny" style="margin-top:8px">Логин и пароль выдаёт менеджер. Данные общие для всех телефонов и обновляются сразу.</div>' : ''}</div>`;
 }
 const avKey = () => S.role === 'mgr' ? mkey() : String(S.me);
 // фото выбирается из галереи, обрезается по центру до квадрата 160x160 и хранится как маленькая картинка
