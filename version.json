@@ -1,9 +1,9 @@
 {
-    "content":  42,
+    "content":  43,
     "apk":  9,
-    "notes":  "Кофе в зёрнах: новое, более натуральное зёрнышко в окне остатков.",
+    "notes":  "Сиропы: можно подписать вкус (курьеры и менеджер), вместо «Сироп 1» показывается вкус.",
     "contentFile":  "index.html",
-    "contentSha256":  "e190bff675a5cef14d8bc4f780971e41a13fb72e2b1f5dc97f43f4ed959d8d05",
+    "contentSha256":  "600a6d0ef850026e922f5e730e3c13803f91986a6ef180e2c1ac1bc8f159e9b8",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "d2b33e0a67f375af5661ee0a61057492adb407e2dfd11359473b743033546595"
+    "apkSha256":  "ff46f95271cdb5d765965d4829049aab27b997a95bb63f472e7ddfa411f9992e"
 }

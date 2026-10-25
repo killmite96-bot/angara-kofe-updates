@@ -115,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 42;
+const APP_VERSION = 43;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -292,6 +292,8 @@ function rec(u, g) {
 }
 const stepFor = g => g.t === 'count' ? 10 : (g.u === 'бут' || g.u === 'уп' ? 1 : .5);
 // сколько нужно довезти с базы: потребность станций минус то, что уже лежит в подтоварке точки
+// название ингредиента на точке: у сиропов добавляется вкус, который вписал курьер или менеджер (p.syr)
+const gn = (g, p) => { const fl = p && p.syr && p.syr[g.id]; return fl ? g.n + ' · ' + esc(fl) : g.n; };
 const needBase = (p, g) => { const n = Math.max(0, recP(p, g) - (g.id === 'water' ? 0 : (p.back[g.id] || 0))); return g.t === 'count' ? Math.round(n / 10) * 10 : (g.u === 'бут' || g.u === 'уп' ? Math.ceil(n - .001) : Math.round(n * 2) / 2); };
 const deepLeft = p => DEEP_DAYS - p.deep;
 const tl = t => t === 3 ? 'Г' : t;
@@ -738,7 +740,7 @@ function routeScreen() {
   });
   return h + '</div>';
 }
-const shortNeed = p => { const a = ING.map(g => [g, needBase(p, g)]).filter(x => x[1] > 0).slice(0, 4); return a.length ? a.map(x => x[0].n.toLowerCase() + ' ' + x[1]).join(', ') : 'всё в норме'; };
+const shortNeed = p => { const a = ING.map(g => [g, needBase(p, g)]).filter(x => x[1] > 0).slice(0, 4); return a.length ? a.map(x => gn(x[0], p).toLowerCase() + ' ' + x[1]).join(', ') : 'всё в норме'; };
 function doOpt() { const l = L(S.me, TODAY), dn = l.filter(x => x.done), rest = l.filter(x => !x.done); sched[S.me][TODAY] = dn.concat(optimize(rest, posOf(S.me))); go({toast:'Порядок перестроен: сначала ближайшие'}); }
 
 /* ===================== КУРЬЕР: РАСПИСАНИЕ ===================== */
@@ -849,7 +851,7 @@ function pointsScreen() {
       const low = []; p.units.forEach((u, i) => ING.forEach(g => { if (frac(u, g) < .4) low.push({g, u, i}); })); low.length = Math.min(low.length, 3);
       h += `<div class="card" onclick="openPoint(${p.id})"><div class="row"><span class="dot d${health(p)}"></span>
         <div class="grow"><div class="t1">${p.name}</div><div class="t2">${p.addr}${p.units.length > 1 ? ' · ' + p.units.length + ' станции' : ''} · визит ${ago(p.last)}</div></div>${needT2(p) ? '<span class="pill warn">тип 2</span>' : ''}</div>
-        ${(low.length || arrPills(p)) ? `<div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">${arrPills(p)}${low.map(o => `<span class="pill bad">${o.g.n}${unitLabel(p, o.i)}: ${fmtCur(o.u, o.g)}</span>`).join('')}</div>` : ''}</div>`;
+        ${(low.length || arrPills(p)) ? `<div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">${arrPills(p)}${low.map(o => `<span class="pill bad">${gn(o.g, p)}${unitLabel(p, o.i)}: ${fmtCur(o.u, o.g)}</span>`).join('')}</div>` : ''}</div>`;
     });
   return h + '</div>';
 }
@@ -1058,10 +1060,10 @@ function stockRows(p) {
   p.units.forEach((u, i) => {
     // если станций несколько, каждая в своей рамке с цветной полосой слева и заголовком
     if (multi) h += `<div style="margin-top:12px;border:1px solid var(--line);border-left:5px solid ${cols[i % 3]};border-radius:12px;background:var(--card2);padding:8px 10px"><div class="row" style="margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--line)"><span class="badge" style="background:${cols[i % 3]};color:#0e1411;min-width:26px;height:26px;border-radius:50%">${i + 1}</span><div class="t1" style="font-size:14px">Станция ${i + 1}<span class="t2" style="margin-left:6px">${STN[u.st]}</span></div></div>`;
-    ING.forEach(g => { const r = rec(u, g); h += `<div class="kv"><span>${g.n}</span><span><b>${fmtCur(u, g)}</b>${r > 0 ? ` <span class="pill warn">взять ${r} ${g.u}</span>` : ''}</span></div>`; });
+    ING.forEach(g => { const r = rec(u, g); h += `<div class="kv"><span>${gn(g, p)}${/^s\d$/.test(g.id) ? ` <span onclick="openSyr(${p.id},'${g.id}')" style="cursor:pointer;color:var(--g)">✎ вкус</span>` : ''}</span><span><b>${fmtCur(u, g)}</b>${r > 0 ? ` <span class="pill warn">взять ${r} ${g.u}</span>` : ''}</span></div>`; });
     if (multi) h += '</div>';
   });
-  return h + `<div class="tiny" style="margin-top:6px">Подтоварка на точке: ${ING.filter(g => g.id !== 'water' && p.back[g.id] > 0).map(g => g.n + ' ' + p.back[g.id] + ' ' + g.u).join(', ') || 'пусто'}</div>`;
+  return h + `<div class="tiny" style="margin-top:6px">Подтоварка на точке: ${ING.filter(g => g.id !== 'water' && p.back[g.id] > 0).map(g => gn(g, p) + ' ' + p.back[g.id] + ' ' + g.u).join(', ') || 'пусто'}</div>`;
 }
 function pointCard(id) {
   const p = pt(id), item = S.role === 'cour' ? L(S.me, TODAY).find(x => x.pid === id) : null;
@@ -1078,13 +1080,13 @@ function pointCard(id) {
   const mg = S.role === 'mgr';
   // у менеджера значения правятся прямо в карточке кнопками − и +
   const stp = (call, val) => `<div class="step"><button onclick="${call},-1)">−</button><span>${val}</span><button onclick="${call},1)">+</button></div>`;
-  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${g.n}</span><span>${mg ? stp(`mgBack(${p.id},'${g.id}'`, p.back[g.id] + ' ' + g.u) : `<b>${p.back[g.id]} ${g.u}</b>`}${nb > 0 ? ` <span class="pill warn">с базы ${nb}</span>` : ''}</span></div>`; }).join('') + '</div>';
+  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${gn(g, p)}</span><span>${mg ? stp(`mgBack(${p.id},'${g.id}'`, p.back[g.id] + ' ' + g.u) : `<b>${p.back[g.id]} ${g.u}</b>`}${nb > 0 ? ` <span class="pill warn">с базы ${nb}</span>` : ''}</span></div>`; }).join('') + '</div>';
   h += '<h3>Остатки на последний визит</h3>';
   p.units.forEach((u, i) => {
     if (p.units.length > 1) h += `<h3>Станция ${i + 1} · ${STN[u.st]}</h3>`;
     ING.forEach(g => {
       const f = frac(u, g), r = rec(u, g), c = f < .2 ? 'var(--r)' : f < .4 ? 'var(--y)' : 'var(--g)';
-      h += `<div class="card" style="padding:9px 12px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${g.n}</div><div class="bar"><i style="width:${Math.round(f * 100)}%;background:${c}"></i></div></div>
+      h += `<div class="card" style="padding:9px 12px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${gn(g, p)}</div><div class="bar"><i style="width:${Math.round(f * 100)}%;background:${c}"></i></div></div>
         <div style="text-align:right">${mg ? stp(`mgCur(${p.id},${i},'${g.id}'`, fmtCur(u, g)) : `<div class="t1" style="font-size:13px">${fmtCur(u, g)}</div>`}<div class="t2" style="color:var(--o)">${r > 0 ? 'взять ' + r + ' ' + g.u : '—'}</div></div></div></div>`;
     });
   });
@@ -1126,7 +1128,7 @@ function backroomHTML(v, quick) {
   let h = '';
   ING.filter(g => g.id !== 'water').forEach(g => {
     const added = sumD(v, g), fromBack = Math.min(v.B[g.id], added), br = broughtOf(v, g), left = Math.max(0, +(v.B[g.id] + br - added).toFixed(1));
-    h += `<div class="card" style="padding:10px 12px"><div class="row"><div class="grow t1" style="font-size:14px">${g.n}</div><div class="tiny">лежит</div><div class="step"><button onclick="bdAdj('${g.id}',-1)">−</button><span>${v.B[g.id]}</span><button onclick="bdAdj('${g.id}',1)">+</button></div></div>`;
+    h += `<div class="card" style="padding:10px 12px"><div class="row"><div class="grow t1" style="font-size:14px">${gn(g, pt(v.pid))}</div><div class="tiny">лежит</div><div class="step"><button onclick="bdAdj('${g.id}',-1)">−</button><span>${v.B[g.id]}</span><button onclick="bdAdj('${g.id}',1)">+</button></div></div>`;
     if (!quick) h += `<div class="row" style="margin-top:6px"><div class="tiny grow">на станции добавлено ${+added.toFixed(1)} ${g.u}, из подтоварки ${+fromBack.toFixed(1)}<br>останется в подтоварке: ${left} ${g.u}</div><div class="tiny">привёз</div><div class="step"><button onclick="brAdj('${g.id}',-1)">−</button><span>${br}</span><button onclick="brAdj('${g.id}',1)">+</button></div></div>`;
     h += '</div>';
   });
@@ -1151,7 +1153,7 @@ function visitScreen() {
     h += unitTabs(p, null);
     ING.forEach(g => {
       const isL = true;
-      h += `<div class="card" style="padding:10px 12px"><div class="row"><div class="grow t1" style="font-size:14px;${isL ? 'cursor:pointer' : ''}" ${isL ? `onclick="openLevel('${g.id}')"` : ''}>${g.n}${isL ? ` <span class="pill blue">${lvIcon(g.id)} ${g.t === 'count' ? v.after[g.id] + ' шт' : '≈ ' + +(v.after[g.id] * g.cap).toFixed(2) + ' ' + g.u}</span>` : ''}</div>${v.quick ? '' : `<div class="tiny">добавил</div><div class="step"><button onclick="dv('${g.id}',-1)">−</button><span>${v.deliv[g.id]}</span><button onclick="dv('${g.id}',1)">+</button></div>`}</div>`;
+      h += `<div class="card" style="padding:10px 12px"><div class="row"><div class="grow t1" style="font-size:14px;${isL ? 'cursor:pointer' : ''}" ${isL ? `onclick="openLevel('${g.id}')"` : ''}>${gn(g, p)}${isL ? ` <span class="pill blue">${lvIcon(g.id)} ${g.t === 'count' ? v.after[g.id] + ' шт' : '≈ ' + +(v.after[g.id] * g.cap).toFixed(2) + ' ' + g.u}</span>` : ''}${isL && /^s\d$/.test(g.id) ? ` <span class="pill" style="cursor:pointer" onclick="event.stopPropagation();openSyr(${p.id},'${g.id}')">✎ вкус</span>` : ''}</div>${v.quick ? '' : `<div class="tiny">добавил</div><div class="step"><button onclick="dv('${g.id}',-1)">−</button><span>${v.deliv[g.id]}</span><button onclick="dv('${g.id}',1)">+</button></div>`}</div>`;
       if (g.t === 'level') h += lvPick(g.id, v.after[g.id]);
       else h += `<div class="row" style="margin-top:6px"><div class="tiny grow">осталось на станции</div><div class="step"><button onclick="sc('${g.id}',-10)">−</button><span>${v.after[g.id]}</span><button onclick="sc('${g.id}',10)">+</button></div></div>`;
       h += '</div>';
@@ -1425,6 +1427,12 @@ function chatScreen() {
     <div class="row"><input type="text" id="chatin" placeholder="Сообщение" value="${esc(S.chatDraft)}" oninput="S.chatDraft=this.value" onkeydown="if(event.key==='Enter')sendChat()" style="margin:0"><button class="btn sm" onclick="sendChat()">${ic('send', 17)}</button></div></div>`;
   return h;
 }
+function openSyr(pid, id) { go({sheet:'syr', sy:{pid, id, text:((pt(pid).syr || {})[id]) || ''}}); }
+function saveSyr() {
+  const f = S.sy, p = pt(f.pid), v = f.text.trim().slice(0, 30), m = Object.assign({}, p.syr || {});
+  if (v) m[f.id] = v; else delete m[f.id];
+  p.syr = m; go({sheet:null, sy:null, toast:v ? 'Вкус сохранён' : 'Название вкуса убрано'});
+}
 function chatPtFilter(q) { q = q.trim().toLowerCase(); document.querySelectorAll('#chatptlist .card').forEach(e => { e.style.display = !q || e.dataset.s.includes(q) ? '' : 'none'; }); }
 function sendChat() {
   const t = S.chatDraft.trim(), th = S.th; if (!t || !th) return;
@@ -1643,6 +1651,15 @@ function sheet() {
       <div id="chatptlist">${P.map(p => `<div class="card" data-s="${esc((p.name + ' ' + (p.addr || '')).toLowerCase())}" style="padding:10px 12px;cursor:pointer" onclick="go({sheet:null,chatPid:${p.id}})"><div class="row"><div style="color:var(--g)">${ic('pin', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(p.addr || '')}</div></div></div></div>`).join('')}</div>
       <button class="btn sec" style="margin-top:6px" onclick="go({sheet:null})">Отмена</button>`;
   }
+  if (S.sheet === 'syr') {
+    const f = S.sy, p = pt(f.pid), g = ING.find(x => x.id === f.id), presets = ['Карамель', 'Ваниль', 'Шоколад', 'Лесной орех', 'Кокос', 'Вишня', 'Мята', 'Банан', 'Клубника', 'Солёная карамель'];
+    return `<h2>Вкус: ${g.n}</h2><div class="tiny">${esc(p.name)}. Впишите, какой вкус у этого сиропа на точке. Название увидят все: курьеры и менеджер.</div>
+      <div class="chips" style="flex-wrap:wrap;margin-top:10px">${presets.map(x => `<button onclick="S.sy.text='${x}';render()">${x}</button>`).join('')}</div>
+      <input type="text" placeholder="Свой вкус" value="${esc(f.text)}" oninput="S.sy.text=this.value" style="margin:10px 0 8px">
+      <button class="btn" style="margin-bottom:8px" onclick="saveSyr()">Сохранить</button>
+      ${(p.syr || {})[g.id] ? '<button class="btn sec" style="margin-bottom:8px" onclick="S.sy.text=\'\';saveSyr()">Убрать название вкуса</button>' : ''}
+      <button class="btn sec" onclick="go({sheet:null,sy:null})">Отмена</button>`;
+  }
   if (S.sheet === 'info') return infoSheet();
   if (S.sheet === 'move') return mvSheet();
   if (S.sheet === 'mvno') return mvNoSheet();
@@ -1651,7 +1668,7 @@ function sheet() {
     const p = pt(S.tk), item = L(c, TODAY).find(x => x.pid === p.id), fmt = (g, n) => (g.t === 'count' ? n : +(+n).toFixed(1)) + ' ' + g.u;
     const rows = ING.map(g => ({g, need:recP(p, g), nb:needBase(p, g)})).filter(r => r.need > 0);
     let h = `<h2>Что взять для точки</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)} · ${esc(p.addr)}</div>`;
-    h += rows.length ? '<div class="tiny">Нужно для наполнения станции (с запасом 20%). Подтоварка на точке уже учтена.</div><div class="card">' + rows.map(r => `<div class="kv"><span>${r.g.n}</span><span><b>${fmt(r.g, r.need)}</b>${p.back[r.g.id] > 0 ? ` <span class="tiny">из подтоварки ${fmt(r.g, Math.min(p.back[r.g.id], r.need))}</span>` : ''}${r.nb > 0 ? ` <span class="pill warn">с базы ${fmt(r.g, r.nb)}</span>` : ''}</span></div>`).join('') + '</div>' : '<div class="card t2">Пополнение не требуется: остатков хватает.</div>';
+    h += rows.length ? '<div class="tiny">Нужно для наполнения станции (с запасом 20%). Подтоварка на точке уже учтена.</div><div class="card">' + rows.map(r => `<div class="kv"><span>${gn(r.g, p)}</span><span><b>${fmt(r.g, r.need)}</b>${p.back[r.g.id] > 0 ? ` <span class="tiny">из подтоварки ${fmt(r.g, Math.min(p.back[r.g.id], r.need))}</span>` : ''}${r.nb > 0 ? ` <span class="pill warn">с базы ${fmt(r.g, r.nb)}</span>` : ''}</span></div>`).join('') + '</div>' : '<div class="card t2">Пополнение не требуется: остатков хватает.</div>';
     if (item && item.type >= 2) h += `<div class="card"><div class="t1" style="font-size:14px">Для мойки (${item.type === 3 ? 'генеральная уборка' : 'тип 2'})</div><div class="t2">Моющее средство, чистящие таблетки, ветошь, перчатки, запасные комплекты деталей</div></div>`;
     return h + `<button class="btn" style="margin-top:8px" onclick="go({sheet:null});startVisit(${p.id},false)">Начать визит ▸</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
   }
@@ -1750,7 +1767,7 @@ function sheet() {
   }
   if (S.sheet === 'level') {
     const g = ING.find(x => x.id === S.lv), f = S.visit.after[g.id], cnt = g.t === 'count';
-    return `<h2>${g.n}</h2><div class="tiny" style="text-align:center">Проведите пальцем по ${lvName(g.id)}, чтобы отметить, сколько осталось</div>
+    return `<h2>${gn(g, pt(S.visit.pid))}</h2><div class="tiny" style="text-align:center">Проведите пальцем по ${lvName(g.id)}, чтобы отметить, сколько осталось</div>
       <div style="text-align:center;margin:8px 0"><div class="big" id="lvpct">${cnt ? f + ' шт' : Math.round(f * 100) + '%'}</div><div class="t2" id="lvabs">${cnt ? 'из ' + g.cap + ' шт' : '≈ ' + +(f * g.cap).toFixed(2) + ' ' + g.u + ' из ' + g.cap}</div></div>
       ${levelSVG(g.id, f)}
       ${cnt ? `<div class="seg" style="margin:10px 0">${[0, .25, .5, .75, 1].map(q => `<button onclick="S.visit.after['${g.id}']=${q * g.cap};render()">${q * g.cap}</button>`).join('')}</div>` : `<div style="margin:10px 0">${lvPick(g.id, f)}</div>`}
