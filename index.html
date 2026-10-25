@@ -128,7 +128,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 55;
+const APP_VERSION = 56;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2733,6 +2733,7 @@ function syncBoot() {
   if (!SRV) return;
   if (!SY.token) { S.role = null; return; }
   S.role = SY.role; S.me = SY.role === 'cour' ? SY.cid : S.me;
+  if (!TABS[S.role] || !TABS[S.role].some(t => t[0] === S.tab)) S.tab = S.role === 'mgr' ? 'plan' : 'route';   // нет сохранённого снимка (или вкладка не подходит роли) — открываем главную, иначе экран оставался пустым
   if (SY.role === 'cour' && !cr(S.me)) { S.role = null; return; }
   SY.on = true; syncResume();
 }

@@ -1,9 +1,9 @@
 {
-    "content":  55,
+    "content":  56,
     "apk":  13,
-    "notes":  "Защита запуска: при сбое приложение само сбрасывает сохранённый снимок и запускается заново; журнал ошибок запуска.",
+    "notes":  "Исправлен пустой экран при запуске: если вкладка не сохранилась, открывается главная.",
     "contentFile":  "index.html",
-    "contentSha256":  "849f3d264c2acca19fc6d5f1d507cfe4d8c79f482d01fe6d13be45c173d66c55",
+    "contentSha256":  "c5f64be7567205b18d754a86b9c357b7b785747ff5fc6551c0265711751f98b8",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "04cf0ddb26ed0a2ab15380bc9ae70c06116b20563362ac05cde1835005d5f9e2"
+    "apkSha256":  "950fc24661d3a10c9505ed29af2c83ed41cfa3e0eded498c6feed43ef855cbb0"
 }
