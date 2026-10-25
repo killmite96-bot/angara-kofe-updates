@@ -115,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 41;
+const APP_VERSION = 42;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1872,7 +1872,7 @@ function jugSVG(f) {
   if (id === 'water') return jugSVG(f);
   if (isHopper(id)) return hopperSVG(id, f);
   if (isRows(id)) {
-    const ticks = [.25, .5, .75].map(t => { const ty = 290 - t * 250; return `<line x1="20" x2="130" y1="${ty}" y2="${ty}" stroke="#fff" stroke-opacity=".25" stroke-dasharray="3 3"/><text x="132" y="${ty + 4}" font-size="11" fill="#9db" font-family="Arial">${t * 100}%</text>`; }).join('');
+    const ticks = [.25, .5, .75].map(t => { const ty = 290 - t * 250; return `<line x1="20" x2="130" y1="${ty}" y2="${ty}" stroke="#fff" stroke-opacity=".25" stroke-dasharray="3 3"/><text x="131" y="${ty + 4}" font-size="11" fill="#9db" font-family="Arial">${t * 100}%</text>`; }).join('');
     return `<svg id="lvsvg" viewBox="0 0 160 310" style="width:180px;height:350px;touch-action:none;cursor:ns-resize;display:block;margin:0 auto">
       <path d="M18 40 V290 H132 V40" fill="#101713" stroke="#3b5446" stroke-width="2" stroke-dasharray="4 3"/>
       <g id="lvrows">${levelRows(id, f)}</g><rect x="12" y="290" width="126" height="8" rx="3" fill="#6f8a7a"/>${ticks}</svg>`;
@@ -1886,17 +1886,21 @@ function jugSVG(f) {
   }
   if (id === 'coffee') {
     const [yB, yT] = lvRange(id), y = yB - f * (yB - yT);
-    const ticks = [.25, .5, .75].map(t => { const ty = yB - t * (yB - yT); return `<text x="128" y="${ty + 4}" font-size="11" fill="#9db" font-family="Arial">${t * 100}%</text>`; }).join('');
-    return `<svg id="lvsvg" viewBox="0 0 150 310" style="width:170px;height:350px;touch-action:none;cursor:ns-resize;display:block;margin:0 auto">
-      <defs><clipPath id="lvclip"><ellipse cx="68" cy="155" rx="58" ry="108" transform="rotate(14 68 155)"/></clipPath>
-      <linearGradient id="beanG" x1="0" x2="1"><stop offset="0" stop-color="#8a5229"/><stop offset=".6" stop-color="#6b3a1e"/><stop offset="1" stop-color="#4a2712"/></linearGradient></defs>
-      <ellipse cx="68" cy="155" rx="58" ry="108" transform="rotate(14 68 155)" fill="#16110d" stroke="#8a6a50" stroke-width="3"/>
-      <g clip-path="url(#lvclip)"><rect id="lvfill" x="0" y="${y}" width="150" height="${310 - y}" fill="url(#beanG)"/><rect id="lvtop" x="0" y="${y}" width="150" height="4" fill="#fff" opacity=".35"/></g>
-      <path d="M38 52 C 88 100, 36 150, 80 200 S 70 245, 92 262" fill="none" stroke="#1b0f07" stroke-width="7" stroke-linecap="round"/>
-      <path d="M38 52 C 88 100, 36 150, 80 200 S 70 245, 92 262" fill="none" stroke="#a8764c" stroke-opacity=".35" stroke-width="2" stroke-linecap="round" transform="translate(-3 -1)"/>
-      <ellipse cx="68" cy="155" rx="58" ry="108" transform="rotate(14 68 155)" fill="none" stroke="#8a6a50" stroke-width="3"/>${ticks}</svg>`;
-  }
-  const bottle = isBottle(id), col = LCOL[id] || '#ccc';
+    const ticks = [.25, .5, .75].map(t => { const ty = yB - t * (yB - yT); return `<text x="131" y="${ty + 4}" font-size="11" fill="#9db" font-family="Arial">${t * 100}%</text>`; }).join('');
+    const bean = 'M64 48 C 108 44, 128 98, 124 160 C 120 228, 92 266, 60 262 C 22 258, 10 206, 14 146 C 18 84, 36 52, 64 48 Z';
+    const crease = 'M56 56 C 84 94, 38 138, 66 180 S 74 236, 62 258';
+    const art = bright => `<path d="${bean}" fill="${bright ? 'url(#beanG)' : '#241811'}"/>
+      <path d="${crease}" fill="none" stroke="${bright ? '#150a04' : '#0d0805'}" stroke-width="10" stroke-linecap="round"/>
+      ${bright ? `<path d="${crease}" fill="none" stroke="#c9915c" stroke-opacity=".45" stroke-width="2" stroke-linecap="round" transform="translate(-6 0)"/><path d="${crease}" fill="none" stroke="#c9915c" stroke-opacity=".35" stroke-width="2" stroke-linecap="round" transform="translate(6 1)"/>
+      <ellipse cx="40" cy="110" rx="9" ry="34" fill="#fff" opacity=".2" transform="rotate(8 40 110)"/><ellipse cx="98" cy="190" rx="6" ry="26" fill="#fff" opacity=".12" transform="rotate(8 98 190)"/>` : ''}`;
+    return `<svg id="lvsvg" viewBox="0 0 164 310" style="width:185px;height:350px;touch-action:none;cursor:ns-resize;display:block;margin:0 auto">
+      <defs><clipPath id="lvclip"><path d="${bean}"/></clipPath><clipPath id="lvlevel"><rect id="lvfill" x="0" y="${y}" width="150" height="${310 - y}"/></clipPath>
+      <radialGradient id="beanG" gradientUnits="userSpaceOnUse" cx="48" cy="120" r="150"><stop offset="0" stop-color="#a8683a"/><stop offset=".45" stop-color="#6e3b1d"/><stop offset="1" stop-color="#3a1c0b"/></radialGradient></defs>
+      <g>${art(false)}</g>
+      <g clip-path="url(#lvlevel)">${art(true)}</g>
+      <g clip-path="url(#lvclip)"><rect id="lvtop" x="0" y="${y}" width="150" height="3" fill="#fff" opacity=".4"/></g>
+      <path d="${bean}" fill="none" stroke="#8a6a50" stroke-width="3"/>${ticks}</svg>`;
+  }  const bottle = isBottle(id), col = LCOL[id] || '#ccc';
   const body = bottle
     ? 'M48 10 h24 v42 q0 14 18 30 q10 12 10 30 v152 q0 22 -22 22 h-36 q-22 0 -22 -22 v-152 q0 -18 10 -30 q18 -16 18 -30 z'
     : 'M24 56 h72 q8 0 8 8 v216 q0 12 -12 12 h-64 q-12 0 -12 -12 v-216 q0 -8 8 -8 z';
