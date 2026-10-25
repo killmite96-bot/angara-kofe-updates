@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 124;
+const APP_VERSION = 125;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -580,7 +580,7 @@ const mkey = () => SY.mk || 'mgr';   // кто вошёл: 'mgr' — основ�
 const mkind = () => mkey() === 'mgr2' ? 'n' : 'm';   // буква беседы менеджера
 const isMT = th => th[0] === 'm' || th[0] === 'n';   // беседа курьера с менеджером
 const mgrOf = th => th[0] === 'n' ? 'mgr2' : 'mgr';   // чей менеджерский ключ у беседы
-const mgrNm = k => k === 'mgr2' ? MGR2.name : MGR.name;
+const mgrNm = k => k === 'mgr2' ? MGR2.name : MGR.name === 'Техническая поддержка приложения' ? 'Техподдержка' : MGR.name;
 const selfNm = () => S.role === 'mgr' ? mgrNm(mkey()) : cr(S.me).name;
 function sendMsg(cid, from, text, pid, extra, k) {   // extra: {re:{id,name,text}} — ответ на сообщение, {fw:'Имя'} — переслано от
   const d = new Date(), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
@@ -1625,14 +1625,14 @@ const thUnread = th => {
   return a.filter(m => String(m.from) !== k && m.ts > seen).length;
 };
 function thList() {
-  const act = COUR.filter(c => c.active && (S.role === 'mgr' || c.id !== S.me));
+  const act = COUR.filter(c => c.active && (S.role === 'mgr' || c.id !== S.me)).sort((a, b) => a.name.localeCompare(b.name, 'ru'));   // курьеры по алфавиту
   if (S.role === 'mgr') return ['g', ...act.map(c => mkind() + ':' + c.id)];
-  return ['g', 'm:' + S.me, 'n:' + S.me, ...act.map(c => 'd:' + c.id)];
+  return ['m:' + S.me, 'g', 'n:' + S.me, ...act.map(c => 'd:' + c.id)];   // сверху техподдержка, затем общий чат, второй менеджер и остальные курьеры
 }
 const chatUnread = () => thList().reduce((n, th) => n + thUnread(th), 0);
 const tabBadge = k => { const n = k === 'mgr' ? pendCount() : k === 'chat' ? chatUnread() : 0; return n ? `<i class="tb">${n}</i>` : ''; };
 function openTh(th) { closeShade(); go({tab:'chat', view:null, th:th || null}); }
-const thTitle = th => th === 'g' ? 'Общий чат' : th[0] === 'd' ? cr(+th.slice(2)).name : S.role === 'mgr' ? cr(+th.slice(2)).name : mgrNm(mgrOf(th));
+const thTitle = th => th === 'g' ? 'Общий чат' : th[0] === 'd' ? cr(+th.slice(2)).name : S.role === 'mgr' ? cr(+th.slice(2)).name : th[0] === 'n' ? mgrNm('mgr2') + ' (Менеджер)' : mgrNm('mgr');
 const sender = f => f === 'mgr' || f === 'mgr2' ? mgrNm(f) : (cr(+f) || {name:'?'}).name;
 const CHAT_SEEN = {};   // какие сообщения уже показаны в беседе: новые «выезжают» с анимацией
 function chatScreen() {
