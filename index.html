@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 95;
+const APP_VERSION = 96;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2700,7 +2700,7 @@ function docsFromState() {
 // те же правила, что на сервере: сервер всё равно перепроверит
 function canWriteKey(k, v) {
   if (k.startsWith('pr/')) return k === 'pr/' + (SY.role === 'mgr' ? 'mgr' : SY.cid);   // свой статус пишет только сам человек
-  if (k.startsWith('geo/')) return false;   // журнал прибытий ведёт сервер
+  if (k.startsWith('geo/') || k.startsWith('nst/') || k.startsWith('gs/')) return false;   // журнал прибытий, статус уведомлений и счётчики геолокации ведёт сервер
   if (k.startsWith('gc/')) return SY.role === 'cour' && k === 'gc/' + SY.cid;   // согласие даёт только сам курьер
   if (SY.role === 'mgr') return k !== 'cour' && k !== 'wk' && !k.startsWith('dm/');
   const p = k.split('/'), h = p[0], me = String(SY.cid);

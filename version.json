@@ -1,9 +1,9 @@
 {
-    "content":  95,
+    "content":  96,
     "apk":  20,
-    "notes":  "Менеджер может напомнить курьеру включить геолокацию.",
+    "notes":  "Исправлено: у менеджера пропадал статус уведомлений у курьеров.",
     "contentFile":  "index.html",
-    "contentSha256":  "08d3070a4b0567ddaaa740565d3c85bcc401a459a43eeb167f4db0910edeab82",
+    "contentSha256":  "316bd6ed0af8e9e90ec929428105c24d4943c40adfd8820e33cb7de76e08c6d7",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }
