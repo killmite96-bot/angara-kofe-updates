@@ -1,9 +1,9 @@
 {
-    "content":  61,
+    "content":  62,
     "apk":  14,
-    "notes":  "Свайп назад от левого края: экран отодвигается, под ним предыдущий светлеет.",
+    "notes":  "Чат: автоматическая сверка переписки с сервером (пропавшее возвращается), подробный журнал запуска.",
     "contentFile":  "index.html",
-    "contentSha256":  "3e6b46c42fcc86bd8f0e8772a3fa9739ae49b6694c7dbae23cd9128a9842d178",
+    "contentSha256":  "b43ab29098a64e9777e267b557b110612d2afa3d7b63708dbe8589bbdcab2078",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "5a3220d98395bbd932527f881ed2c8d972be22d6e1f0fca8e686949666bc6fa8"
 }

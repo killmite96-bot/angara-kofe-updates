@@ -128,7 +128,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 61;
+const APP_VERSION = 62;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2752,9 +2752,29 @@ function syncResume() {
   api('/api/state?since=' + SY.seq).then(j => {
     onRemote(j.docs.map(d => ({key:d.key, v:d.v, seq:d.seq, dele:d.dele})));
     if (j.seq > SY.seq) SY.seq = j.seq;
-    setNet(true); openStream(); pushChanges();
+    setNet(true); openStream(); pushChanges(); setTimeout(reconcileChat, 1500);
   }).catch(() => { setNet(false); clearTimeout(SY.rt); if (SY.on) SY.rt = setTimeout(syncResume, 4000); });
 }
+// сверка переписки с сервером: если на телефоне чего-то нет (или оно устарело), а на сервере есть, документ подтягивается заново; сообщение в журнал показывает, как часто это случается
+let reconT = 0;
+function reconcileChat() {
+  if (!SY.on || SY.pushing || Date.now() - reconT < 20000) return;
+  reconT = Date.now();
+  api('/api/state?since=0&prefix=msg,gmsg,dm,rx,rd').then(j => {
+    const cur = docsFromState(), fix = [];
+    j.docs.forEach(d => {
+      if (d.dele) return;
+      const mine = cur[d.key];
+      if (mine === undefined) fix.push(d);
+      else if (SY.mirror[d.key] === hsh(jstr(mine)) && SY.mirror[d.key] !== hsh(jstr(d.v))) fix.push(d);   // у нас без своих правок, а на сервере другая версия
+    });
+    if (!fix.length) return;
+    try { __log({k:'reconcile', n:fix.length, keys:fix.slice(0, 6).map(d => d.key)}); } catch (e) {}
+    fix.forEach(d => { delete SY.mirror[d.key]; delete SY.base[d.key]; });
+    onRemote(fix.map(d => ({key:d.key, v:d.v, seq:d.seq, dele:false})));
+  }).catch(() => {});
+}
+setInterval(() => { if (SY.on && !document.hidden) reconcileChat(); }, 180000);
 function syncStop() {
   SY.on = false; closeStream(); clearTimeout(pushT);
   Object.assign(SY, {token:'', mirror:{}, base:{}, seq:0, pend:{}, pushing:false, net:false});
@@ -2889,7 +2909,8 @@ try { bootApp(); } catch (e1) {
 setTimeout(() => {
   let ls = 0; try { for (let i = 0; i < localStorage.length; i++) ls += (localStorage.getItem(localStorage.key(i)) || '').length; } catch (e) {}
   const empty = !($('app').innerText || '').trim();
-  __log({k: empty ? 'blank' : 'boot', ms: Date.now() - window.__t0, ls, role: S.role, tab: S.tab});
+  const th = {}; try { Object.keys(CHAT).forEach(c => { th['m' + c] = CHAT[c].length; }); th.g = GCHAT.length; Object.keys(DMS).forEach(k => { th['d' + k] = DMS[k].length; }); } catch (e) {}
+  __log({k: empty ? 'blank' : 'boot', ms: Date.now() - window.__t0, ls, role: S.role, tab: S.tab, me: S.me, seq: SY.seq, th});
   if (empty) fatalScreen('экран остался пустым');
 }, 4000);
 </script>
