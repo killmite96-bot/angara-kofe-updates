@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 85;
+const APP_VERSION = 86;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2686,7 +2686,7 @@ function canWriteKey(k, v) {
   if (h === 'rd') return p[2] === me && (p[1] === 'g' || p[1].split('-').includes(me));
   if (h === 'rx' || h === 'tp') return p[2] === me && (p[1] === 'g' || (p[1][0] === 'm' && p[1].slice(1) === me) || p[1].split('-').includes(me));
   if (h === 'dm') return p[1].split('-').includes(me) && (!v || String(v.from) === me);
-  if (h === 'pt' || h === 'wh') return true;
+  if (h === 'pt' || h === 'wh') return v !== null;   // удалять точки может только менеджер
   if (h === 'sched' || h === 'ld' || h === 'msg' || h === 'av' || h === 'prog' || h === 'mv') return p[1] === me;
   if (h === 'ntf') return p[1] === 'mgr' || p[1] === me || (!!v && v.kind === 'chat');
   if (h === 'rev') return !v || String(v.cid) === me;

@@ -1,9 +1,9 @@
 {
-    "content":  85,
+    "content":  86,
     "apk":  19,
-    "notes":  "Сервер сам ведёт «в пути на…», закрывает забытые смены и напоминает курьерам; подсказка про уведомления; журнал ошибок из Android-приложения.",
+    "notes":  "Удалять точки может только менеджер.",
     "contentFile":  "index.html",
-    "contentSha256":  "723c5ea72c033ea67bb86cd7e0f4d692843dfb38e70eca5a32eda7bd8b2ad251",
+    "contentSha256":  "efec39b1773664ae0d4f7beaed1b0045441dbe6a3fa62513fdf3a4b0dad8b9e0",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "08078f3093bb889c4eaa9097c97e8a044acdf501a57ac927e064aff5d3ace410"
 }
