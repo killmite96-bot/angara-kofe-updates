@@ -1,9 +1,9 @@
 {
-    "content":  111,
+    "content":  112,
     "apk":  20,
-    "notes":  "При ответе на сообщение с точкой точка сама не привязывается к ответу.",
+    "notes":  "Текст сообщения в цитате ответа белый и крупнее.",
     "contentFile":  "index.html",
-    "contentSha256":  "7a0daa7e13dade6e579ac84f631cf09772c41213953fec90666724c34a8330cc",
+    "contentSha256":  "5984f21c85001b227ea4548b08101e9a11f10b342dda9e98231dd2601fd1eca8",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }
