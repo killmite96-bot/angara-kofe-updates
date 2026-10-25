@@ -1,9 +1,9 @@
 {
-    "content":  104,
+    "content":  105,
     "apk":  20,
-    "notes":  "Подтверждение при завершении смены; «Ответ по точке» в чате больше не залипает.",
+    "notes":  "Сообщения-плашки не закрывают кнопки в нижних окнах.",
     "contentFile":  "index.html",
-    "contentSha256":  "31b11934f70edd3daca28ff63fe070cf7f186bdadf52752707b2fd45cc59cf09",
+    "contentSha256":  "e734a4b94a50fe53461985ff20c2a55864f1a2ec5a944259d22fb0864017d575",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }

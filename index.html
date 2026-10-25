@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 104;
+const APP_VERSION = 105;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2371,7 +2371,7 @@ function render(keep) {
     + updOverlay()
     + updBanner()
     + popHTML()
-    + (S.toast ? `<div style="position:absolute;left:16px;right:16px;bottom:${UPD.banner ? 170 : 78}px;background:#1f7a45;color:#fff;border-radius:12px;padding:11px 14px;font-size:13px;z-index:25">${S.toast}</div>` : '');
+    + (S.toast ? `<div style="position:absolute;left:16px;right:16px;${S.sheet ? 'top:calc(10px + env(safe-area-inset-top))' : 'bottom:' + (UPD.banner ? 170 : 78) + 'px'};background:#1f7a45;color:#fff;border-radius:12px;padding:11px 14px;font-size:13px;z-index:25;box-shadow:0 6px 20px rgba(0,0,0,.45)">${S.toast}</div>` : '');   // пока открыто нижнее окно, сообщение показывается вверху и не закрывает кнопки
   const nb = document.querySelector('.body'); if (nb) nb.scrollTop = sc0;
   if (S.sheet === 'level' || S.sheet === 'trash') bindLevel();
   if (S.shade) bindNotifSwipe();
