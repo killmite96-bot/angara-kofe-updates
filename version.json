@@ -1,9 +1,9 @@
 {
-    "content":  53,
+    "content":  54,
     "apk":  13,
-    "notes":  "Заставка с извивающимся паром; заставка и для приложения из Chrome; исправление «подёргивания» при запуске.",
+    "notes":  "Заставка: пар прежней длины, но извивается; для приложения из Chrome убрана вторая заставка.",
     "contentFile":  "index.html",
-    "contentSha256":  "15f991a931017570cfa4ae53d7c63374bead8c4d672f7c6e9d1f0af2c01685dd",
+    "contentSha256":  "82a080f2abc732352d518dcea0fc9f95f4b0e7e195f0fb9c003e35c3ab3c4346",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "848333d4b14449cdbe4d2d61acf9861ada11bb4d8439a368ca4ffe8ba79ccd70"
+    "apkSha256":  "04cf0ddb26ed0a2ab15380bc9ae70c06116b20563362ac05cde1835005d5f9e2"
 }
