@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 123;
+const APP_VERSION = 124;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -561,10 +561,7 @@ reviews.forEach((r, i) => r.id = i + 1);
     }
     p.last = last; p.last2 = last2;
   });
-  reviews.push({id:1, cid:1, pid:12, day:1, when:'вчера 15:40', type:2, status:'pending'}, {id:2, cid:1, pid:3, day:1, when:'вчера 12:10', type:1, status:'pending'});
 })();
-notify('mgr', 'photo', 'Алексей сдал точку «' + pt(12).name + '»: подтвердите фото', {rvId:reviews[0].id, t:'вчера 15:40', ts:1});
-notify('mgr', 'photo', 'Алексей сдал точку «' + pt(3).name + '»: подтвердите фото', {rvId:reviews[1].id, t:'вчера 12:10', ts:2});
 const CHAT = {
   1:[{id:'seed1', ts:1, from:'mgr', text:'Доброе утро! Сегодня 7 точек, 4 из них с мойкой. Начните с базы.', t:'08:05', pid:null, read:true}, {id:'seed2', ts:2, from:'cour', text:'Принял, выезжаю на базу.', t:'08:07', pid:null, read:true}],
   2:[]
