@@ -115,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 40;
+const APP_VERSION = 41;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1074,7 +1074,7 @@ function pointCard(id) {
   h += `<div class="card"><div class="t1" style="font-size:14px">При прибытии на последнем визите</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
     <span class="pill ${CCOL[p.arr.clean]}">Чистота: ${CLEAN[p.arr.clean]}</span><span class="pill ${p.arr.trash >= .75 ? 'warn' : ''}">Урна: ${Math.round(p.arr.trash * 100)}% · ${trashStatus(p.arr.trash)}</span></div></div>`;
   h += `<div class="row" style="gap:10px;margin:10px 0"><button class="btn sec" style="flex:1 1 0;width:auto;margin:0" onclick="openInfo(${p.id},'wet')">${ic('drop', 16)} Мокрая точка</button><button class="btn sec" style="flex:1 1 0;width:auto;margin:0" onclick="openInfo(${p.id},'park')">${ic('pin', 16)} Парковка</button></div>`;
-  h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Генеральная уборка</div><div class="t2">${deepText(p)}</div></div>${deepLeft(p) <= 14 ? `<span class="pill ${deepLeft(p) < 0 ? 'bad' : 'warn'}">${deepLeft(p) < 0 ? 'просрочена' : 'скоро срок'}</span>` : ''}</div></div>`;
+  h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Генеральная уборка</div><div class="t2">${deepText(p)}</div></div>${deepLeft(p) <= 14 ? `<span class="pill warn">${deepLeft(p) < 0 ? 'пора' : 'скоро срок'}</span>` : ''}</div></div>`;
   const mg = S.role === 'mgr';
   // у менеджера значения правятся прямо в карточке кнопками − и +
   const stp = (call, val) => `<div class="step"><button onclick="${call},-1)">−</button><span>${val}</span><button onclick="${call},1)">+</button></div>`;
@@ -1314,11 +1314,11 @@ function planScreen() {
 const setType = (i, t) => { L(S.mc, S.day)[i].type = t; render(true); };
 const rmPt = i => { L(S.mc, S.day).splice(i, 1); render(true); };
 const mv = (i, d) => { const l = L(S.mc, S.day), j = i + d; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; render(true); };
-const deepText = p => p.deep + ' дн. назад · ' + (deepLeft(p) < 0 ? 'просрочена на ' + (-deepLeft(p)) + ' дн.' : 'срок через ' + deepLeft(p) + ' дн.');
+const deepText = p => p.deep + ' дн. назад · ' + (deepLeft(p) < 0 ? 'пора проводить' : 'срок через ' + deepLeft(p) + ' дн.');
 function deepCard() {
-  const due = P.slice().sort((a, b) => deepLeft(a) - deepLeft(b)), over = due.filter(p => deepLeft(p) < 0).length, soon = due.filter(p => deepLeft(p) >= 0 && deepLeft(p) <= 14).length;
-  let h = `<div class="card"><div class="t1" style="font-size:14px">Генеральная уборка · раз в 3 месяца</div><div class="t2">Просрочено: ${over} · в ближайшие 14 дней: ${soon}</div>`;
-  due.slice(0, 4).forEach(p => { h += `<div class="row" style="margin-top:8px"><div class="grow"><div class="t1" style="font-size:13px">${p.name}</div><div class="t2" style="color:${deepLeft(p) < 0 ? 'var(--r)' : deepLeft(p) <= 14 ? 'var(--o)' : 'var(--mut)'}">${deepText(p)}</div></div><button class="btn sec sm" onclick="addDeep(${p.id})">Г на ${WD[S.day]}</button></div>`; });
+  const due = P.slice().sort((a, b) => deepLeft(a) - deepLeft(b)), soon = due.filter(p => deepLeft(p) <= 14).length;
+  let h = `<div class="card"><div class="t1" style="font-size:14px">Генеральная уборка · раз в 3 месяца</div><div class="t2">Пора или скоро срок (14 дней): ${soon}</div>`;
+  due.slice(0, 4).forEach(p => { h += `<div class="row" style="margin-top:8px"><div class="grow"><div class="t1" style="font-size:13px">${p.name}</div><div class="t2" style="color:${deepLeft(p) <= 14 ? 'var(--o)' : 'var(--mut)'}">${deepText(p)}</div></div><button class="btn sec sm" onclick="addDeep(${p.id})">Г на ${WD[S.day]}</button></div>`; });
   return h + '</div>';
 }
 function addDeep(pid) {

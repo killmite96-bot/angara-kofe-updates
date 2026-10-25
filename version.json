@@ -1,9 +1,9 @@
 {
-    "content":  40,
+    "content":  41,
     "apk":  9,
-    "notes":  "Вода: бидон 40 л в остатках визита (уровень пальцем), воды больше нет в подтоварке.",
+    "notes":  "Генеральная уборка: убрана надпись и счётчик просрочки, логика сроков без изменений.",
     "contentFile":  "index.html",
-    "contentSha256":  "71fc9ce53a8a72fb9fd0e57ac2bb83c9c40d18eeb18dd768d8d4cbe3fb6fd6a3",
+    "contentSha256":  "2ad4a27fc5f457668f17b093ad27608f29e44e00234993f3440514a50cea1677",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "6b234fa1575e7850a6001180534a40e1eb3233ca55a34eb55e29d76e7dd0a6f6"
+    "apkSha256":  "876bb3ce021fdd233b509813c630adb5b0c232639f56e1635756888cae32a4a3"
 }
