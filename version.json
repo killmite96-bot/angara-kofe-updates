@@ -1,9 +1,9 @@
 {
-    "content":  101,
+    "content":  102,
     "apk":  20,
-    "notes":  "Убрана серая плашка геолокации: зелёная значок остаётся только пока идёт смена.",
+    "notes":  "Значок «Геолокация включена» перенесён в карточку «Вы на смене».",
     "contentFile":  "index.html",
-    "contentSha256":  "51ecd4863cee09972925150fa450cdb143dfa24a2900fe8f98f29645ab93a69b",
+    "contentSha256":  "87479458f9616519db1703e31ce0a57dc6d2df0eb3a1e728ffcd08a0a73d549b",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }

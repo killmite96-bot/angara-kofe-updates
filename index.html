@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 101;
+const APP_VERSION = 102;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -4172,7 +4172,7 @@ function shiftBlock() {
   if (S.role !== 'cour') return '';
   const ok0 = offKind(S.me, TODAY); if (ok0) return `<div class="card"><div class="row"><div style="color:var(--o)">${ic('calendar', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Сегодня у вас ${OFFK[ok0].toLowerCase()}</div><div class="t2">Отдыхайте: выходить на смену не нужно</div></div></div></div>`;
   const s = shMine(), today = s && new Date(s.s).toDateString() === new Date(sNow()).toDateString();
-  if (shActive()) return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('clock', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Вы на смене</div><div class="t2">с ${hm(s.s)} · <span data-shiftt>${shiftDur()}</span></div></div><button class="btn sec sm" onclick="shiftEnd()">Завершить смену</button></div></div>`;
+  if (shActive()) return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('clock', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Вы на смене</div><div class="t2">с ${hm(s.s)} · <span data-shiftt>${shiftDur()}</span></div><div class="tiny" data-geoi style="color:var(--g);margin-top:2px">${geoActive() ? ic('pin', 13) + ' Геолокация включена' : ''}</div></div><button class="btn sec sm" onclick="shiftEnd()">Завершить смену</button></div></div>`;
   if (s && s.e && today) return `<div class="tiny" style="margin:0 2px 8px;opacity:.85">Смена завершена${s.auto ? ' автоматически' : ''}: ${hm(s.s)}–${hm(s.e)} · ${shiftDur()}</div>`;
   if (!L(S.me, TODAY).length) return '';
   return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('flag', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Начало смены</div><div class="t2">Нажмите, когда приедете на склад: менеджер увидит, что вы вышли</div></div><button class="btn sm" onclick="shiftStart()">Выйти на смену</button></div></div>`;
@@ -4361,13 +4361,11 @@ function geoFix(c) {
   api('/api/geo', {lat: c.latitude, lon: c.longitude, acc: c.accuracy}).catch(() => {});
 }
 function geoPill() {
-  let e = document.getElementById('geop');
-  const act = geoWanted() && (geoApp() ? geoPermApp() > 0 : GEO.w !== null);   // зелёный значок только пока определение действительно идёт (во время смены)
-  if (!act) { if (e) e.remove(); return; }
-  const txt = ic('pin', 13) + ' Геолокация включена';
-  if (!e) { e = document.createElement('div'); e.id = 'geop'; e.onclick = () => go({sheet: 'profile'}); document.body.appendChild(e); }
-  e.classList.remove('wait');
-  if (e.dataset.t !== txt) { e.dataset.t = txt; e.innerHTML = txt; }
+  // значок «Геолокация включена» теперь стоит в карточке «Вы на смене» (экран «Маршрут»), а не плавает над вкладками
+  const old = document.getElementById('geop'); if (old) old.remove();
+  const act = geoWanted() && (geoApp() ? geoPermApp() > 0 : GEO.w !== null);
+  const h = act ? ic('pin', 13) + ' Геолокация включена' : '';
+  document.querySelectorAll('[data-geoi]').forEach(e => { if (e.innerHTML !== h) e.innerHTML = h; });
 }
 const geoActive = () => geoWanted() && (geoApp() ? geoPermApp() > 0 : GEO.w !== null);
 // плашка у менеджера: работает ли сейчас определение прибытия у курьера (телефон сообщает об этом в своём статусе)
