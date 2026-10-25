@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 99;
+const APP_VERSION = 100;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1818,7 +1818,7 @@ function teamScreen() {
     let n = 0; for (let d = 0; d < 7; d++) n += L(c.id, d).length;
     h += `<div class="card" data-sw="${c.active ? 'Отключить' : 'Включить'}|toggleCour(${c.id})|#8a5a14;Изменить|openCF(${c.id})|#2d5aa0" style="${c.active ? '' : 'opacity:.6'}"><div class="row"><div class="grow"><div class="t1">${esc(c.name)}</div>
       <div class="t2">Логин: ${c.login} · тип 1 ${money(c.r1)} · тип 2 ${money(c.r2)} · Г ${money(c.r3)}</div></div><span class="pill ${c.active ? 'ok' : 'bad'}">${c.active ? 'активен' : 'отключён'}</span></div>
-      <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div><div class="tiny" style="margin-top:3px">${esc(gcLine(c.id))}</div>${geoNudgeLine(c.id)}${nstLine(c.id)}
+      <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div><div class="tiny" style="margin-top:3px">${esc(gcLine(c.id))}</div><div data-geoc="${c.id}" style="margin-top:4px">${geoCardPill(c.id)}</div>${geoNudgeLine(c.id)}${nstLine(c.id)}
       <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button><button class="btn sec sm" onclick="go({sheet:'cologout',clo:${c.id}})">Выйти на всех телефонах</button><button class="btn sec sm" onclick="go({sheet:'geolog',gl:${c.id}})">Прибытия</button></div></div>`;
   });
   h += '<div class="card" style="margin-top:8px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Качество геолокации</div><div class="t2">Как часто определение прибытия срабатывает, за 60 дней</div></div><button class="btn sec sm" onclick="openGeoStat()">Открыть</button></div></div>';
@@ -3780,7 +3780,10 @@ function sheetExtras() {
   const tall = !skip && sh.scrollHeight > H * 0.64;
   if (!tall || !grab) return;
   grab.dataset.tall = '1'; sh.style.maxHeight = DET.v === 'large' ? '92%' : '58%';
-  const setDet = v => { DET.v = v; sh.style.transition = 'max-height .4s cubic-bezier(.22,1,.36,1)'; sh.style.maxHeight = v === 'large' ? '92%' : '58%'; haptic(8); };
+  const web = !pushIsApp();
+  const webMode = () => { if (!web) return; const big = DET.v === 'large'; sh.style.overflowY = big ? '' : 'hidden'; sh.style.touchAction = big ? '' : 'none'; if (!big) sh.scrollTop = 0; };
+  const setDet = v => { DET.v = v; sh.style.transition = 'max-height .4s cubic-bezier(.22,1,.36,1)'; sh.style.maxHeight = v === 'large' ? '92%' : '58%'; webMode(); haptic(8); };
+  webMode();
   let g = null;
   grab.addEventListener('touchstart', e => { g = {y0: e.touches[0].clientY, done: false}; }, {passive: true});
   grab.addEventListener('touchmove', e => {
@@ -3794,7 +3797,7 @@ function sheetExtras() {
   // в развёрнутом — движение вниз от самого верха сворачивает его; обычная прокрутка работает, когда окно уже развёрнуто
   let c = null;
   sh.addEventListener('touchstart', e => {
-    c = e.target.closest && e.target.closest('input,textarea,select,.wheel,.bottles,#grab') ? null : {y0: e.touches[0].clientY, mode: ''};
+    c = e.target.closest && e.target.closest(web ? '.wheel,.bottles,#grab' : 'input,textarea,select,.wheel,.bottles,#grab') ? null : {y0: e.touches[0].clientY, mode: ''};
   }, {passive: true, capture: true});
   sh.addEventListener('touchmove', e => {
     if (!c) return; const dy = e.touches[0].clientY - c.y0;
@@ -4130,10 +4133,12 @@ function mglInner(cid) {
   const k = String(cid), r = PR[k], l = lcText(k), s = r && r.sh;
   let h = `<div style="margin-top:3px">${prHTML(k)}</div>`;
   if (l) h += `<div class="t2" style="color:var(--g)">${ic('pin', 13)} ${esc(l)}</div>`;
+  { const gp = geoCardPill(k); if (gp && /pill ok/.test(gp)) h += `<div style="margin-top:3px">${gp}</div>`; }
   if (s && new Date(s.s).toDateString() === new Date(sNow()).toDateString()) h += `<div class="tiny">${s.e ? 'Смена: ' + hm(s.s) + '–' + hm(s.e) + ' · ' + durTxt(Math.round((s.e - s.s) / 60000)) : 'На смене с ' + hm(s.s) + ' · ' + durTxt(Math.round((sNow() - s.s) / 60000))}</div>`;
   return h;
 }
 function prRefresh() {
+  document.querySelectorAll('[data-geoc]').forEach(e => { const h = geoCardPill(e.dataset.geoc); if (e.innerHTML !== h) e.innerHTML = h; });
   document.querySelectorAll('[data-mgl]').forEach(e => { const h = mglInner(e.dataset.mgl); if (e.innerHTML !== h) e.innerHTML = h; });
   document.querySelectorAll('[data-prs]').forEach(e => { const k = e.dataset.prs; e.className = 'pres ' + prInfo(k).s; const h = '<i></i>' + prShort(k); if (e.innerHTML !== h) e.innerHTML = h; });
   document.querySelectorAll('[data-prh]').forEach(e => { const k = e.dataset.prh; e.className = 'pres ' + prInfo(k).s; const h = prInner(k, e.dataset.wl === '1'); if (e.innerHTML !== h) e.innerHTML = h; });
@@ -4337,6 +4342,7 @@ function geoSync() {
   else if (!want && GEO.w !== null) geoWatchStop();
   if (!want) GEO.asked = false;
   geoPill();
+  if (S.role === 'cour') { const r = prMine(), gv = geoActive() ? 1 : 0; if (r.g !== gv) { r.g = gv; PRLAST = 0; prBeat(); } }   // менеджер видит, работает ли определение
 }
 function geoWatchStart() {
   if (!navigator.geolocation) return;
@@ -4363,6 +4369,15 @@ function geoPill() {
   if (!e) { e = document.createElement('div'); e.id = 'geop'; e.onclick = () => go({sheet: 'profile'}); document.body.appendChild(e); }
   e.classList.toggle('wait', !act);
   if (e.dataset.t !== txt) { e.dataset.t = txt; e.innerHTML = txt; }
+}
+const geoActive = () => geoWanted() && (geoApp() ? geoPermApp() > 0 : GEO.w !== null);
+// плашка у менеджера: работает ли сейчас определение прибытия у курьера (телефон сообщает об этом в своём статусе)
+function geoCardPill(cid) {
+  if (S.role !== 'mgr') return '';
+  const g = GCS.all[String(cid)]; if (!g || !g.on) return '';
+  const r = PR[String(cid)] || {}, sh = r.sh || {}, shift = !!(sh.s && !sh.e && sNow() - sh.s < 20 * 3600000);
+  if (!shift) return '<span class="pill" style="background:#26332b;color:#9fb5aa">Геолокация: ждёт смены</span>';
+  return r.g === 1 ? '<span class="pill ok">Геолокация работает</span>' : '<span class="pill warn">Геолокация не работает на телефоне</span>';
 }
 function geoToggle() {
   if (!GCS.me) return go({sheet: 'geoconsent', gcx: {ok: false}});

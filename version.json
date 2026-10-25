@@ -1,9 +1,9 @@
 {
-    "content":  99,
+    "content":  100,
     "apk":  20,
-    "notes":  "Серая плашка «Геолокация: включится на смене», пока смена не начата.",
+    "notes":  "Веб-версия: окна разворачиваются свайпом так же, как в приложении; у менеджера зелёная плашка «Геолокация работает» на карточке курьера.",
     "contentFile":  "index.html",
-    "contentSha256":  "1a52dbcbf7965a6e71edb98ff9e6765ea12f4398084d000b97afad4406fe0da2",
+    "contentSha256":  "02674a598c6b866d55d621d895c631a67bf4781cd089cf4999f720ff02dab4b8",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }
