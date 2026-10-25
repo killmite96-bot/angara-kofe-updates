@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 110;
+const APP_VERSION = 111;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1673,7 +1673,7 @@ function ctxLeave() { if (CTXSHOWN && !(S.tab === 'chat' && S.th === CTXSHOWN.th
 function chatCtxPid(th, me) {
   if (S.chatPid) return S.chatPid;
   if (S.ctxOff) return null;
-  if (S.reTo && S.reTo.th === th && S.reTo.pid) return S.reTo.pid;   // отвечаете на сообщение с точкой: точка остаётся в ответе
+  if (S.reTo && S.reTo.th === th) return null;   // отвечаете на сообщение: точка сама не выбирается (в цитате она видна, а привязать её можно через скрепку)
   const msgs = thMsgs(th).filter(m => !m.del), rev = msgs.slice().reverse();
   const mine = rev.find(m => String(m.from) === String(me)), inc = rev.find(m => String(m.from) !== String(me) && m.pid);
   if (!inc || (mine && inc.ts <= mine.ts) || ctxDone().includes(String(inc.id))) return null;
