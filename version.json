@@ -1,9 +1,9 @@
 {
-    "content":  121,
+    "content":  122,
     "apk":  20,
-    "notes":  "Везде вместо рисунков станций показывается фото станции Herisson Coffee.",
+    "notes":  "Менеджер может менять названия позиций в «Подтоварке на точке» (значок карандаша).",
     "contentFile":  "index.html",
-    "contentSha256":  "f39d7a1b60e11efc82044093919b645912154bcc4df6f2cf56791a8f785992ff",
+    "contentSha256":  "b70eebcd1224e29b0af1f3977a600f66a9b61c7ed1210fafc4a2aaa71fed59e1",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }

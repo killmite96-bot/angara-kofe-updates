@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 121;
+const APP_VERSION = 122;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -305,6 +305,10 @@ const ING = [
   {id:'s2', n:'Сироп 2', t:'level', u:'бут', cap:1, r:1, st:1},
   {id:'s3', n:'Сироп 3', t:'level', u:'бут', cap:1, r:1, st:1}
 ];
+ING.forEach(g => { g.dn = g.n; });
+// названия ингредиентов менеджер может поменять (карандаш рядом с названием); новое название видят все
+let INGN = {};
+function ingApply(m) { INGN = m && typeof m === 'object' ? m : {}; ING.forEach(g => { g.n = INGN[g.id] || g.dn; }); }
 const WH = {straw:1500, cell:400, hold:900, coffee:18, cup:1400, lid:1300, sugar:14, milk:12, water:90, choc:6, raf:5, nap:18, stir:22, s1:6, s2:5, s3:7};
 const LV = ['пусто','¼','½','¾','полно'];
 const STN = {A:'«Кофе с собой» (дуб)', B:'«Зерновой кофе» (чёрная)', C:'HERISSON COFFEE', D:'«Кофе с собой» (серая)'};
@@ -1289,7 +1293,7 @@ function pointCard(id) {
   const mg = S.role === 'mgr';
   // у менеджера значения правятся прямо в карточке кнопками − и +
   const stp = (call, val) => `<div class="step"><button onclick="${call},-1)">−</button><span>${val}</span><button onclick="${call},1)">+</button></div>`;
-  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${gn(g, p)}</span><span>${mg ? stp(`mgBack(${p.id},'${g.id}'`, p.back[g.id] + ' ' + g.u) : `<b>${p.back[g.id]} ${g.u}</b>`}${nb > 0 ? ` <span class="pill warn">с базы ${nb}</span>` : ''}</span></div>`; }).join('') + '</div>';
+  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${gn(g, p)}${mg ? ` <span class="pen" onclick="openIng('${g.id}')" title="Изменить название">${ic('edit', 14)}</span>` : ''}</span><span>${mg ? stp(`mgBack(${p.id},'${g.id}'`, p.back[g.id] + ' ' + g.u) : `<b>${p.back[g.id]} ${g.u}</b>`}${nb > 0 ? ` <span class="pill warn">с базы ${nb}</span>` : ''}</span></div>`; }).join('') + '</div>';
   h += '<h3>Остатки на последний визит</h3>';
   p.units.forEach((u, i) => {
     if (p.units.length > 1) h += `<h3>Станция ${i + 1} · ${STN[u.st]}</h3>`;
@@ -1663,6 +1667,13 @@ function chatScreen() {
     <div class="row" style="gap:8px">${ed ? '' : `<button class="clipb" onclick="go({sheet:'attach'})" aria-label="Прикрепить">${ic('clip', 22)}</button>`}<input type="text" id="chatin" placeholder="Сообщение" value="${esc(S.chatDraft)}" oninput="S.chatDraft=this.value;composerSync();typingPing()" onkeydown="if(event.key==='Enter')sendChat()" style="margin:0"><button class="sendb${S.chatDraft.trim() || ed ? '' : ' mic'}" id="sendb" onclick="composerAct()">${S.chatDraft.trim() || ed ? ic('send', 18) : ic('mic', 20)}</button></div></div>`;
   return h;
 }
+function openIng(id) { if (S.role !== 'mgr') return; go({sheet:'ingn', ig:{id, text:(ING.find(x => x.id === id) || {}).n || ''}}); }
+function saveIng() {
+  const f = S.ig, g = ING.find(x => x.id === f.id); if (!g) return go({sheet:null, ig:null});
+  const v = f.text.trim().slice(0, 40), m = Object.assign({}, INGN);
+  if (v && v !== g.dn) m[g.id] = v; else delete m[g.id];
+  ingApply(m); go({sheet:null, ig:null, toast:v && v !== g.dn ? 'Название сохранено' : 'Название возвращено'});
+}
 function openSyr(pid, id) { go({sheet:'syr', sy:{pid, id, text:((pt(pid).syr || {})[id]) || ''}}); }
 function saveSyr() {
   const f = S.sy, p = pt(f.pid), v = f.text.trim().slice(0, 30), m = Object.assign({}, p.syr || {});
@@ -1962,6 +1973,14 @@ function sheet() {
       <input type="text" placeholder="Поиск по названию или адресу" autocomplete="off" oninput="chatPtFilter(this.value)" style="margin:10px 0 8px">
       <div id="chatptlist">${P.map(p => `<div class="card" data-s="${esc((p.name + ' ' + (p.addr || '')).toLowerCase())}" style="padding:10px 12px;cursor:pointer" onclick="go({sheet:null,chatPid:${p.id}})"><div class="row"><div style="color:var(--g)">${ic('pin', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(p.addr || '')}</div></div></div></div>`).join('')}</div>
       <button class="btn sec" style="margin-top:6px" onclick="go({sheet:null})">Отмена</button>`;
+  }
+  if (S.sheet === 'ingn' && S.ig) {
+    const f = S.ig, g = ING.find(x => x.id === f.id);
+    return `<h2>Название позиции</h2><div class="tiny">Было: ${esc(g.dn)}. Новое название увидят все: курьеры и менеджер.</div>
+      <input type="text" maxlength="40" value="${esc(f.text)}" oninput="S.ig.text=this.value" style="margin:10px 0 8px">
+      <button class="btn" style="margin-bottom:8px" onclick="saveIng()">Сохранить</button>
+      ${INGN[g.id] ? '<button class="btn sec" style="margin-bottom:8px" onclick="S.ig.text=\'\';saveIng()">Вернуть прежнее название</button>' : ''}
+      <button class="btn sec" onclick="go({sheet:null,ig:null})">Отмена</button>`;
   }
   if (S.sheet === 'syr') {
     const f = S.sy, p = pt(f.pid), g = ING.find(x => x.id === f.id), presets = ['Карамель', 'Ваниль', 'Шоколад', 'Лесной орех', 'Кокос', 'Вишня', 'Мята', 'Банан', 'Клубника', 'Солёная карамель'];
@@ -2724,7 +2743,7 @@ function api(path, body) {
   }), () => { throw new Error('Нет связи с сервером'); });
 }
 function docsFromState() {
-  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, LSEED}}, ld = {};
+  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, LSEED, INGN}}, ld = {};
   Object.keys(AV).forEach(k => { d['av/' + k] = AV[k]; });
   Object.keys(EX).forEach(k => { d['ex/' + k] = EX[k]; });
   Object.keys(INFO).forEach(k => { d['info/' + k] = INFO[k]; });
@@ -2795,7 +2814,7 @@ function applyDoc(k, v, dele) {
     COUR.forEach(c => ensureCour(c.id));
     if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
   } else if (h === 'core') {
-    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.LSEED) LSEED = true; }
+    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.LSEED) LSEED = true; ingApply(v.INGN); }
   } else if (h === 'av') {
     if (dele || !v) delete AV[p[1]]; else AV[p[1]] = v;
   } else if (h === 'ex') {
@@ -3925,6 +3944,7 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 .selbox{position:relative;z-index:2;width:22px;height:22px;border-radius:50%;border:2px solid #5a6b61;flex:none;display:flex;align-items:center;justify-content:center;color:#06150c;transition:background .15s,border-color .15s}
 .selbox.on{background:var(--g);border-color:var(--g)}
 #chatin:focus,#chatin:focus-visible{outline:none;box-shadow:none}
+.pen{display:inline-flex;vertical-align:-2px;margin-left:6px;color:var(--g);opacity:.85;cursor:pointer;padding:2px}.pen:active{opacity:.5}
 #netp{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-90px);z-index:29;background:#4a3414;color:#ffd9a0;border:1px solid #8a5a14;padding:6px 12px;border-radius:16px;font-size:12px;max-width:90%;text-align:center;transition:transform .35s cubic-bezier(.22,1,.36,1)}
 #netp.in{transform:translate(-50%,0)}
 #geop{position:fixed;left:12px;bottom:calc(var(--tabh,64px) + 12px + env(safe-area-inset-bottom));z-index:21;background:rgba(23,64,42,.92);color:#7be3a0;border:1px solid #2f9a4e;padding:5px 10px;border-radius:14px;font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer}
