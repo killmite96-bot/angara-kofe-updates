@@ -1,9 +1,9 @@
 {
-    "content":  44,
+    "content":  45,
     "apk":  10,
-    "notes":  "Уведомления: смахивание, кнопка «Прочитано», быстрый ответ из шторки; звук уведомлений; установка на экран без строки адреса.",
+    "notes":  "Чат: галочки отправлено/прочитано, в общем чате видно, кто прочитал.",
     "contentFile":  "index.html",
-    "contentSha256":  "e2f9049cdb2ca02656b057b3bc3c28cc6aaf6c92529ebe45c8d5ba0d0d1e65a3",
+    "contentSha256":  "2242c71764633050e9b592fc283a4fa4bf308374ab4f19786d524bb50eaaa03a",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "4435ff37b0ad74552394456e3f0d0c4299133694a680fb0a1d2a5652bc4da108"
+    "apkSha256":  "95877bed7d6776dc9515ed629e57a68789e2358c0794b52f3f4fdbb6d83862cb"
 }

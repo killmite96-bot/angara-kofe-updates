@@ -115,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 44;
+const APP_VERSION = 45;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -442,7 +442,7 @@ const CHAT = {
   1:[{id:'seed1', ts:1, from:'mgr', text:'Доброе утро! Сегодня 7 точек, 4 из них с мойкой. Начните с базы.', t:'08:05', pid:null, read:true}, {id:'seed2', ts:2, from:'cour', text:'Принял, выезжаю на базу.', t:'08:07', pid:null, read:true}],
   2:[]
 };
-const GCHAT = [], DMS = {};   // общий чат команды и личные чаты курьер↔курьер (ключ «меньший id-больший id»)
+const GCHAT = [], DMS = {}, RD = {};   // RD[беседа][читатель] = время последнего прочитанного сообщения (беседа: 'g' или пара 'a-b')   // общий чат команды и личные чаты курьер↔курьер (ключ «меньший id-больший id»)
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 function sendMsg(cid, from, text, pid) {
   const d = new Date(), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
@@ -1409,8 +1409,23 @@ const whAdj = (id, d) => { const g = ING.find(x => x.id === id); WH[id] = Math.m
 // Беседы: 'g' — общий чат всей команды, 'm:<id курьера>' — курьер и менеджер, 'd:<id курьера>' — личный чат курьер↔курьер (виден только им двоим)
 const meKey = () => S.role === 'mgr' ? 'mgr' : S.me;
 const dmKey = (a, b) => Math.min(a, b) + '-' + Math.max(a, b);
-const SEEN_KEY = 'angara_kofe_seen';
-let SEEN = {}; try { SEEN = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') || {}; } catch (e) {}
+// «прочитано до»: время последнего прочитанного сообщения у каждого читателя хранится на сервере (RD), поэтому видно и отправителю, и на других телефонах
+const rdKey = th => th === 'g' ? 'g' : th[0] === 'd' ? dmKey(S.me, +th.slice(2)) : null;
+const rdGet = (th, who) => { const k = rdKey(th); return (k && RD[k] && RD[k][who]) || 0; };
+function rdMark(th, ts) { const k = rdKey(th), me = String(meKey()); if (!k || !ts || rdGet(th, me) >= ts) return; (RD[k] = RD[k] || {})[me] = ts; }
+const grpRecips = m => ['mgr', ...COUR.filter(c => c.active).map(c => c.id)].filter(x => String(x) !== String(m.from));
+// галочки у своих сообщений: ✓ отправлено на сервер, ✓✓ серые — прочитали не все (в общем чате), ✓✓ зелёные — прочитал собеседник / все
+function ticks(th, m) {
+  const key = th[0] === 'm' ? 'msg/' + th.slice(2) + '/' + m.id : th === 'g' ? 'gmsg/' + m.id : 'dm/' + rdKey(th) + '/' + m.id;
+  if (SRV && SY.mirror[key] === undefined) return '<span style="opacity:.6">…</span>';
+  let lv = 1;
+  if (th[0] === 'm') lv = m.read ? 3 : 1;
+  else if (th === 'g') { const r = grpRecips(m), n = r.filter(x => rdGet('g', x) >= m.ts).length; lv = !r.length || !n ? 1 : n < r.length ? 2 : 3; }
+  else lv = rdGet(th, +th.slice(2)) >= m.ts ? 3 : 1;
+  const col = lv === 3 ? '#5dffa0' : '#9fb5aa';
+  return `<span style="color:${col};font-weight:700;letter-spacing:-2px;${th === 'g' ? 'cursor:pointer' : ''}" ${th === 'g' ? `onclick="go({sheet:'readers',rdm:'${m.id}'})"` : ''}>${lv === 1 ? '✓' : '✓✓'}</span>`;
+}
+
 function thMsgs(th) {
   if (th === 'g') return GCHAT;
   if (th[0] === 'd') return DMS[dmKey(S.me, +th.slice(2))] || [];
@@ -1419,7 +1434,7 @@ function thMsgs(th) {
 const thUnread = th => {
   const a = thMsgs(th);
   if (th[0] === 'm') { const me = S.role === 'mgr' ? 'mgr' : 'cour'; return a.filter(m => m.from !== me && !m.read).length; }
-  const k = String(meKey()), seen = SEEN[th] || 0;
+  const k = String(meKey()), seen = rdGet(th, meKey());
   return a.filter(m => String(m.from) !== k && m.ts > seen).length;
 };
 function thList() {
@@ -1449,7 +1464,7 @@ function chatScreen() {
   }
   const th = S.th, msgs = thMsgs(th), me = th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey();
   if (th[0] === 'm') msgs.forEach(m => { if (m.from !== me) m.read = true; });
-  else if (msgs.length) { SEEN[th] = msgs[msgs.length - 1].ts; try { localStorage.setItem(SEEN_KEY, JSON.stringify(SEEN)); } catch (e) {} }
+  else if (msgs.length) rdMark(th, msgs[msgs.length - 1].ts);
   NOTIFS.forEach(n => { if (n.kind === 'chat' && n.to === nkey() && (n.th || 'm:' + n.cid) === th) n.read = true; });
   const inc = msgs.slice().reverse().find(m => String(m.from) !== String(me) && m.pid), ctx = S.chatPid || (inc && !S.ctxOff ? inc.pid : null);
   let h = topbar(thTitle(th), '<button class="back" style="margin:0" onclick="go({th:null})">‹ Все чаты</button>');
@@ -1457,7 +1472,7 @@ function chatScreen() {
   if (!msgs.length) h += '<div class="card t2">Пока сообщений нет.</div>';
   msgs.forEach(m => {
     const mine = String(m.from) === String(me);
-    h += `<div class="msg ${mine ? 'me' : 'them'}">${!mine && th === 'g' ? `<div class="tiny" style="margin-bottom:3px;color:var(--g)">${esc(sender(m.from))}</div>` : ''}${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="openPoint(${m.pid})">${ic('pin', 13)} ${pt(m.pid) ? pt(m.pid).name : 'точка'}</div>` : ''}<div>${esc(m.text)}</div><div class="mt">${m.t}</div></div>`;
+    h += `<div class="msg ${mine ? 'me' : 'them'}">${!mine && th === 'g' ? `<div class="tiny" style="margin-bottom:3px;color:var(--g)">${esc(sender(m.from))}</div>` : ''}${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="openPoint(${m.pid})">${ic('pin', 13)} ${pt(m.pid) ? pt(m.pid).name : 'точка'}</div>` : ''}<div>${esc(m.text)}</div><div class="mt">${m.t}${mine ? ' ' + ticks(th, m) : ''}</div></div>`;
   });
   h += `</div><div style="background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">Ответ по точке: ${pt(ctx) ? pt(ctx).name : ''} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true,chatPid:null})">✕</span></div>`
     : `<div style="margin-bottom:6px"><button class="btn sec sm" onclick="go({sheet:'chatpt'})">${ic('pin', 15)} Привязать точку</button></div>`}
@@ -1696,6 +1711,13 @@ function sheet() {
       <button class="btn" style="margin-bottom:8px" onclick="saveSyr()">Сохранить</button>
       ${(p.syr || {})[g.id] ? '<button class="btn sec" style="margin-bottom:8px" onclick="S.sy.text=\'\';saveSyr()">Убрать название вкуса</button>' : ''}
       <button class="btn sec" onclick="go({sheet:null,sy:null})">Отмена</button>`;
+  }
+  if (S.sheet === 'readers') {
+    const m = GCHAT.find(x => sameId(x.id, S.rdm)); if (!m) return '<h2>Сообщение удалено</h2><button class="btn sec" onclick="go({sheet:null})">Закрыть</button>';
+    const r = grpRecips(m), yes = r.filter(x => rdGet('g', x) >= m.ts), no = r.filter(x => rdGet('g', x) < m.ts), nm = x => x === 'mgr' ? MGR.name : (cr(+x) || {name:'?'}).name;
+    const row = (x, ok) => `<div class="chk"><div class="box ${ok ? 'on' : ''}">${ok ? '✓' : ''}</div><div class="grow t1" style="font-size:14px">${esc(nm(x))}</div></div>`;
+    return `<h2>Кто прочитал</h2><div class="tiny">${esc(m.text.slice(0, 80))}</div><div class="card" style="margin-top:8px">${yes.map(x => row(x, true)).join('') + no.map(x => row(x, false)).join('') || '<div class="t2">Получателей нет.</div>'}</div>
+      <div class="tiny">Одна серая галочка: отправлено. Две серые: прочитали не все. Две зелёные: прочитали все.</div><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
   }
   if (S.sheet === 'info') return infoSheet();
   if (S.sheet === 'move') return mvSheet();
@@ -2149,7 +2171,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, GCHAT, DMS, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, GCHAT, DMS, RD, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -2159,7 +2181,7 @@ function restoreData(txt) {
   replaceArr(P, d.P); P.forEach(p => { p.units.forEach(u => { u.loc = p; }); const s = PTS_SRC[p.id - 1]; if (s && s[0] === p.name) { p.lat = s[5]; p.lon = s[6]; } });
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
-  replaceObj(CHAT, d.CHAT); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
+  replaceObj(CHAT, d.CHAT); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
   nid = d.nid; CITY = d.CITY;
   if (d.sess && d.sess.role && (d.sess.role === 'mgr' || cr(d.sess.me))) Object.assign(S, d.sess, {view:null, sheet:null, cam:null, shade:false});
@@ -2286,6 +2308,7 @@ function docsFromState() {
   NOTIFS.forEach(n => { d['ntf/' + n.to + '/' + n.id] = n; });
   Object.keys(CHAT).forEach(c => CHAT[c].forEach(m => { d['msg/' + c + '/' + m.id] = m; }));
   GCHAT.forEach(m => { d['gmsg/' + m.id] = m; });
+  Object.keys(RD).forEach(k => Object.keys(RD[k]).forEach(u => { d['rd/' + k + '/' + u] = {ts:RD[k][u]}; }));
   Object.keys(DMS).forEach(k => DMS[k].forEach(m => { d['dm/' + k + '/' + m.id] = m; }));
   reviews.forEach(r => { d['rev/' + r.id] = r; });
   return d;
@@ -2295,6 +2318,7 @@ function canWriteKey(k, v) {
   if (SY.role === 'mgr') return k !== 'cour' && k !== 'wk' && !k.startsWith('dm/');
   const p = k.split('/'), h = p[0], me = String(SY.cid);
   if (h === 'gmsg') return !v || String(v.from) === me;
+  if (h === 'rd') return p[2] === me && (p[1] === 'g' || p[1].split('-').includes(me));
   if (h === 'dm') return p[1].split('-').includes(me) && (!v || String(v.from) === me);
   if (h === 'pt' || h === 'wh') return true;
   if (h === 'sched' || h === 'ld' || h === 'msg' || h === 'av' || h === 'prog' || h === 'mv') return p[1] === me;
@@ -2356,6 +2380,8 @@ function applyDoc(k, v, dele) {
     upsert(NOTIFS, dele ? {id:p[2]} : v, dele, byTsDesc);
   } else if (h === 'msg') {
     const c = +p[1]; ensureCour(c); upsert(CHAT[c], dele ? {id:p[2]} : v, dele, byTsAsc);
+  } else if (h === 'rd') {
+    const m = RD[p[1]] = RD[p[1]] || {}; if (dele || !v) delete m[p[2]]; else m[p[2]] = v.ts;
   } else if (h === 'gmsg') {
     upsert(GCHAT, dele ? {id:p[1]} : v, dele, byTsAsc);
   } else if (h === 'dm') {
@@ -2366,7 +2392,7 @@ function applyDoc(k, v, dele) {
 }
 function resetFromDocs(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
-  [CHAT, DMS, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
+  [CHAT, DMS, RD, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
   SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
     if (d.dele) return;
