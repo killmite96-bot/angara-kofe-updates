@@ -128,7 +128,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 63;
+const APP_VERSION = 64;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1828,6 +1828,14 @@ function sheet() {
       ${own ? `<button class="btn sec" style="margin-bottom:6px" onclick="msgEdit()">${ic('edit', 16)} Изменить</button><button class="btn sec" style="margin-bottom:6px;color:#ffb0b0" onclick="go({ma:{th:'${f.th}',id:'${f.id}',del:true}})">${ic('trash', 16)} Удалить</button>` : ''}
       <button class="btn sec" onclick="go({sheet:null,ma:null})">Закрыть</button>`;
   }
+  if (S.sheet === 'pushhelp') {
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const steps = ios
+      ? '<div class="chk"><div class="box">1</div><div class="grow" style="font-size:14px">Откройте «Настройки» iPhone</div></div><div class="chk"><div class="box">2</div><div class="grow" style="font-size:14px">«Уведомления» → «Ангара Кофе»</div></div><div class="chk"><div class="box">3</div><div class="grow" style="font-size:14px">Включите «Допуск уведомлений»</div></div>'
+      : '<div class="chk"><div class="box">1</div><div class="grow" style="font-size:14px">Нажмите и удерживайте значок «Ангара Кофе» на рабочем столе</div></div><div class="chk"><div class="box">2</div><div class="grow" style="font-size:14px">Выберите «О приложении» (значок ⓘ)</div></div><div class="chk"><div class="box">3</div><div class="grow" style="font-size:14px">«Уведомления» → включите переключатель</div></div><div class="tiny" style="margin-top:8px">Если приложение открыто в Chrome, а не с рабочего стола: значок слева от адреса → «Настройки сайта» → «Уведомления» → «Разрешить».</div>';
+    return `<h2>Включите уведомления</h2><div class="tiny">Телефон запретил приложению показывать уведомления. Сайт не может открыть настройки сам, поэтому сделайте три шага, а потом вернитесь сюда: приложение само увидит, что всё включено.</div><div class="card" style="margin-top:8px">${steps}</div>
+      <button class="btn" style="margin:8px 0 6px" onclick="pushRecheck()">Я включил, проверить</button><button class="btn sec" onclick="go({sheet:null})">Закрыть</button>`;
+  }
   if (S.sheet === 'info') return infoSheet();
   if (S.sheet === 'move') return mvSheet();
   if (S.sheet === 'mvno') return mvNoSheet();
@@ -2822,11 +2830,21 @@ async function pushSubscribe() {
 }
 function pushEnable() {
   if (!pushCan()) return go({toast:'Сначала добавьте приложение на экран «Домой» и откройте его с иконки'});
+  if (Notification.permission === 'denied') return go({sheet:'pushhelp'});   // повторно спросить разрешение уже нельзя: показываем, где включить
   Notification.requestPermission().then(p => {
-    if (p !== 'granted') return go({toast:'Уведомления запрещены в настройках телефона'});
+    if (p !== 'granted') return go({sheet:'pushhelp'});
     return pushSubscribe().then(() => go({toast:'Уведомления включены'}));
   }).catch(e => go({toast:e.message || 'Не удалось включить уведомления'}));
 }
+function pushRecheck() {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') pushSubscribe().then(() => go({sheet:null, toast:'Уведомления включены'})).catch(e => go({toast:e.message || 'Не удалось включить'}));
+  else go({toast:'Пока выключено: включите уведомления в настройках и вернитесь'});
+}
+document.addEventListener('visibilitychange', () => {   // вернулись из настроек телефона
+  if (document.hidden) return;
+  if (S.sheet === 'pushhelp' && typeof Notification !== 'undefined' && Notification.permission === 'granted') pushRecheck();
+  else if (S.sheet === 'profile') render(true);
+});
 function pushDisable() {
   const done = () => { try { localStorage.removeItem(PUSH_KEY); } catch (e) {} go({toast:'Уведомления выключены'}); };
   navigator.serviceWorker.getRegistration('/sw.js').then(r => r && r.pushManager.getSubscription()).then(s => s ? api('/api/push-unsub', {sub:s.toJSON()}).then(() => s.unsubscribe()) : null).then(done, done);
@@ -2836,12 +2854,15 @@ function pushBlock() {
   if (pushIsApp()) {   // приложение для Android: можно отключить постоянную связь «на связи», чтобы экономить батарею
     let on = true, can = false;
     try { can = typeof AndroidBridge.liveEnabled === 'function'; if (can) on = AndroidBridge.liveEnabled(); } catch (e) {}
-    if (!can) return '';
-    return '<h3>Мгновенные сообщения</h3><div class="card"><div class="tiny" style="margin-bottom:8px">' + (on ? 'Включены: сообщения и фото приходят сразу, в шторке висит значок «Ангара Кофе на связи». Он нужен Android, чтобы не усыплять соединение; расход батареи небольшой, но постоянный.' : 'Выключены: уведомления проверяются примерно раз в 15 минут, значок в шторке не нужен, батарея экономится. Пока приложение открыто, сообщения приходят сразу.') + '</div><button class="btn ' + (on ? 'sec ' : '') + 'sm" onclick="try{AndroidBridge.setLive(' + (!on) + ')}catch(e){};render(true)">' + (on ? 'Выключить мгновенные сообщения' : 'Включить мгновенные сообщения') + '</button></div>';
+    let nOff = false; try { nOff = typeof AndroidBridge.notifAllowed === 'function' && !AndroidBridge.notifAllowed(); } catch (e) {}
+    const offCard = nOff ? '<h3>Уведомления</h3><div class="card" style="border-color:var(--o)"><div class="t1" style="font-size:14px">Уведомления выключены в настройках телефона</div><div class="tiny" style="margin:4px 0 8px">Сообщения и фото не будут показываться, пока приложение закрыто. Откроем настройки приложения: там достаточно включить переключатель.</div><button class="btn sm" onclick="try{AndroidBridge.openNotifSettings()}catch(e){}">Открыть настройки уведомлений</button></div>' : '';
+    if (!can) return offCard;
+    return offCard + '<h3>Мгновенные сообщения</h3><div class="card"><div class="tiny" style="margin-bottom:8px">' + (on ? 'Включены: сообщения и фото приходят сразу, в шторке висит значок «Ангара Кофе на связи». Он нужен Android, чтобы не усыплять соединение; расход батареи небольшой, но постоянный.' : 'Выключены: уведомления проверяются примерно раз в 15 минут, значок в шторке не нужен, батарея экономится. Пока приложение открыто, сообщения приходят сразу.') + '</div><button class="btn ' + (on ? 'sec ' : '') + 'sm" onclick="try{AndroidBridge.setLive(' + (!on) + ')}catch(e){};render(true)">' + (on ? 'Выключить мгновенные сообщения' : 'Включить мгновенные сообщения') + '</button></div>';
   }
   if (!SRV) return '';
   if (!pushCan()) return '<h3>Уведомления</h3><div class="card"><div class="tiny">На iPhone: откройте адрес приложения в Safari, затем «Поделиться» → «На экран Домой», запустите приложение с иконки и включите уведомления здесь. Нужен iOS 16.4 или новее.</div></div>';
-  return '<h3>Уведомления</h3><div class="card"><div class="tiny" style="margin-bottom:8px">' + (pushOn() ? 'Включены: сообщения и задачи придут, даже если приложение закрыто.' : 'Включите, чтобы получать сообщения и задачи, когда приложение закрыто.') + '</div>' + (pushOn() ? '<button class="btn sec sm" onclick="pushDisable()">Выключить уведомления</button>' : '<button class="btn sm" onclick="pushEnable()">Включить уведомления</button>') + '</div>';
+  const denied = typeof Notification !== 'undefined' && Notification.permission === 'denied';
+  return '<h3>Уведомления</h3><div class="card"' + (denied ? ' style="border-color:var(--o)"' : '') + '><div class="tiny" style="margin-bottom:8px">' + (pushOn() ? 'Включены: сообщения и задачи придут, даже если приложение закрыто.' : denied ? 'Выключены в настройках телефона. Нажмите кнопку, мы покажем, где их включить.' : 'Включите, чтобы получать сообщения и задачи, когда приложение закрыто.') + '</div>' + (pushOn() ? '<button class="btn sec sm" onclick="pushDisable()">Выключить уведомления</button>' : '<button class="btn sm" onclick="pushEnable()">Включить уведомления</button>') + '</div>';
 }
 function startServerSession(j, l, rem) {
   let seed = false;

@@ -1,9 +1,9 @@
 {
-    "content":  63,
-    "apk":  14,
-    "notes":  "Свайп назад: зона захвата у левого края шире.",
+    "content":  64,
+    "apk":  15,
+    "notes":  "Уведомления: если запрещены в настройках телефона, кнопка открывает настройки (Android-приложение) или показывает, где включить.",
     "contentFile":  "index.html",
-    "contentSha256":  "3d19816dcf96061840f5211b2d3fd34f21ac73b69eadd9c412f432a2492ca03c",
+    "contentSha256":  "5b35cf11cb672a1677eceeaacb0d433e9e0c51671ca76237559c3738100aa7e3",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "5a3220d98395bbd932527f881ed2c8d972be22d6e1f0fca8e686949666bc6fa8"
+    "apkSha256":  "3cf1e0fe6734e7cb9d67baaadcf2a86499cd4b2876e6c0cb584a3ef96974ebe6"
 }
