@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 98;
+const APP_VERSION = 99;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -3858,6 +3858,7 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 #netp{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-90px);z-index:29;background:#4a3414;color:#ffd9a0;border:1px solid #8a5a14;padding:6px 12px;border-radius:16px;font-size:12px;max-width:90%;text-align:center;transition:transform .35s cubic-bezier(.22,1,.36,1)}
 #netp.in{transform:translate(-50%,0)}
 #geop{position:fixed;left:12px;bottom:calc(var(--tabh,64px) + 12px + env(safe-area-inset-bottom));z-index:21;background:rgba(23,64,42,.92);color:#7be3a0;border:1px solid #2f9a4e;padding:5px 10px;border-radius:14px;font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer}
+#geop.wait{background:rgba(35,46,40,.92);color:#9fb5aa;border-color:#4a5a51}
 #upl{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translate(-50%,-80px);z-index:30;background:#1c2b22;border:1px solid var(--line);padding:8px 14px;border-radius:20px;font-size:13px;display:flex;align-items:center;gap:8px;transition:transform .35s cubic-bezier(.22,1,.36,1)}
 #upl.in{transform:translate(-50%,0)}
 #upl i{width:14px;height:14px;border-radius:50%;border:2px solid var(--g);border-top-color:transparent;animation:spin .8s linear infinite}
@@ -4355,9 +4356,13 @@ function geoFix(c) {
 }
 function geoPill() {
   let e = document.getElementById('geop');
-  const on = geoWanted() && (geoApp() ? geoPermApp() > 0 : GEO.w !== null);
-  if (!on) { if (e) e.remove(); return; }
-  if (!e) { e = document.createElement('div'); e.id = 'geop'; e.innerHTML = ic('pin', 13) + ' Геолокация включена'; e.onclick = () => go({sheet: 'profile'}); document.body.appendChild(e); }
+  const act = geoWanted() && (geoApp() ? geoPermApp() > 0 : GEO.w !== null);
+  const wait = !act && S.role === 'cour' && !!(GCS.me && GCS.me.on) && !shActive() && !offKind(S.me, TODAY);   // определение включено, но смена ещё не началась
+  if (!act && !wait) { if (e) e.remove(); return; }
+  const txt = act ? ic('pin', 13) + ' Геолокация включена' : ic('pin', 13) + ' Геолокация: включится на смене';
+  if (!e) { e = document.createElement('div'); e.id = 'geop'; e.onclick = () => go({sheet: 'profile'}); document.body.appendChild(e); }
+  e.classList.toggle('wait', !act);
+  if (e.dataset.t !== txt) { e.dataset.t = txt; e.innerHTML = txt; }
 }
 function geoToggle() {
   if (!GCS.me) return go({sheet: 'geoconsent', gcx: {ok: false}});
