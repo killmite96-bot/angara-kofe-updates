@@ -146,6 +146,9 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 #app.enter .body>*:nth-child(2){animation-delay:.04s}#app.enter .body>*:nth-child(3){animation-delay:.08s}#app.enter .body>*:nth-child(4){animation-delay:.12s}#app.enter .body>*:nth-child(5){animation-delay:.16s}#app.enter .body>*:nth-child(6){animation-delay:.2s}#app.enter .body>*:nth-child(7){animation-delay:.24s}#app.enter .body>*:nth-child(8){animation-delay:.28s}#app.enter .body>*:nth-child(n+9){animation-delay:.32s}
 #app.enterlist .body>*:not(.days):not(.chips){animation:fadeup .38s cubic-bezier(.22,1,.36,1) both}
 #app.enterlist .body>*:nth-child(2){animation-delay:.03s}#app.enterlist .body>*:nth-child(3){animation-delay:.06s}#app.enterlist .body>*:nth-child(4){animation-delay:.09s}#app.enterlist .body>*:nth-child(5){animation-delay:.12s}#app.enterlist .body>*:nth-child(6){animation-delay:.15s}#app.enterlist .body>*:nth-child(7){animation-delay:.18s}#app.enterlist .body>*:nth-child(8){animation-delay:.21s}#app.enterlist .body>*:nth-child(n+9){animation-delay:.24s}
+@keyframes settle{from{opacity:.72;transform:translateY(12px)}to{opacity:1;transform:none}}
+#app.enterback .body>*{animation:settle .45s cubic-bezier(.22,1,.36,1) both}
+#app.enterback .body>*:nth-child(2){animation-delay:.03s}#app.enterback .body>*:nth-child(3){animation-delay:.06s}#app.enterback .body>*:nth-child(4){animation-delay:.09s}#app.enterback .body>*:nth-child(5){animation-delay:.12s}#app.enterback .body>*:nth-child(6){animation-delay:.15s}#app.enterback .body>*:nth-child(7){animation-delay:.18s}#app.enterback .body>*:nth-child(8){animation-delay:.21s}#app.enterback .body>*:nth-child(n+9){animation-delay:.24s}
 @keyframes ovin{from{opacity:0}to{opacity:1}}
 @keyframes sheetup{0%{transform:translateY(100%)}72%{transform:translateY(-1.6%)}100%{transform:none}}
 @keyframes sheetdown{0%{transform:translateY(-100%)}72%{transform:translateY(1.6%)}100%{transform:none}}
@@ -191,7 +194,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 75;
+const APP_VERSION = 76;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -3029,7 +3032,7 @@ function uiAfterRender() {
   const key = renderKey();
   const sub = S.tab === 'sched' && !S.view ? 'd' + S.day + (S.mc !== undefined && S.role === 'mgr' ? 'c' + S.mc : '') : S.tab === 'plan' && !S.view ? 'd' + S.day + 'c' + S.mc : '';   // день недели / курьер на экранах с выбором: список тоже «въезжает»
   app.classList.toggle('enter', key !== LASTKEY && !FX_OFF && !NAVDIR);   // при выезде/уезде экрана список не «проявляется» заново: иначе при возврате из остатков экран мигал
-  app.classList.remove('enterlist');
+  app.classList.remove('enterlist'); app.classList.toggle('enterback', NAVDIR < 0 && !FX_OFF);   // возврат назад: список мягко «оседает» (без полного исчезновения, чтобы не мигало)
   LASTKEY = key;
   const tp = app.querySelector('.top'), bd = app.querySelector('.body');
   if (tp) tp.classList.add('nt');   // пока подгоняем заголовок и состояние шапки, анимации выключены: иначе надпись «прыгала» после каждой перерисовки
