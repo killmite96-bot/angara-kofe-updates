@@ -1,9 +1,9 @@
 {
-    "content":  52,
+    "content":  53,
     "apk":  13,
-    "notes":  "Заставка при запуске приложения, устойчивая высота окна без «подёргивания».",
+    "notes":  "Заставка с извивающимся паром; заставка и для приложения из Chrome; исправление «подёргивания» при запуске.",
     "contentFile":  "index.html",
-    "contentSha256":  "576cf7866383234f3df8eea6946b8ceb1858a404ea6347cd3cc31aed0fb04627",
+    "contentSha256":  "15f991a931017570cfa4ae53d7c63374bead8c4d672f7c6e9d1f0af2c01685dd",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "b49968c77ae968f088759cf5f6968f6abb732234ed4549c089a6ea81d9e0cd0b"
+    "apkSha256":  "848333d4b14449cdbe4d2d61acf9861ada11bb4d8439a368ca4ffe8ba79ccd70"
 }
