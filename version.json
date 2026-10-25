@@ -1,9 +1,9 @@
 {
-    "content":  86,
+    "content":  87,
     "apk":  19,
-    "notes":  "Удалять точки может только менеджер.",
+    "notes":  "Время смены и статусов теперь ставит сервер: часы телефона на них не влияют.",
     "contentFile":  "index.html",
-    "contentSha256":  "efec39b1773664ae0d4f7beaed1b0045441dbe6a3fa62513fdf3a4b0dad8b9e0",
+    "contentSha256":  "d57bd5bc64291e90c329f91c588efc393f9b1a8fc13993e151cbb79ecd442850",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "08078f3093bb889c4eaa9097c97e8a044acdf501a57ac927e064aff5d3ace410"
 }

@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 86;
+const APP_VERSION = 87;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -4029,18 +4029,25 @@ function attachFile(f) {
 }
 
 /* ----- статусы «в сети / отошёл / не в сети» ----- */
+// часы сервера: время смены и статусов ставит сервер, поэтому показываем его по часам сервера (разница с часами телефона не важна)
+let SKEW = 0, SKEWT = 0;
+const sNow = () => Date.now() + SKEW;
+function skewSync() {
+  if (!SRV || Date.now() - SKEWT < 600000) return; SKEWT = Date.now(); const t0 = Date.now();
+  fetch(SRV + '/api/ping').then(r => r.json()).then(j => { if (j && j.now) { SKEW = j.now - (t0 + Date.now()) / 2; prRefresh(); } }).catch(() => {});
+}
 let LASTACT = Date.now(), PRLAST = 0;
 ['touchstart', 'pointerdown', 'keydown', 'scroll', 'click'].forEach(ev => document.addEventListener(ev, () => { const was = Date.now() - LASTACT > 110000; LASTACT = Date.now(); if (was) { PRLAST = 0; prBeat(); } }, {passive: true, capture: true}));
 const prKey = () => S.role === 'mgr' ? 'mgr' : String(S.me);
 const prMine = () => (PR[prKey()] = PR[prKey()] || {});
 function prBeat() {
-  if (!SY.on || !S.role) return; const now = Date.now();
+  if (!SY.on || !S.role) return; skewSync(); const now = Date.now();
   if (now - PRLAST < 30000) return; PRLAST = now;
   const r = prMine(); r.t = now; r.v = document.hidden ? 0 : 1; r.a = LASTACT; pushSoon();
 }
 document.addEventListener('visibilitychange', () => { PRLAST = 0; prBeat(); if (document.hidden && SY.on) pushChanges(); });
 function prInfo(key) {
-  const r = PR[key], now = Date.now();
+  const r = PR[key], now = sNow();
   if (!r || !r.t) return {s: 'off', txt: 'Не в сети'};
   const age = now - r.t, idle = (r.t - (r.a || 0)) > 120000;
   if (age < 110000 && r.v && !idle) return {s: 'on', txt: 'В сети'};
@@ -4049,9 +4056,9 @@ function prInfo(key) {
   return {s: 'off', txt: 'Не в сети · был(а) в сети ' + (m < 60 ? m + ' мин' : m < 1440 ? Math.floor(m / 60) + ' ч' : 'больше суток') + ' назад'};
 }
 function lcText(key) {
-  const r = PR[key], l = r && r.lc; if (!l || new Date(l.ts).toDateString() !== new Date().toDateString()) return '';
+  const r = PR[key], l = r && r.lc; if (!l || new Date(l.ts).toDateString() !== new Date(sNow()).toDateString()) return '';
   const p = l.pid ? pt(l.pid) : null, nm = p ? '«' + p.name + '»' : '';
-  const k = l.k === 'prep' && Date.now() - l.ts >= 300000 ? 'way' : l.k;
+  const k = l.k === 'prep' && sNow() - l.ts >= 300000 ? 'way' : l.k;
   return k === 'at' ? 'Сейчас на точке ' + nm : k === 'prep' ? 'Собирается на ' + nm : k === 'way' ? 'В пути на ' + nm : k === 'base' ? 'На базе' : k === 'done' ? 'Закончил(а) маршрут' : k === 'end' ? 'Смена завершена' : '';
 }
 function prInner(key, withLoc) { let t = prInfo(key).txt; if (withLoc) { const l = lcText(key); if (l) t += ' · ' + l; } return '<i></i>' + esc(t); }
@@ -4060,7 +4067,7 @@ function mglInner(cid) {
   const k = String(cid), r = PR[k], l = lcText(k), s = r && r.sh;
   let h = `<div style="margin-top:3px">${prHTML(k)}</div>`;
   if (l) h += `<div class="t2" style="color:var(--g)">${ic('pin', 13)} ${esc(l)}</div>`;
-  if (s && new Date(s.s).toDateString() === new Date().toDateString()) h += `<div class="tiny">${s.e ? 'Смена: ' + hm(s.s) + '–' + hm(s.e) + ' · ' + durTxt(Math.round((s.e - s.s) / 60000)) : 'На смене с ' + hm(s.s) + ' · ' + durTxt(Math.round((Date.now() - s.s) / 60000))}</div>`;
+  if (s && new Date(s.s).toDateString() === new Date(sNow()).toDateString()) h += `<div class="tiny">${s.e ? 'Смена: ' + hm(s.s) + '–' + hm(s.e) + ' · ' + durTxt(Math.round((s.e - s.s) / 60000)) : 'На смене с ' + hm(s.s) + ' · ' + durTxt(Math.round((sNow() - s.s) / 60000))}</div>`;
   return h;
 }
 function prRefresh() {
@@ -4072,8 +4079,8 @@ function prRefresh() {
 /* ----- где курьер сейчас ----- */
 function lcSet(k, pid, text) {
   if (S.role !== 'cour') return; const r = prMine(), o = r.lc;
-  if (o && o.k === k && o.pid === (pid || 0) && Date.now() - o.ts < 600000) return;
-  r.lc = {k, pid: pid || 0, ts: Date.now()};
+  if (o && o.k === k && o.pid === (pid || 0) && sNow() - o.ts < 600000) return;
+  r.lc = {k, pid: pid || 0, ts: sNow()};
   if (text) notify('mgr', 'loc', text);
   PRLAST = 0; prBeat(); pushSoon();
 }
@@ -4090,29 +4097,29 @@ function lcTick() {}   // «в пути на …» через 5 минут, ав
 
 /* ----- смена ----- */
 const shMine = () => (PR[prKey()] || {}).sh || null;
-const shActive = () => { const s = S.role === 'cour' ? shMine() : null; return !!(s && s.s && !s.e && Date.now() - s.s < 20 * 3600000); };
-const shiftDur = () => { const s = shMine(); return s && s.s ? durTxt(Math.round(((s.e || Date.now()) - s.s) / 60000)) : ''; };
+const shActive = () => { const s = S.role === 'cour' ? shMine() : null; return !!(s && s.s && !s.e && sNow() - s.s < 20 * 3600000); };
+const shiftDur = () => { const s = shMine(); return s && s.s ? durTxt(Math.round(((s.e || sNow()) - s.s) / 60000)) : ''; };
 function shiftBlock() {
   if (S.role !== 'cour') return '';
-  const s = shMine(), today = s && new Date(s.s).toDateString() === new Date().toDateString();
+  const s = shMine(), today = s && new Date(s.s).toDateString() === new Date(sNow()).toDateString();
   if (shActive()) return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('clock', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Вы на смене</div><div class="t2">с ${hm(s.s)} · <span data-shiftt>${shiftDur()}</span></div></div><button class="btn sec sm" onclick="shiftEnd()">Завершить смену</button></div></div>`;
   if (s && s.e && today) return `<div class="tiny" style="margin:0 2px 8px;opacity:.85">Смена завершена${s.auto ? ' автоматически' : ''}: ${hm(s.s)}–${hm(s.e)} · ${shiftDur()}</div>`;
   if (!L(S.me, TODAY).length) return '';
   return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('flag', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Начало смены</div><div class="t2">Нажмите, когда приедете на склад: менеджер увидит, что вы вышли</div></div><button class="btn sm" onclick="shiftStart()">Выйти на смену</button></div></div>`;
 }
 function shiftStart() {
-  const r = prMine(), now = Date.now(); r.sh = {s: now}; r.lc = {k: 'base', pid: 0, ts: now};
+  const r = prMine(), now = sNow(); r.sh = {s: now}; r.lc = {k: 'base', pid: 0, ts: now};
   notify('mgr', 'loc', cr(S.me).name + ' заступил(а) на смену'); uiSnd('done'); haptic([14, 30, 14]);
   PRLAST = 0; prBeat(); pushSoon(); go({toast: 'Смена началась. Хорошей работы!'});
 }
 function shiftEnd() {
   const r = prMine(), s = r.sh; if (!s || s.e) return celebClose();
-  const now = Date.now(); r.sh = {s: s.s, e: now}; r.lc = {k: 'end', pid: 0, ts: now};
+  const now = sNow(); r.sh = {s: s.s, e: now}; r.lc = {k: 'end', pid: 0, ts: now};
   const m = Math.round((now - s.s) / 60000);
   notify('mgr', 'loc', cr(S.me).name + ' завершил(а) смену · ' + durTxt(m));
   celebClose(); uiSnd('done'); PRLAST = 0; prBeat(); pushSoon(); go({toast: 'Смена завершена · ' + durTxt(m)});
 }
-setInterval(() => { if (!S.role) return; prBeat(); lcTick(); prRefresh(); }, 20000);
+setInterval(() => { if (!S.role) return; skewSync(); prBeat(); lcTick(); prRefresh(); }, 20000);
 
 /* ----- «Требует инструмент» и камера на точке ----- */
 const toolPill = p => p.tool && p.tool.on ? `<span class="pill warn" title="Требует инструмент">${ic('pliers', 13)} инструмент</span>` : '';
