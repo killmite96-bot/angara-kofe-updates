@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 107;
+const APP_VERSION = 108;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -674,30 +674,40 @@ function replyNotif(id) {
   const i = NOTIFS.indexOf(n); if (i >= 0) NOTIFS.splice(i, 1);   // на сообщение ответили: плашка больше не нужна
   S.nr = null; POP = null; go({toast:'Ответ отправлен'});
 }
-// карточку уведомления можно смахнуть в сторону, чтобы убрать
+// карточку уведомления можно смахнуть в сторону, чтобы убрать (как в iPhone: порог по расстоянию или быстрый «щелчок» пальцем)
+const SWL = {on: false, pend: false};   // пока палец ведёт карточку, экран не перерисовывается (иначе карточка под пальцем пропадает и жест срывается)
+function swlEnd() { SWL.on = false; if (SWL.pend) { SWL.pend = false; render(true); } }
 function bindNotifSwipe() {
   document.querySelectorAll('#sheetshade .ncard').forEach(el => {
-    let x0 = null, y0 = 0, dx = 0, on = false;
-    el.addEventListener('touchstart', e => { if (e.touches.length > 1 || (e.target.closest && e.target.closest('input,button,.photo'))) { x0 = null; return; } x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; on = false; }, {passive:true});
+    let x0 = null, y0 = 0, t0 = 0, dx = 0, on = false, dead = false;
+    el.addEventListener('touchstart', e => {
+      if (e.touches.length > 1 || (e.target.closest && e.target.closest('input,textarea,select,button,.vp,.mph'))) { x0 = null; return; }
+      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); dx = 0; on = false; dead = false;
+    }, {passive: true});
     el.addEventListener('touchmove', e => {
-      if (x0 === null) return;
-      const x = e.touches[0].clientX, y = e.touches[0].clientY;
-      if (!on) { if (Math.abs(x - x0) > 12 && Math.abs(x - x0) > Math.abs(y - y0)) { on = true; el.style.transition = 'none'; } else return; }
+      if (x0 === null || dead) return;
+      const x = e.touches[0].clientX, y = e.touches[0].clientY, ax = Math.abs(x - x0), ay = Math.abs(y - y0);
+      if (!on) {
+        if (ay > 10 && ay > ax) { dead = true; return; }   // палец пошёл вертикально: это прокрутка списка
+        if (ax > 8 && ax > ay * 1.2) { on = true; SWL.on = true; clearTimeout(SWL.tm); SWL.tm = setTimeout(swlEnd, 5000); el.style.transition = 'none'; } else return;
+      }
       e.preventDefault(); e.stopPropagation(); dx = x - x0; el.style.transform = `translateX(${dx}px)`; el.style.opacity = String(Math.max(.25, 1 - Math.abs(dx) / 260));
-    }, {passive:false});
+    }, {passive: false});
     const end = () => {
-      if (!on) { x0 = null; return; } on = false; x0 = null; el.style.transition = 'transform .18s ease, opacity .18s ease';
-      if (Math.abs(dx) > 90) {
+      if (!on) { x0 = null; return; }
+      on = false; x0 = null;
+      const speed = Math.abs(dx) / Math.max(1, Date.now() - t0), far = Math.abs(dx) > Math.min(90, el.offsetWidth * .3), flick = Math.abs(dx) > 40 && speed > .45;
+      if (far || flick) {
         el.style.transition = 'transform .22s cubic-bezier(.3,.7,.4,1), opacity .22s ease'; el.style.transform = `translateX(${dx > 0 ? '115%' : '-115%'})`; el.style.opacity = '0'; haptic(8);
-        // как в iPhone: карточка улетает, а остальные плавно съезжают на её место (высота и отступы схлопываются), и только потом запись убирается
+        // карточка улетает, остальные плавно съезжают на её место (высота и отступы схлопываются), и только потом запись убирается
         setTimeout(() => {
-          if (!el.isConnected) return dismissNotif(el.dataset.id);
+          if (!el.isConnected) { SWL.pend = false; swlEnd(); return dismissNotif(el.dataset.id); }
           el.style.boxSizing = 'border-box'; el.style.height = el.offsetHeight + 'px'; el.style.overflow = 'hidden'; void el.offsetHeight;
           el.style.transition = 'height .32s cubic-bezier(.22,1,.36,1), margin .32s cubic-bezier(.22,1,.36,1), padding .32s cubic-bezier(.22,1,.36,1), border-width .32s ease';
           el.style.height = '0px'; el.style.marginTop = '0px'; el.style.marginBottom = '0px'; el.style.paddingTop = '0px'; el.style.paddingBottom = '0px'; el.style.borderWidth = '0px';
-          setTimeout(() => dismissNotif(el.dataset.id), 330);
+          setTimeout(() => { SWL.pend = false; SWL.on = false; dismissNotif(el.dataset.id); }, 330);
         }, 200);
-      } else { el.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1), opacity .25s ease'; el.style.transform = ''; el.style.opacity = ''; }
+      } else { el.style.transition = 'transform .25s cubic-bezier(.22,1,.36,1), opacity .25s ease'; el.style.transform = ''; el.style.opacity = ''; swlEnd(); }
     };
     el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
   });
@@ -2360,6 +2370,7 @@ let NAVDIR = 0, NAVSKIPPED = false;
 const SCROLLMEM = {};   // где был прокручен каждый экран: при возврате назад список остаётся на том же месте
 const sigOf = () => Array.from($('app').querySelectorAll('.body .days button.on, .body .chips button.on')).map(b => b.textContent.trim()).join('|');
 function render(keep) {
+  if (keep && SWL.on) { SWL.pend = true; return; }
   saveSoon();
   const key0 = renderKey(), sameScreen = key0 === LASTKEY, body = document.querySelector('.body');
   if (body && LASTKEY) SCROLLMEM[LASTKEY] = body.scrollTop;
