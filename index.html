@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 93;
+const APP_VERSION = 94;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -563,6 +563,9 @@ const CHAT = {
   1:[{id:'seed1', ts:1, from:'mgr', text:'Доброе утро! Сегодня 7 точек, 4 из них с мойкой. Начните с базы.', t:'08:05', pid:null, read:true}, {id:'seed2', ts:2, from:'cour', text:'Принял, выезжаю на базу.', t:'08:07', pid:null, read:true}],
   2:[]
 };
+const NST = {s: {}};   // у кого включены уведомления (документ nst/all, видит менеджер)
+const GSD = {};   // счётчики качества геолокации по дням (документы gs/ДАТА, видит менеджер)
+const OFF = {};   // календарь отпусков и выходных: OFF[курьер] = {days: {'2026-12-31': 'o'|'v'|'s'}}
 const GCS = {me: null, all: {}, log: []};   // геолокация: моё согласие (курьер), согласия курьеров (менеджер), журнал «прибыл на точку» за 7 дней
 const NS = {off: [], q: {on: false, from: 22, to: 8}};   // настройки уведомлений менеджера (документ ns/mgr): какие виды отключены и тихие часы
 const PR = {};   // статусы людей: PR[«mgr» или номер курьера] = {t: последний сигнал, v: приложение открыто, a: последнее действие, lc: где находится, sh: смена}
@@ -1478,6 +1481,7 @@ function planScreen() {
   let h = topbar('Планирование', 'Курьер, день, адреса и тип визита');
   h += '<div class="body">' + mgrRings() + mvBlock() + shiftCard() + '<div class="chips">' + COUR.filter(x => x.active).map(x => `<button class="${x.id === c ? 'on' : ''}" onclick="go({mc:${x.id}})">${esc(x.name)}</button>`).join('') + '</div>';
   h += '<div class="days">' + WD.map((d, i) => `<button class="${i === S.day ? 'on' : ''} ${i === TODAY ? 'today' : ''}" onclick="go({day:${i}})">${d}<small>${L(c, i).length} т.</small></button>`).join('') + '</div>';
+  h += offBanner();
   let from = DEPOT, tot = 0;
   list.forEach(x => { tot += km(from, pt(x.pid)); from = pt(x.pid); });
   const cnt = t => list.filter(x => x.type === t).length, mins = list.reduce((s, x) => s + workMin(x.type), 0) + Math.round(tot / 28 * 60);
@@ -1728,6 +1732,7 @@ function sendRC(accept) {
 /* ===================== СМЕНА СЕГОДНЯ ===================== */
 function shiftStatus(cid) {
   const l = L(cid, TODAY), n = l.length, done = l.filter(x => x.done).length, loaded = LOADED[cid + ':' + TODAY];
+  const ok0 = offKind(cid, TODAY); if (ok0) return {t: OFFK[ok0], cls: '', n, done, info: 'сегодня не работает'};
   if (!n) return {t:'Выходной', cls:'', n, done, info:'нет назначенных точек'};
   if (done === n) return {t:'Смена закончена', cls:'ok', n, done, info:'все точки сданы'};
   if (done) return {t:'В пути', cls:'blue', n, done, info:'последняя сдача: ' + pt(l.filter(x => x.done).pop().pid).name};
@@ -1808,14 +1813,15 @@ function teamScreen() {
   const seg = `<div class="seg" style="margin:8px 0"><button class="${S.tm !== 'learn' ? 'on' : ''}" onclick="go({tm:'team'})">Курьеры</button><button class="${S.tm === 'learn' ? 'on' : ''}" onclick="go({tm:'learn'})">Обучение</button></div>`;
   if (S.tm === 'learn') return learnMgr(seg);
   let h = topbar('Курьеры', 'Аккаунты, логины и расценки');
-  h += '<div class="body">' + seg + '<button class="btn" style="margin-top:8px" onclick="openCF(null)">+ Новый курьер</button>';
+  h += '<div class="body">' + seg + '<button class="btn" style="margin-top:8px" onclick="openCF(null)">+ Новый курьер</button><button class="btn sec" style="margin-top:8px" onclick="openOffCal()">Отпуска и выходные</button>';
   COUR.forEach(c => {
     let n = 0; for (let d = 0; d < 7; d++) n += L(c.id, d).length;
     h += `<div class="card" data-sw="${c.active ? 'Отключить' : 'Включить'}|toggleCour(${c.id})|#8a5a14;Изменить|openCF(${c.id})|#2d5aa0" style="${c.active ? '' : 'opacity:.6'}"><div class="row"><div class="grow"><div class="t1">${esc(c.name)}</div>
       <div class="t2">Логин: ${c.login} · тип 1 ${money(c.r1)} · тип 2 ${money(c.r2)} · Г ${money(c.r3)}</div></div><span class="pill ${c.active ? 'ok' : 'bad'}">${c.active ? 'активен' : 'отключён'}</span></div>
-      <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div><div class="tiny" style="margin-top:3px">${esc(gcLine(c.id))}</div>
+      <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div><div class="tiny" style="margin-top:3px">${esc(gcLine(c.id))}</div>${nstLine(c.id)}
       <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button><button class="btn sec sm" onclick="go({sheet:'cologout',clo:${c.id}})">Выйти на всех телефонах</button><button class="btn sec sm" onclick="go({sheet:'geolog',gl:${c.id}})">Прибытия</button></div></div>`;
   });
+  h += '<div class="card" style="margin-top:8px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Качество геолокации</div><div class="t2">Как часто определение прибытия срабатывает, за 60 дней</div></div><button class="btn sec sm" onclick="openGeoStat()">Открыть</button></div></div>';
   return h + '<div class="tiny" style="margin-top:8px">Отключённый курьер не может войти, но его история и зарплата сохраняются. Пароль курьер получает от менеджера.</div></div>';
 }
 const genPass = () => Array.from({length:6}, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join('');
@@ -2687,6 +2693,7 @@ function docsFromState() {
   Object.keys(PR).forEach(k => { d['pr/' + k] = PR[k]; });
   if (SY.role === 'mgr') d['ns/mgr'] = NS;
   if (SY.role === 'cour' && GCS.me) d['gc/' + SY.cid] = GCS.me;
+  if (SY.role === 'mgr') Object.keys(OFF).forEach(k => { if (Object.keys(OFF[k].days || {}).length || SY.mirror['off/' + k] !== undefined) d['off/' + k] = OFF[k]; });
   reviews.forEach(r => { d['rev/' + r.id] = r; });
   return d;
 }
@@ -2769,6 +2776,12 @@ function applyDoc(k, v, dele) {
     const c = +p[1]; ensureCour(c); upsert(CHAT[c], dele ? {id:p[2]} : v, dele, byTsAsc);
   } else if (h === 'tp') {
     const m = TP[p[1]] = TP[p[1]] || {}; if (dele || !v) delete m[p[2]]; else { m[p[2]] = v.n; if (!TP_LOADING) { TPSEEN[p[1] + '|' + p[2]] = Date.now(); setTimeout(() => { if (S.tab === 'chat' && S.th && !S.sheet) render(true); }, 4700); } }
+  } else if (h === 'nst') {
+    NST.s = (!dele && v && v.s) ? v.s : {};
+  } else if (h === 'gs') {
+    if (dele || !v) delete GSD[p[1]]; else GSD[p[1]] = v;
+  } else if (h === 'off') {
+    OFF[p[1]] = (dele || !v) ? {days: {}} : {days: v.days || {}};
   } else if (h === 'gc') {
     if (SY.role === 'mgr') { if (dele || !v) delete GCS.all[p[1]]; else GCS.all[p[1]] = v; }
     else if (SY.role === 'cour' && p[1] === String(SY.cid)) GCS.me = (dele || !v) ? null : v;
@@ -2796,7 +2809,7 @@ function resetFromDocs(docs) { TP_LOADING = true; try { resetFromDocs0(docs); } 
 function resetFromDocs0(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
   [CHAT, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
-  NS.off = []; NS.q = {on: false, from: 22, to: 8}; GCS.me = null; GCS.all = {}; GCS.log = [];
+  NS.off = []; NS.q = {on: false, from: 22, to: 8}; GCS.me = null; GCS.all = {}; GCS.log = []; NST.s = {}; Object.keys(GSD).forEach(k => delete GSD[k]); Object.keys(OFF).forEach(k => delete OFF[k]);
   SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
     if (d.dele) return;
@@ -4147,6 +4160,7 @@ const shActive = () => { const s = S.role === 'cour' ? shMine() : null; return !
 const shiftDur = () => { const s = shMine(); return s && s.s ? durTxt(Math.round(((s.e || sNow()) - s.s) / 60000)) : ''; };
 function shiftBlock() {
   if (S.role !== 'cour') return '';
+  const ok0 = offKind(S.me, TODAY); if (ok0) return `<div class="card"><div class="row"><div style="color:var(--o)">${ic('calendar', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Сегодня у вас ${OFFK[ok0].toLowerCase()}</div><div class="t2">Отдыхайте: выходить на смену не нужно</div></div></div></div>`;
   const s = shMine(), today = s && new Date(s.s).toDateString() === new Date(sNow()).toDateString();
   if (shActive()) return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('clock', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Вы на смене</div><div class="t2">с ${hm(s.s)} · <span data-shiftt>${shiftDur()}</span></div></div><button class="btn sec sm" onclick="shiftEnd()">Завершить смену</button></div></div>`;
   if (s && s.e && today) return `<div class="tiny" style="margin:0 2px 8px;opacity:.85">Смена завершена${s.auto ? ' автоматически' : ''}: ${hm(s.s)}–${hm(s.e)} · ${shiftDur()}</div>`;
@@ -4365,7 +4379,7 @@ function geoBlock() {
   if (g) h += '<button class="btn sec sm" style="margin-top:10px" onclick="geoRevoke()">Отозвать согласие</button>';
   return h + '</div><div class="tiny">Координаты на сервере не сохраняются: остаётся только отметка «прибыл на точку» на 7 дней. Включить и выключить определение можно в любой момент.</div>';
 }
-const GEO_TEXT = 'Я даю согласие работодателю (сеть «Ангара Кофе») на определение местоположения моего телефона <b>только в рабочее время: с момента нажатия «Выйти на смену» до «Завершить смену»</b>. Цель: автоматически отмечать, что я приехал(а) на точку. Координаты на сервере не сохраняются: сохраняется только отметка «прибыл на точку, во столько-то» на 7 дней. Пока определение идёт, приложение показывает значок. Я могу отключить определение или отозвать это согласие в любой момент в «Профиле», на мою работу и оплату это не повлияет.';
+const GEO_TEXT = 'Я даю согласие работодателю (сеть «Ангара Кофе») на определение местоположения моего телефона <b>только в рабочее время: с момента нажатия «Выйти на смену» до «Завершить смену»</b>. Цель: автоматически отмечать, что я приехал(а) на точку. Координаты на сервере не сохраняются: сохраняется только отметка «прибыл на точку, во столько-то» на 7 дней. Для проверки качества работы сервер 60 дней хранит обезличенные счётчики («сколько раз определение сработало»), без координат. Пока определение идёт, приложение показывает значок. Я могу отключить определение или отозвать это согласие в любой момент в «Профиле», на мою работу и оплату это не повлияет.';
 const gcLine = cid => { const g = GCS.all[String(cid)]; return g ? 'Геолокация: согласие дано ' + new Date(g.ts).toLocaleDateString('ru-RU') + ', ' + (g.on ? 'включено' : 'выключено курьером') : 'Геолокация: согласия нет'; };
 function geoLogSheet(cid) {
   const c = cr(cid), week = Date.now() - 7 * 86400000, list = GCS.log.filter(x => String(x.cid) === String(cid) && x.ts > week).sort((a, b) => b.ts - a.ts);
@@ -4376,6 +4390,121 @@ function geoLogSheet(cid) {
 { const _ss2 = syncStop; syncStop = function () { try { geoWatchStop(); GEO.native = ''; if (geoApp()) AndroidBridge.geoSet(false, '[]'); } catch (e) {} const e = document.getElementById('geop'); if (e) e.remove(); return _ss2.apply(this, arguments); }; }
 document.addEventListener('visibilitychange', () => { if (S.role) geoSync(); });
 setInterval(() => { if (S.role) geoSync(); }, 20000);
+
+/* ----- у кого включены уведомления (видит менеджер) ----- */
+function nstLine(cid) {
+  if (S.role !== 'mgr') return '';
+  const k = NST.s[String(cid)]; if (!k) return '';
+  return k === 'none' ? `<div class="row" style="margin-top:6px"><span class="pill warn">Уведомления не включены</span><div class="grow"></div><button class="btn sec sm" onclick="nudgeNotif(${cid})">Напомнить</button></div>`
+    : `<div style="margin-top:6px"><span class="pill ok">Уведомления ${k === 'push' ? 'включены' : 'работают в приложении'}</span></div>`;
+}
+function nudgeNotif(cid) {
+  sendMsg(cid, 'mgr', 'Включите, пожалуйста, уведомления: в приложении «Профиль» → «Включить уведомления» (на Android разрешите уведомления в настройках телефона). Так вы не пропустите сообщения, маршруты и фото на проверку.', null);
+  go({toast: 'Напоминание отправлено в чат'});
+}
+
+/* ----- качество определения прибытия за 60 дней (обезличенные счётчики, без координат) ----- */
+function geoStatSheet() {
+  const days = Object.keys(GSD).sort(), cs = {}, ps = {};
+  days.forEach(d => {
+    const v = GSD[d] || {};
+    Object.keys(v.c || {}).forEach(c => { const a = cs[c] = cs[c] || {}; Object.keys(v.c[c]).forEach(f => { a[f] = (a[f] || 0) + v.c[c][f]; }); });
+    Object.keys(v.p || {}).forEach(p => { const a = ps[p] = ps[p] || {}; Object.keys(v.p[p]).forEach(f => { a[f] = /x$/.test(f) ? Math.max(a[f] || 0, v.p[p][f]) : (a[f] || 0) + v.p[p][f]; }); });
+  });
+  let h = `<h2>Качество геолокации</h2><div class="t2" style="margin-bottom:8px">За ${days.length} дн. (счётчики хранятся 60 дней, координаты не сохраняются)</div>`;
+  const cids = Object.keys(cs);
+  if (!cids.length) return h + '<div class="card t2">Данных пока нет: они появятся, когда курьеры включат определение и выйдут на смену.</div><button class="btn sec" style="margin-top:10px" onclick="go({sheet:null})">Закрыть</button>';
+  h += '<h3>Курьеры</h3>' + cids.map(c => {
+    const a = cs[c], rq = a.rq || 0, ok = a.ok || 0, pc = rq ? Math.round(ok / rq * 100) : 0;
+    return rgRow(cr(+c) ? cr(+c).name : 'Курьер ' + c, `запросов с телефона: ${rq} · «прибыл» отмечено: ${a.ar || 0} · рядом, но не в радиусе: ${a.ms || 0} · плохой GPS: ${a.la || 0}`, `<span class="pill ${pc >= 60 ? 'ok' : 'warn'}">${pc}%</span>`);
+  }).join('');
+  const pids = Object.keys(ps);
+  if (pids.length) h += '<h3>Точки</h3>' + pids.sort((a, b) => ((ps[b].ms || 0) - (ps[a].ms || 0))).map(p => {
+    const a = ps[p], ar = a.ar || 0, ms = a.ms || 0, avg = ar ? Math.round(a.ard / ar) : 0, mavg = ms ? Math.round(a.msd / ms) : 0;
+    const hint = ms >= 3 && ms >= ar ? `<div class="t2" style="color:var(--o)">Часто не срабатывает у этой точки (в среднем ${mavg} м): GPS «плавает». Курьеру стоит подождать минуту у входа.</div>` : '';
+    return `<div class="card" style="padding:10px 12px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${esc(pt(+p) ? pt(+p).name : 'Точка ' + p)}</div><div class="t2">срабатывало: ${ar}${ar ? ' (в среднем ' + avg + ' м, максимум ' + a.arx + ' м)' : ''} · не сработало рядом: ${ms}${ms ? ' (в среднем ' + mavg + ' м)' : ''}</div>${hint}</div></div></div>`;
+  }).join('');
+  return h + '<button class="btn sec" style="margin-top:10px" onclick="go({sheet:null})">Закрыть</button>';
+}
+
+/* ----- календарь отпусков и выходных ----- */
+const OFFK = {o: 'Выходной', v: 'Отпуск', s: 'Больничный'}, OFFC = {o: '#4a5a51', v: '#2d5aa0', s: '#a8432e'};
+const isoDate = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const weekDateIso = di => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - TODAY + di); return isoDate(d); };
+const offKind = (cid, di) => ((OFF[String(cid)] || {days: {}}).days || {})[weekDateIso(di)] || '';
+function offTap(iso) {
+  const c = String(S.oc.cid), cur = (OFF[c] = OFF[c] || {days: {}}), days = Object.assign({}, cur.days), k = days[iso] || '', next = k === '' ? 'o' : k === 'o' ? 'v' : k === 'v' ? 's' : '';
+  if (next) days[iso] = next; else delete days[iso];
+  const lim = isoDate(new Date(Date.now() - 60 * 86400000)); Object.keys(days).forEach(x => { if (x < lim) delete days[x]; });
+  OFF[c] = {days}; haptic(8); pushSoon(); render(true);
+}
+function offMonth(d) { const m = new Date(S.oc.m); m.setMonth(m.getMonth() + d); S.oc.m = m.getTime(); render(true); }
+function offSheet() {
+  const f = S.oc, cid = String(f.cid), m = new Date(f.m), days = (OFF[cid] || {days: {}}).days || {};
+  const first = new Date(m.getFullYear(), m.getMonth(), 1), shift = (first.getDay() + 6) % 7, n = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate(), today = isoDate(new Date());
+  let cells = ''; for (let i = 0; i < shift; i++) cells += '<div></div>';
+  for (let d = 1; d <= n; d++) { const iso = m.getFullYear() + '-' + String(m.getMonth() + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'), k = days[iso]; cells += `<div onclick="offTap('${iso}')" style="cursor:pointer;text-align:center;padding:9px 0;border-radius:10px;font-size:14px;${k ? 'background:' + OFFC[k] + ';color:#fff;font-weight:700;' : 'background:var(--card);'}${iso === today ? 'outline:2px solid var(--g);' : ''}">${d}</div>`; }
+  return `<h2>Отпуска и выходные</h2>
+    <div class="chips">${COUR.filter(c => c.active).map(c => `<button class="${String(c.id) === cid ? 'on' : ''}" onclick="S.oc.cid=${c.id};render(true)">${esc(c.name)}</button>`).join('')}</div>
+    <div class="row" style="margin:8px 0"><button class="btn sec sm" onclick="offMonth(-1)">‹</button><div class="grow t1" style="text-align:center">${(t => t.charAt(0).toUpperCase() + t.slice(1))(m.toLocaleDateString('ru-RU', {month: 'long', year: 'numeric'}).replace(' г.', ''))}</div><button class="btn sec sm" onclick="offMonth(1)">›</button></div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px">${WD.map(x => `<div class="tiny" style="text-align:center">${x}</div>`).join('')}${cells}</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;margin:8px 0">${Object.keys(OFFK).map(k => `<span class="tiny"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${OFFC[k]};margin-right:4px"></span>${OFFK[k]}</span>`).join('')}</div>
+    <div class="tiny">Нажатие по дню: выходной, отпуск, больничный, снять отметку. В такие дни курьеру не назначаются точки при сборке недели, а в плане появляется предупреждение.</div>
+    <button class="btn sec" style="margin-top:10px" onclick="go({sheet:null,oc:null})">Готово</button>`;
+}
+function offBanner() {
+  const k = offKind(S.mc, S.day); if (!k) return '';
+  const n = L(S.mc, S.day).length;
+  return `<div class="card" style="border-color:${OFFC[k]}"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${esc(cr(S.mc).name)}: ${OFFK[k].toLowerCase()} в этот день</div><div class="t2">${n ? 'Назначено точек: ' + n + '. Передайте их другому курьеру.' : 'Точки не назначены.'}</div></div>${n ? '<button class="btn sec sm" onclick="offClearDay()">Снять точки</button>' : ''}</div></div>`;
+}
+function offClearDay() { const l = L(S.mc, S.day), bak = l.slice(); sched[S.mc][S.day] = []; render(true); undoPush('Точки сняты с дня', () => { sched[S.mc][S.day] = bak; render(true); }); }
+
+const openGeoStat = () => go({sheet: 'geostat'});
+function openOffCal() { const a = COUR.filter(c => c.active)[0], d = new Date(); d.setDate(1); d.setHours(12, 0, 0, 0); go({sheet: 'offcal', oc: {cid: a ? a.id : 0, m: d.getTime()}}); }
+
+/* ----- самопроверка страницы перед выпуском (запускается только скриптом release_test.ps1: адрес ...?selftest=1 без сервера) ----- */
+function selfTest() {
+  const out = {ok: 0, errors: []}, errs = [];
+  window.addEventListener('error', e => errs.push('ошибка в странице: ' + e.message));
+  const T = (name, fn) => {
+    try { fn(); const t = ($('app') || {}).innerText || ''; if (t.length < 15) throw new Error('пустой экран'); out.ok++; }
+    catch (e) { out.errors.push(name + ': ' + (e && e.message ? e.message : e)); }
+  };
+  [['mgr', 0], ['cour', 1]].forEach(([role, id]) => {
+    const home = () => ({tab: TABS[role][0][0], view: null, th: null, sheet: null, shade: false});
+    T(role + ': вход', () => login(role, id));
+    (TABS[role] || []).forEach(t => T(role + ': вкладка ' + t[0], () => go(Object.assign(home(), {tab: t[0]}))));
+    const common = [{sheet: 'profile'}, {sheet: 'gsearch'}, {sheet: 'attach'}, {sheet: 'micask'}, {sheet: 'micperm', mp: 'denied'}, {sheet: 'micperm', mp: 'error', mpe: 'тест'}, {sheet: 'geoperm'},
+      {sheet: 'geoconsent', gcx: {ok: true}}, {sheet: 'mustpw', mp2: {n1: '', n2: '', err: '', busy: false}}, {sheet: 'tool', tl: {pid: P[0].id, note: ''}}, {sheet: 'camset', cs: {pid: P[0].id, url: ''}}, {shade: true}];
+    const own = role === 'mgr'
+      ? [{sheet: 'ring', rg: 'done'}, {sheet: 'ring', rg: 'photo'}, {sheet: 'ring', rg: 'shift'}, {sheet: 'cologout', clo: COUR[0].id}, {sheet: 'geolog', gl: COUR[0].id}, {sheet: 'geostat'}, {sheet: 'offcal', oc: {cid: COUR[0].id, m: Date.now()}}]
+      : [{sheet: 'ring', rg: 'today'}, {sheet: 'ring', rg: 'ok'}, {sheet: 'ring', rg: 'week'}];
+    common.concat(own).forEach(sp => T(role + ': окно ' + (sp.sheet || 'уведомления'), () => go(Object.assign(home(), sp))));
+    T(role + ': закрыть окна', () => go(home()));
+    T(role + ': карточка точки', () => go({tab: 'points', view: {type: 'point', id: P[0].id}, sheet: null}));
+    T(role + ': общий чат', () => go({tab: 'chat', view: null, th: 'g', sheet: null}));
+    T(role + ': текстовое сообщение', () => { S.chatDraft = 'самопроверка'; sendChat(); });
+    T(role + ': голосовое в чате', () => { sendTeamMsg('g', '', null, {md: {k: 'voice', f: 'a'.repeat(24) + '.weba', d: 3, p: '35798642'}}); render(); });
+    T(role + ': фото в чате', () => { sendTeamMsg('g', '', null, {md: {k: 'photo', f: 'b'.repeat(24) + '.jpg', w: 800, h: 600}}); render(); });
+    T(role + ': список чатов', () => go({tab: 'chat', view: null, th: null}));
+    if (role === 'cour') {
+      T('курьер: быстрый визит', () => { startVisit(P[0].id, true); render(); });
+      T('курьер: выход с визита', () => go({view: null, visit: null}));
+      T('курьер: выйти на смену', () => { go({tab: 'route', view: null, sheet: null}); shiftStart(); });
+      T('курьер: экран на смене', () => go({tab: 'route', view: null}));
+      T('курьер: завершить смену', () => shiftEnd());
+    }
+  });
+  T('менеджер: вход', () => login('mgr', 0));
+  T('менеджер: курьеры и календарь', () => { go({tab: 'team', view: null, tm: 'team', sheet: null}); openOffCal(); });
+  T('менеджер: настройки уведомлений', () => { go({sheet: 'profile'}); nsToggle('at'); nsQuiet(); nsHour('from', 1); nsToggle('at'); });
+  T('менеджер: отпуск в календаре', () => { go({sheet: 'offcal', oc: {cid: COUR[0].id, m: Date.now()}}); offTap(isoDate(new Date())); go({tab: 'plan', sheet: null, view: null}); });
+  T('менеджер: курьер в отпуске в плане', () => { go({tab: 'plan', mc: COUR[0].id, day: TODAY, sheet: null}); });
+  T('менеджер: подсказки и статусы', () => { NST.s = {1: 'none', 2: 'push'}; go({tab: 'team', tm: 'team', sheet: null, view: null}); });
+  out.errors = out.errors.concat(errs);
+  document.body.insertAdjacentHTML('beforeend', '<pre id="selftest">' + JSON.stringify(out) + '</pre>');
+}
+if (/[?&]selftest=1/.test(location.search) && !SRV) setTimeout(selfTest, 1500);
 
 /* ----- подсказка «включите уведомления» ----- */
 const PHINT_KEY = 'angara_pushhint';
@@ -4429,6 +4558,8 @@ function ringSheet(k) {
 function sheetNew() {
   const s = S.sheet;
   if (s === 'ring') return ringSheet(S.rg);
+  if (s === 'geostat') return geoStatSheet();
+  if (s === 'offcal') return offSheet();
   if (s === 'geoconsent') {
     const f = S.gcx || (S.gcx = {ok: false});
     return `<h2>Согласие на определение местоположения</h2><div class="card"><div class="t2" style="line-height:1.45">${GEO_TEXT}</div></div>
