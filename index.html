@@ -17,7 +17,7 @@
 html,body{margin:0;height:100%;background:#070a08;color:var(--tx);font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 body{display:flex;align-items:center;justify-content:center}
 #app{position:relative;width:390px;height:min(820px,100vh);background:var(--bg);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 0 8px #151a17,0 20px 60px #000}
-@media(max-width:430px){#app{width:100vw;height:100vh;height:100dvh;border-radius:0;box-shadow:none}}
+@media(max-width:430px){#app{position:fixed;left:0;top:0;right:0;bottom:0;width:auto;height:auto;border-radius:0;box-shadow:none}}   /* занимает всё окно и сам подстраивается, без скачков при смене высоты (панели, заставка) */
 /* iPhone и вырезы экрана: отступ под полосу «Домой» внизу; на iOS поля ввода не меньше 16px, иначе Safari приближает страницу при вводе */
 .tabs{padding-bottom:env(safe-area-inset-bottom)}html,body{overscroll-behavior:none}
 @supports(-webkit-touch-callout:none){input,textarea,select{font-size:16px !important}}
@@ -121,7 +121,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 51;
+const APP_VERSION = 52;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2739,6 +2739,13 @@ function saveAccs() { try { localStorage.setItem(ACC_KEY, JSON.stringify(ACCS));
 try { const txt = localStorage.getItem(STORE_KEY); if (txt && !restoreData(txt)) localStorage.removeItem(STORE_KEY); } catch (e) { try { localStorage.removeItem(STORE_KEY); } catch (e2) {} }
 S.day = TODAY; pruneOld(); if (!SRV) weekCheckLocal();
 if (!SRV && !LSEED) { LSEED = true; if (!LESSONS.length) seedLessons(); }
+// заставка при запуске (приложение для Android и значок «Домой» на iPhone; у Chrome своя заставка)
+if (pushIsApp() || window.navigator.standalone) {
+  const sp = document.createElement('div'); sp.id = 'splash';
+  sp.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:99;background:#0e1411;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .5s ease';
+  sp.innerHTML = '<div style="animation:rxpop .6s cubic-bezier(.2,1.4,.4,1)">' + logo(104) + '</div><div style="font-size:22px;font-weight:700;letter-spacing:.3px;color:#e9f1eb">Ангара Кофе</div>';
+  document.body.appendChild(sp); setTimeout(() => { sp.style.opacity = '0'; setTimeout(() => sp.remove(), 520); }, 1500);
+}
 syncBoot();
 render();
 </script>

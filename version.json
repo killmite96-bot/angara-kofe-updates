@@ -1,9 +1,9 @@
 {
-    "content":  51,
-    "apk":  12,
-    "notes":  "Реакции: тёмная плашка, хорошо видна на любом фоне.",
+    "content":  52,
+    "apk":  13,
+    "notes":  "Заставка при запуске приложения, устойчивая высота окна без «подёргивания».",
     "contentFile":  "index.html",
-    "contentSha256":  "dcf6987ac82d455489a3378ee30e17af832119f8a78aec70dabbf0aa7b560509",
+    "contentSha256":  "576cf7866383234f3df8eea6946b8ceb1858a404ea6347cd3cc31aed0fb04627",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "bf510c22e490b67c5c2e7b53807b1b5505799a0f760cebee530ee4aa7c7f43df"
+    "apkSha256":  "b49968c77ae968f088759cf5f6968f6abb732234ed4549c089a6ea81d9e0cd0b"
 }
