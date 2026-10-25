@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 91;
+const APP_VERSION = 92;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -563,6 +563,7 @@ const CHAT = {
   1:[{id:'seed1', ts:1, from:'mgr', text:'Доброе утро! Сегодня 7 точек, 4 из них с мойкой. Начните с базы.', t:'08:05', pid:null, read:true}, {id:'seed2', ts:2, from:'cour', text:'Принял, выезжаю на базу.', t:'08:07', pid:null, read:true}],
   2:[]
 };
+const NS = {off: [], q: {on: false, from: 22, to: 8}};   // настройки уведомлений менеджера (документ ns/mgr): какие виды отключены и тихие часы
 const PR = {};   // статусы людей: PR[«mgr» или номер курьера] = {t: последний сигнал, v: приложение открыто, a: последнее действие, lc: где находится, sh: смена}
 const GCHAT = [], DMS = {}, RD = {}, RX = {};   // RX[беседа][кто] = {id сообщения: вид реакции}   // RD[беседа][читатель] = время последнего прочитанного сообщения (беседа: 'g' или пара 'a-b')   // общий чат команды и личные чаты курьер↔курьер (ключ «меньший id-больший id»)
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -1812,7 +1813,7 @@ function teamScreen() {
     h += `<div class="card" data-sw="${c.active ? 'Отключить' : 'Включить'}|toggleCour(${c.id})|#8a5a14;Изменить|openCF(${c.id})|#2d5aa0" style="${c.active ? '' : 'opacity:.6'}"><div class="row"><div class="grow"><div class="t1">${esc(c.name)}</div>
       <div class="t2">Логин: ${c.login} · тип 1 ${money(c.r1)} · тип 2 ${money(c.r2)} · Г ${money(c.r3)}</div></div><span class="pill ${c.active ? 'ok' : 'bad'}">${c.active ? 'активен' : 'отключён'}</span></div>
       <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div>
-      <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button></div></div>`;
+      <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button><button class="btn sec sm" onclick="go({sheet:'cologout',clo:${c.id}})">Выйти на всех телефонах</button></div></div>`;
   });
   return h + '<div class="tiny" style="margin-top:8px">Отключённый курьер не может войти, но его история и зарплата сохраняются. Пароль курьер получает от менеджера.</div></div>';
 }
@@ -1990,13 +1991,13 @@ function sheet() {
       <button class="btn sec" style="margin:8px 0" onclick="saveProfile()">Сохранить имя и логин</button>`;
     h += `<button class="btn sec" style="margin-top:10px" onclick="toggleAcc()">${isRemembered(login) ? 'Открепить аккаунт' : 'Запомнить аккаунт'}</button><div class="tiny" style="margin-top:6px">${isRemembered(login) ? 'Аккаунт сохранён на этом телефоне и предлагается на экране входа.' : 'Запомнить, чтобы он предлагался на экране входа этого телефона.'}</div>`;
     if (SRV) h += `<h3>Синхронизация</h3><div class="card"><div class="kv"><span>Сервер</span><b style="font-size:12px">${esc(SRV)}</b></div><div class="tiny" style="margin-top:6px;color:${SY.net ? 'var(--g)' : 'var(--o)'}">${SY.net ? 'Онлайн: изменения видны всем сразу.' : 'Нет связи с сервером. Изменения сохранены на телефоне и уйдут, когда связь появится.'}</div></div>`;
-    if (mgr) h += `<h3>Смена пароля</h3>
+    if (mgr || SRV) h += `<h3>Смена пароля</h3>
       <input type="password" placeholder="Текущий пароль" autocomplete="off" value="${esc(f.old)}" oninput="S.pw.old=this.value">
       <input type="password" placeholder="Новый пароль (не короче 6 символов)" autocomplete="off" value="${esc(f.n1)}" oninput="S.pw.n1=this.value">
       <input type="password" placeholder="Повторите новый пароль" autocomplete="off" value="${esc(f.n2)}" oninput="S.pw.n2=this.value">
       ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${f.err}</div>` : ''}
       <button class="btn sec" style="margin:8px 0" onclick="changePass()">Сменить пароль</button>`;
-    h += fxBlock() + pushBlock() + updBlock();
+    h += (mgr ? nsBlock() : '') + fxBlock() + pushBlock() + tipsBlock() + updBlock();
     return h + `<button class="btn" style="background:#4a1a1a;color:#ffb0b0;margin-top:12px" onclick="doLogout()">Выйти из профиля</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
   }
   if (S.sheet === 'water') {
@@ -2656,6 +2657,7 @@ function api(path, body) {
   if (SY.token) opt.headers.Authorization = 'Bearer ' + SY.token;
   return fetch(SRV + path, opt).then(r => r.json().catch(() => ({})).then(j => {
     if (r.status === 401 && SY.token) { syncAuthLost(); throw new Error('Сессия истекла, войдите снова'); }
+    if (r.status === 403 && j.error === 'change_password') { mustPw(); throw new Error('Сначала смените пароль'); }
     if (!r.ok) throw new Error(j.error || 'Ошибка сервера (' + r.status + ')');
     return j;
   }), () => { throw new Error('Нет связи с сервером'); });
@@ -2682,6 +2684,7 @@ function docsFromState() {
   Object.keys(TP).forEach(k => Object.keys(TP[k]).forEach(u => { d['tp/' + k + '/' + u] = {n:TP[k][u]}; }));
   Object.keys(DMS).forEach(k => DMS[k].forEach(m => { d['dm/' + k + '/' + m.id] = m; }));
   Object.keys(PR).forEach(k => { d['pr/' + k] = PR[k]; });
+  if (SY.role === 'mgr') d['ns/mgr'] = NS;
   reviews.forEach(r => { d['rev/' + r.id] = r; });
   return d;
 }
@@ -2762,6 +2765,8 @@ function applyDoc(k, v, dele) {
     const c = +p[1]; ensureCour(c); upsert(CHAT[c], dele ? {id:p[2]} : v, dele, byTsAsc);
   } else if (h === 'tp') {
     const m = TP[p[1]] = TP[p[1]] || {}; if (dele || !v) delete m[p[2]]; else { m[p[2]] = v.n; if (!TP_LOADING) { TPSEEN[p[1] + '|' + p[2]] = Date.now(); setTimeout(() => { if (S.tab === 'chat' && S.th && !S.sheet) render(true); }, 4700); } }
+  } else if (h === 'ns') {
+    if (v && p[1] === 'mgr') { NS.off = Array.isArray(v.off) ? v.off.filter(x => typeof x === 'string').slice(0, 12) : []; const q = v.q || {}; NS.q = {on: !!q.on, from: (+q.from || 0) % 24, to: (+q.to || 0) % 24}; }
   } else if (h === 'pr') {
     if (dele || !v) delete PR[p[1]]; else PR[p[1]] = v;
   } else if (h === 'rx') {
@@ -2781,6 +2786,7 @@ function resetFromDocs(docs) { TP_LOADING = true; try { resetFromDocs0(docs); } 
 function resetFromDocs0(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
   [CHAT, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
+  NS.off = []; NS.q = {on: false, from: 22, to: 8};
   SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
     if (d.dele) return;
@@ -2851,6 +2857,7 @@ function setNet(ok) {
   if (SY.net === ok) return;
   SY.net = ok;
   if (S.sheet === 'profile') render(true);
+  try { netPill(); if (ok) obProcess(); } catch (e) {}
 }
 let pushT = 0;
 function pushSoon() { clearTimeout(pushT); pushT = setTimeout(pushChanges, 350); }
@@ -2928,7 +2935,7 @@ function syncResume() {
   api('/api/state?since=' + SY.seq).then(j => {
     onRemote(j.docs.map(d => ({key:d.key, v:d.v, seq:d.seq, dele:d.dele})));
     if (j.seq > SY.seq) SY.seq = j.seq;
-    setNet(true); openStream(); pushChanges(); setTimeout(reconcileChat, 1500);
+    setNet(true); openStream(); pushChanges(); setTimeout(reconcileChat, 1500); mustCheck(); obProcess();
   }).catch(() => { setNet(false); clearTimeout(SY.rt); if (SY.on) SY.rt = setTimeout(syncResume, 4000); });
 }
 // сверка переписки с сервером: если на телефоне чего-то нет (или оно устарело), а на сервере есть, документ подтягивается заново; сообщение в журнал показывает, как часто это случается
@@ -3049,6 +3056,7 @@ function startServerSession(j, l, rem) {
       S.lg = {login:'', pass:'', err:''};
       if (j.role === 'mgr') MGR.name = j.name;
       login(j.role, j.cid);
+      if (j.must) setTimeout(mustPw, 400);
       openStream(); setNet(true);
       pushChanges();   // первый вход менеджера на пустой сервер: загружаем начальные данные
     }).catch(e => { syncStop(); S.lg.busy = false; S.lg.err = e.message; render(); });
@@ -3120,7 +3128,7 @@ function uiAfterRender() {
   SHEETSEEN = S.sheet || null;
   if (S.shade && !SHADESEEN) { const o = $('sheetshade'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
   SHADESEEN = !!S.shade;
-  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); chatStick(); } catch (e) {}
+  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); } catch (e) {}
 }
 // шапка сжимается, только если у экрана достаточно прокрутки: иначе после сжатия прокрутка «съедается», шапка снова растёт, и всё дёргается по кругу
 function hdrState(tp, bd) {
@@ -3180,7 +3188,7 @@ function rxPopup(el, id) {
 }
 function replyTo(id) {
   const m = findMsg(S.th, id); if (!m || m.del) return;
-  go({reTo: {th: S.th, id: m.id, name: msgSender(S.th, m), text: String(m.text).slice(0, 80)}, focusChat: true});
+  go({reTo: {th: S.th, id: m.id, name: msgSender(S.th, m), text: (m.md ? mdLabel(m.md) : String(m.text)).slice(0, 80)}, focusChat: true});
 }
 (function () {
   const app = $('app'); let m = null, lp = 0;
@@ -3820,6 +3828,8 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 .grab[data-tall]{position:sticky;top:-16px;z-index:3;background:var(--bg);margin:-16px -16px 6px;padding:16px 0 12px;border-radius:26px 26px 0 0;cursor:grab}
 #sheetshade{padding-bottom:0}
 #sheetshade .grab.up{bottom:0;margin:6px -16px 0;padding:12px 0 calc(12px + env(safe-area-inset-bottom));border-radius:0 0 20px 20px;z-index:3}
+#netp{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-90px);z-index:29;background:#4a3414;color:#ffd9a0;border:1px solid #8a5a14;padding:6px 12px;border-radius:16px;font-size:12px;max-width:90%;text-align:center;transition:transform .35s cubic-bezier(.22,1,.36,1)}
+#netp.in{transform:translate(-50%,0)}
 #upl{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translate(-50%,-80px);z-index:30;background:#1c2b22;border:1px solid var(--line);padding:8px 14px;border-radius:20px;font-size:13px;display:flex;align-items:center;gap:8px;transition:transform .35s cubic-bezier(.22,1,.36,1)}
 #upl.in{transform:translate(-50%,0)}
 #upl i{width:14px;height:14px;border-radius:50%;border:2px solid var(--g);border-top-color:transparent;animation:spin .8s linear infinite}
@@ -3853,9 +3863,10 @@ function mediaUrl(f) {
 }
 function uploadMedia(blob, type) {
   return fetch(SRV + '/api/media', {method: 'POST', headers: {'Content-Type': type, Authorization: 'Bearer ' + SY.token}, body: blob}).then(r => r.json().catch(() => ({})).then(j => {
+    if (r.status === 403 && j.error === 'change_password') { mustPw(); throw new Error('Сначала смените пароль'); }
     if (!r.ok) throw new Error(j.error || 'Не удалось отправить файл');
     return j.id;
-  }), () => { throw new Error('Нет связи с сервером'); });
+  }), () => { const e = new Error('Нет связи с сервером'); e.net = true; throw e; });
 }
 function upBusy(on) {
   let e = document.getElementById('upl');
@@ -3865,15 +3876,21 @@ function upBusy(on) {
 function mediaSend(blob, type, md) {
   const th = S.th; if (!th) return;
   if (!SRV || !SY.token) return go({toast: 'Вложения работают при подключении к серверу'});
+  if (!navigator.onLine || !SY.net) return obAdd({th, blob, type, md}).then(() => go({toast: 'Нет связи: вложение в очереди, отправится само'}));
   upBusy(true);
-  uploadMedia(blob, type).then(f => { upBusy(false); md.f = f; sendMediaMsg(th, md); }).catch(e => { upBusy(false); go({toast: e.message || 'Не удалось отправить'}); });
+  uploadMedia(blob, type).then(f => { upBusy(false); md.f = f; sendMediaMsg(th, md); }).catch(e => {
+    upBusy(false);
+    if (e.net) return obAdd({th, blob, type, md}).then(() => go({toast: 'Нет связи: вложение в очереди, отправится само'}));
+    go({toast: e.message || 'Не удалось отправить'});
+  });
 }
-function sendMediaMsg(th, md) {
+function sendMediaMsg(th, md, q) {
   const mgr = S.role === 'mgr', me = th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey();
-  const extra = {md}; if (S.reTo && S.reTo.th === th) extra.re = {id: S.reTo.id, name: S.reTo.name, text: S.reTo.text};
-  const pid = S.chatPid || null;
+  const extra = {md}; if (!q && S.reTo && S.reTo.th === th) extra.re = {id: S.reTo.id, name: S.reTo.name, text: S.reTo.text};
+  const pid = q ? null : (S.chatPid || null);
   if (th[0] === 'm') sendMsg(+th.slice(2), me, '', pid, extra); else sendTeamMsg(th, '', pid, extra);
-  S.reTo = null; S.ctxOff = false; S.chatPid = null; render(); uiSnd('send');
+  if (!q) { S.reTo = null; S.ctxOff = false; S.chatPid = null; }
+  render(true); uiSnd('send');
 }
 function mdHTML(m) {
   const md = m.md; if (!mdOk(md)) return '';
@@ -4099,7 +4116,7 @@ function lcSet(k, pid, text) {
   if (S.role !== 'cour') return; const r = prMine(), o = r.lc;
   if (o && o.k === k && o.pid === (pid || 0) && sNow() - o.ts < 600000) return;
   r.lc = {k, pid: pid || 0, ts: sNow()};
-  if (text) notify('mgr', 'loc', text);
+  if (text) notify('mgr', 'loc', text, {sub: k});
   PRLAST = 0; prBeat(); pushSoon();
 }
 function lcTick() {}   // «в пути на …» через 5 минут, автозакрытие смены и напоминания теперь делает сервер (работает и при закрытом приложении)
@@ -4127,14 +4144,14 @@ function shiftBlock() {
 }
 function shiftStart() {
   const r = prMine(), now = sNow(); r.sh = {s: now}; r.lc = {k: 'base', pid: 0, ts: now};
-  notify('mgr', 'loc', cr(S.me).name + ' заступил(а) на смену'); uiSnd('done'); haptic([14, 30, 14]);
+  notify('mgr', 'loc', cr(S.me).name + ' заступил(а) на смену', {sub: 'shift_start'}); uiSnd('done'); haptic([14, 30, 14]);
   PRLAST = 0; prBeat(); pushSoon(); go({toast: 'Смена началась. Хорошей работы!'});
 }
 function shiftEnd() {
   const r = prMine(), s = r.sh; if (!s || s.e) return celebClose();
   const now = sNow(); r.sh = {s: s.s, e: now}; r.lc = {k: 'end', pid: 0, ts: now};
   const m = Math.round((now - s.s) / 60000);
-  notify('mgr', 'loc', cr(S.me).name + ' завершил(а) смену · ' + durTxt(m));
+  notify('mgr', 'loc', cr(S.me).name + ' завершил(а) смену · ' + durTxt(m), {sub: 'shift_end'});
   celebClose(); uiSnd('done'); PRLAST = 0; prBeat(); pushSoon(); go({toast: 'Смена завершена · ' + durTxt(m)});
 }
 setInterval(() => { if (!S.role) return; skewSync(); prBeat(); lcTick(); prRefresh(); }, 20000);
@@ -4172,6 +4189,102 @@ function chatStick() {
   body.onscroll = () => { CHATPIN = body.scrollHeight - body.scrollTop - body.clientHeight < 120; };
   chatPinNow();
 }
+
+/* ----- настройки уведомлений менеджера ----- */
+const NS_ROWS = [['chat', 'Сообщения в чате'], ['photo', 'Фото на проверку'], ['shift', 'Начало и конец смены'], ['at', 'Курьер прибыл на точку'], ['way', 'Курьер в пути на точку'], ['done', 'Маршрут закончен'], ['auto', 'Смена закрыта автоматически'], ['move', 'Заявки на перенос точки']];
+function nsBlock() {
+  const on = k => !NS.off.includes(k), hh = x => String(x).padStart(2, '0') + ':00';
+  return '<h3>Какие уведомления приходят</h3><div class="card">' + NS_ROWS.map(r => `<div class="row" style="cursor:pointer;padding:7px 0" onclick="nsToggle('${r[0]}')"><div class="grow" style="font-size:14px">${r[1]}</div>${swHTML(on(r[0]))}</div>`).join('')
+    + '<div class="row" style="padding:7px 0;opacity:.7"><div class="grow" style="font-size:14px">Сбои сервера</div><span class="tiny">всегда включены</span></div></div>'
+    + `<div class="card"><div class="row" style="cursor:pointer" onclick="nsQuiet()"><div class="grow"><div class="t1" style="font-size:14px">Тихие часы</div><div class="t2">В это время уведомления не приходят на телефон, но остаются в колокольчике</div></div>${swHTML(NS.q.on)}</div>`
+    + (NS.q.on ? `<div class="row" style="margin-top:10px"><div class="tiny">с</div><div class="step"><button onclick="nsHour('from',-1)">−</button><span>${hh(NS.q.from)}</span><button onclick="nsHour('from',1)">+</button></div><div class="tiny">до</div><div class="step"><button onclick="nsHour('to',-1)">−</button><span>${hh(NS.q.to)}</span><button onclick="nsHour('to',1)">+</button></div></div>` : '') + '</div><div class="tiny">Отключённые виды уведомлений не сохраняются и не показываются.</div>';
+}
+function nsSave() { render(true); pushSoon(); }
+function nsToggle(k) { const i = NS.off.indexOf(k); if (i >= 0) NS.off.splice(i, 1); else NS.off.push(k); haptic(8); nsSave(); }
+function nsQuiet() { NS.q.on = !NS.q.on; haptic(8); nsSave(); }
+function nsHour(w, d) { NS.q[w] = (NS.q[w] + d + 24) % 24; nsSave(); }
+
+/* ----- обязательная смена пароля и выход на всех телефонах ----- */
+let MUSTPW = false, MUSTCHK = false;
+function mustPw() { if (MUSTPW) return; MUSTPW = true; go({sheet: 'mustpw', mp2: {n1: '', n2: '', err: '', busy: false}}); }
+function mustCheck() { if (MUSTCHK || !SY.on) return; MUSTCHK = true; api('/api/me').then(me => { if (me && me.must) mustPw(); }).catch(() => { MUSTCHK = false; }); }
+function mustGuard() { if (MUSTPW && S.role && S.sheet !== 'mustpw') setTimeout(() => { if (MUSTPW && S.role && S.sheet !== 'mustpw') go({sheet: 'mustpw', mp2: S.mp2 || {n1: '', n2: '', err: '', busy: false}}); }, 0); }
+function savePwMust() {
+  const f = S.mp2; if (!f || f.busy) return;
+  if (f.n1.length < 6) f.err = 'Пароль не короче 6 символов';
+  else if (f.n1 !== f.n2) f.err = 'Пароли не совпадают';
+  else {
+    f.err = ''; f.busy = true; render(true);
+    api('/api/password', {new: f.n1}).then(() => {
+      MUSTPW = false; const k = ACCS.findIndex(a => a.login.toLowerCase() === SY.login.toLowerCase()); if (k >= 0) { delete ACCS[k].pass; saveAccs(); }
+      go({sheet: null, mp2: null, toast: 'Пароль изменён'}); pushChanges();
+    }).catch(e => { f.busy = false; f.err = e.message; render(true); });
+    return;
+  }
+  render(true);
+}
+function doColLogout() {
+  const id = S.clo;
+  api('/api/users', {action: 'logout', cid: id}).then(j => go({sheet: null, clo: null, toast: j.n ? 'Вход закрыт на устройствах: ' + j.n : 'У курьера не было активных входов'})).catch(e => go({toast: e.message}));
+}
+{ const _ss = syncStop; syncStop = function () { MUSTPW = false; MUSTCHK = false; return _ss.apply(this, arguments); }; }
+
+/* ----- работа без связи: очередь вложений и плашка состояния ----- */
+let OBN = 0, OBBUSY = false;
+function obDB() { return new Promise((res, rej) => { try { const q = indexedDB.open('angara-ob', 1); q.onupgradeneeded = () => q.result.createObjectStore('q', {keyPath: 'id'}); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); } catch (e) { rej(e); } }); }
+function obAdd(it) {
+  it.id = uid(); it.ts = Date.now();
+  return obDB().then(db => new Promise((res, rej) => { const t = db.transaction('q', 'readwrite'); t.objectStore('q').put(it); t.oncomplete = () => { obCount(); res(); }; t.onerror = () => rej(t.error); })).catch(() => { go({toast: 'Не удалось сохранить вложение в очередь'}); });
+}
+function obAll() { return obDB().then(db => new Promise(res => { const r = db.transaction('q').objectStore('q').getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); })).catch(() => []); }
+function obDel(id) { return obDB().then(db => new Promise(res => { const t = db.transaction('q', 'readwrite'); t.objectStore('q').delete(id); t.oncomplete = () => res(); t.onerror = () => res(); })).catch(() => {}); }
+function obCount() { return obAll().then(a => { OBN = a.length; netPill(); return a; }); }
+function obProcess() {
+  if (OBBUSY || !SY.on || !SY.net) return; OBBUSY = true;
+  obAll().then(list => {
+    OBN = list.length; netPill(); list.sort((a, b) => a.ts - b.ts);
+    const next = i => {
+      if (i >= list.length) { OBBUSY = false; return; }
+      const it = list[i];
+      uploadMedia(it.blob, it.type).then(f => { it.md.f = f; sendMediaMsg(it.th, it.md, true); return obDel(it.id).then(() => { OBN = Math.max(0, OBN - 1); netPill(); next(i + 1); }); })
+        .catch(e => { if (e.net) { OBBUSY = false; return; } obDel(it.id).then(() => { OBN = Math.max(0, OBN - 1); netPill(); go({toast: 'Вложение не отправлено: ' + (e.message || 'ошибка')}); next(i + 1); }); });
+    };
+    next(0);
+  }).catch(() => { OBBUSY = false; });
+}
+function netPill() {
+  let e = document.getElementById('netp'); const off = !!(SY.on && !SY.net && S.role);
+  const txt = OBN > 0 ? 'Вложений в очереди: ' + OBN + (off ? ' · нет связи' : '') : off ? 'Нет связи: изменения сохраняются на телефоне' : '';
+  if (!txt) { if (e) { e.classList.remove('in'); setTimeout(() => { if (e.isConnected && !e.classList.contains('in')) e.remove(); }, 400); } return; }
+  if (!e) { e = document.createElement('div'); e.id = 'netp'; document.body.appendChild(e); requestAnimationFrame(() => requestAnimationFrame(() => e.classList.add('in'))); }
+  e.classList.add('in'); if (e.textContent !== txt) e.textContent = txt;
+}
+setInterval(() => { if (OBN > 0) obProcess(); }, 30000);
+setTimeout(() => { obCount(); }, 2500);
+
+/* ----- короткие подсказки по новым возможностям (каждая показывается один раз) ----- */
+const TIPS_KEY = 'angara_tips';
+const tipsSeen = () => { try { return JSON.parse(localStorage.getItem(TIPS_KEY) || '[]'); } catch (e) { return []; } };
+const TIPS = [
+  {id: 'chat', icon: 'mic', title: 'Голосовые, фото и видео', text: 'Нажмите на микрофон, чтобы записать голосовое (до 2 минут). Скрепка рядом: фото и видео до 30 секунд.', host: 'composer', ok: () => S.tab === 'chat' && !!S.th && !S.view},
+  {id: 'shift', icon: 'flag', title: 'Смена', text: 'Приехали на склад: нажмите «Выйти на смену». Менеджер увидит, что вы вышли, а в конце дня смену можно завершить одной кнопкой.', ok: () => S.role === 'cour' && S.tab === 'route' && !S.view && !!document.querySelector('button[onclick="shiftStart()"]')},
+  {id: 'rings', icon: 'ok', title: 'Кольца нажимаются', text: 'Нажмите на любое кольцо вверху: покажем, из чего оно состоит.', ok: () => (S.tab === 'route' || S.tab === 'plan') && !S.view && !!document.querySelector('.rings')},
+  {id: 'status', icon: 'users', title: 'Где курьеры', text: 'Под именем курьера видно, в сети ли он и где сейчас: на точке, в пути или на базе.', ok: () => S.role === 'mgr' && S.tab === 'plan' && !S.view && !!document.querySelector('[data-mgl]')},
+  {id: 'ntf', icon: 'chat', title: 'Свои уведомления', text: 'В профиле можно выбрать, какие уведомления вам приходят, и включить тихие часы.', ok: () => S.role === 'mgr' && S.tab === 'plan' && !S.view},
+  {id: 'tool', icon: 'pliers', title: 'Инструмент на точке', text: 'Если на точке нужен инструмент, нажмите «Точка требует инструмент»: пометка видна в маршруте и при начале визита.', ok: () => !!(S.view && S.view.type === 'point')},
+  {id: 'cam', icon: 'cctv', title: 'Камера точки', text: 'Кнопка «Камера» ждёт ссылку. Вставьте её, и камера будет открываться одним нажатием.', ok: () => S.role === 'mgr' && !!(S.view && S.view.type === 'point')}
+];
+function tipHint() {
+  if (!S.role || S.sheet || S.shade || MUSTPW || document.getElementById('tiph') || document.getElementById('pushhint')) return;
+  const seen = tipsSeen(), t = TIPS.find(x => !seen.includes(x.id) && x.ok()); if (!t) return;
+  const host = t.host === 'composer' ? document.getElementById('composer') : document.querySelector('#app .body'); if (!host) return;
+  const d = document.createElement('div'); d.id = 'tiph'; d.className = 'card'; d.style.cssText = 'border-color:var(--g);margin:6px 0';
+  d.innerHTML = `<div class="row" style="align-items:flex-start"><div style="color:var(--g)">${ic(t.icon, 24)}</div><div class="grow"><div class="t1" style="font-size:14px">${t.title}</div><div class="t2">${t.text}</div></div></div><div class="btns" style="margin:8px 0 0"><button class="btn sm" onclick="tipDone('${t.id}')">Понятно</button></div>`;
+  host.insertBefore(d, host.firstChild);
+}
+function tipDone(id) { const a = tipsSeen(); if (!a.includes(id)) a.push(id); try { localStorage.setItem(TIPS_KEY, JSON.stringify(a)); } catch (e) {} const e = document.getElementById('tiph'); if (e) e.remove(); }
+function tipsReset() { try { localStorage.removeItem(TIPS_KEY); } catch (e) {} go({toast: 'Подсказки покажутся снова'}); }
+const tipsBlock = () => '<h3>Подсказки</h3><div class="card"><div class="tiny" style="margin-bottom:8px">Короткие подсказки по новым возможностям показываются один раз.</div><button class="btn sec sm" onclick="tipsReset()">Показать подсказки заново</button></div>';
 
 /* ----- подсказка «включите уведомления» ----- */
 const PHINT_KEY = 'angara_pushhint';
@@ -4225,6 +4338,20 @@ function ringSheet(k) {
 function sheetNew() {
   const s = S.sheet;
   if (s === 'ring') return ringSheet(S.rg);
+  if (s === 'mustpw') {
+    const f = S.mp2 || (S.mp2 = {n1: '', n2: '', err: '', busy: false});
+    return `<h2>Придумайте новый пароль</h2><div class="card"><div class="row"><div style="color:var(--o)">${ic('shield', 32)}</div><div class="grow t2">Сейчас у вас временный или слишком простой пароль. Придумайте свой: не короче 6 символов, не «123456» и не логин. Пока пароль не сменён, приложение не сохранит ваши данные.</div></div></div>
+      <input type="password" placeholder="Новый пароль" autocomplete="new-password" value="${esc(f.n1)}" oninput="S.mp2.n1=this.value" style="margin-top:8px">
+      <input type="password" placeholder="Повторите пароль" autocomplete="new-password" value="${esc(f.n2)}" oninput="S.mp2.n2=this.value">
+      ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${esc(f.err)}</div>` : ''}
+      <button class="btn" style="margin-top:8px" ${f.busy ? 'disabled' : ''} onclick="savePwMust()">${f.busy ? 'Сохраняем…' : 'Сохранить пароль'}</button>`;
+  }
+  if (s === 'cologout') {
+    const c = cr(S.clo); if (!c) return '<h2>Курьер не найден</h2><button class="btn sec" onclick="go({sheet:null,clo:null})">Закрыть</button>';
+    return `<h2>Выйти на всех телефонах</h2><div class="card"><div class="t2">${esc(c.name)} будет выведен из приложения на всех телефонах. Войти снова можно будет только с паролем.</div></div>
+      <div class="tiny" style="margin:8px 0">Если телефон потерян, после этого ещё смените пароль курьера (кнопка «Изменить»): иначе тот, кто найдёт телефон, сможет войти, зная пароль.</div>
+      <button class="btn" style="background:#4a1a1a;color:#ffb0b0" onclick="doColLogout()">Выйти на всех телефонах</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null,clo:null})">Отмена</button>`;
+  }
   if (s === 'attach') return `<h2>Прикрепить</h2>
     <div class="attrow" onclick="attachPick('photo')"><div class="ai">${ic('camera', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">Сделать фото</div><div class="t2">Откроется камера телефона</div></div></div>
     <div class="attrow" onclick="attachPick('video')"><div class="ai">${ic('video', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">Снять видео</div><div class="t2">Короткое, до 30 секунд</div></div></div>
