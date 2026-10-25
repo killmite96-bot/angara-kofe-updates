@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 97;
+const APP_VERSION = 98;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -567,7 +567,7 @@ const NST = {s: {}};   // у кого включены уведомления (�
 const GSD = {};   // счётчики качества геолокации по дням (документы gs/ДАТА, видит менеджер)
 const OFF = {};   // календарь отпусков и выходных: OFF[курьер] = {days: {'2026-12-31': 'o'|'v'|'s'}}
 const GCS = {me: null, all: {}, log: []};   // геолокация: моё согласие (курьер), согласия курьеров (менеджер), журнал «прибыл на точку» за 7 дней
-const NS = {off: [], q: {on: false, from: 22, to: 8}};   // настройки уведомлений менеджера (документ ns/mgr): какие виды отключены и тихие часы
+const NS = {off: [], q: {on: false, from: 22, to: 8}, ld: false};   // настройки уведомлений менеджера (документ ns/mgr): какие виды отключены и тихие часы
 const PR = {};   // статусы людей: PR[«mgr» или номер курьера] = {t: последний сигнал, v: приложение открыто, a: последнее действие, lc: где находится, sh: смена}
 const GCHAT = [], DMS = {}, RD = {}, RX = {};   // RX[беседа][кто] = {id сообщения: вид реакции}   // RD[беседа][читатель] = время последнего прочитанного сообщения (беседа: 'g' или пара 'a-b')   // общий чат команды и личные чаты курьер↔курьер (ключ «меньший id-больший id»)
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -2538,7 +2538,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, ex2: 1,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -2551,7 +2551,11 @@ function restoreData(txt) {
   replaceObj(CHAT, d.CHAT); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
   nid = d.nid; CITY = d.CITY;
+  if (d.NS) { Object.assign(NS, d.NS); } if (d.NST) Object.assign(NST, d.NST);
+  replaceObj(GSD, d.GSD || {}); replaceObj(OFF, d.OFF || {}); replaceObj(PR, d.PR || {});
+  if (d.GCS) { GCS.me = d.GCS.me || null; GCS.all = d.GCS.all || {}; GCS.log = d.GCS.log || []; }
   if (d.sy && SY.token) Object.assign(SY, {seq:d.sy.seq || 0, mirror:d.sy.mirror || {}, base:d.sy.base || {}});   // без отметок (старый снимок или сбой) — полная сверка с сервером, без удалений
+  if (!d.ex2 && SY.token) { Object.keys(SY.mirror).forEach(k => { if (/^(ns|nst|gs|off|gc|geo|pr)\//.test(k)) { delete SY.mirror[k]; delete SY.base[k]; } }); SY.seq = 0; }   // старый снимок без этих данных: заново получаем их с сервера
   if (d.sess && d.sess.role && (d.sess.role === 'mgr' || cr(d.sess.me))) Object.assign(S, d.sess, {view:null, sheet:null, cam:null, shade:false});
   return true;
 }
@@ -2691,7 +2695,7 @@ function docsFromState() {
   Object.keys(TP).forEach(k => Object.keys(TP[k]).forEach(u => { d['tp/' + k + '/' + u] = {n:TP[k][u]}; }));
   Object.keys(DMS).forEach(k => DMS[k].forEach(m => { d['dm/' + k + '/' + m.id] = m; }));
   Object.keys(PR).forEach(k => { d['pr/' + k] = PR[k]; });
-  if (SY.role === 'mgr') d['ns/mgr'] = NS;
+  if (SY.role === 'mgr' && NS.ld) d['ns/mgr'] = {off: NS.off, q: NS.q};
   if (SY.role === 'cour' && GCS.me) d['gc/' + SY.cid] = GCS.me;
   if (SY.role === 'mgr') Object.keys(OFF).forEach(k => { if (Object.keys(OFF[k].days || {}).length || SY.mirror['off/' + k] !== undefined) d['off/' + k] = OFF[k]; });
   reviews.forEach(r => { d['rev/' + r.id] = r; });
@@ -2789,7 +2793,7 @@ function applyDoc(k, v, dele) {
     GCS.log = GCS.log.filter(x => !(x.cid === p[1] && x.id === p[2]));
     if (!dele && v) { GCS.log.push(Object.assign({cid: p[1], id: p[2]}, v)); if (GCS.log.length > 400) GCS.log = GCS.log.slice(-400); }
   } else if (h === 'ns') {
-    if (v && p[1] === 'mgr') { NS.off = Array.isArray(v.off) ? v.off.filter(x => typeof x === 'string').slice(0, 12) : []; const q = v.q || {}; NS.q = {on: !!q.on, from: (+q.from || 0) % 24, to: (+q.to || 0) % 24}; }
+    if (v && p[1] === 'mgr') { NS.ld = true; NS.off = Array.isArray(v.off) ? v.off.filter(x => typeof x === 'string').slice(0, 12) : []; const q = v.q || {}; NS.q = {on: !!q.on, from: (+q.from || 0) % 24, to: (+q.to || 0) % 24}; }
   } else if (h === 'pr') {
     if (dele || !v) delete PR[p[1]]; else PR[p[1]] = v;
   } else if (h === 'rx') {
@@ -2809,7 +2813,7 @@ function resetFromDocs(docs) { TP_LOADING = true; try { resetFromDocs0(docs); } 
 function resetFromDocs0(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
   [CHAT, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
-  NS.off = []; NS.q = {on: false, from: 22, to: 8}; GCS.me = null; GCS.all = {}; GCS.log = []; NST.s = {}; Object.keys(GSD).forEach(k => delete GSD[k]); Object.keys(OFF).forEach(k => delete OFF[k]);
+  NS.off = []; NS.q = {on: false, from: 22, to: 8}; NS.ld = false; GCS.me = null; GCS.all = {}; GCS.log = []; NST.s = {}; Object.keys(GSD).forEach(k => delete GSD[k]); Object.keys(OFF).forEach(k => delete OFF[k]);
   SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
     if (d.dele) return;
@@ -2897,7 +2901,7 @@ function pushChanges() {
     ch.push({key:k, value:JSON.parse(js)}); sig[k] = s; bas[k] = js;
   });
   Object.keys(SY.mirror).forEach(k => {
-    if (!(k in cur) && canWriteKey(k, null)) { if (/^(msg|gmsg|dm|rd)\//.test(k)) { delete SY.mirror[k]; return; } ch.push({key:k, value:null, del:true}); sig[k] = null; }   // переписку чистит сервер, телефон её не удаляет
+    if (!(k in cur) && canWriteKey(k, null)) { if (/^(msg|gmsg|dm|rd)\//.test(k)) { delete SY.mirror[k]; return; } if (/^(ns|nst|gs|off|gc|geo|pr)\//.test(k)) return; ch.push({key:k, value:null, del:true}); sig[k] = null; }   // переписку чистит сервер, телефон её не удаляет
   });
   const dels = ch.filter(x => x.del).length;
   if (dels > 15 && dels > Object.keys(SY.mirror).length * .25) { SY.mirror = {}; SY.base = {}; SY.seq = 0; syncResume(); return; }   // слишком много «пропавших» документов: данные на телефоне повреждены, берём всё заново с сервера
@@ -4224,7 +4228,7 @@ function nsBlock() {
     + `<div class="card"><div class="row" style="cursor:pointer" onclick="nsQuiet()"><div class="grow"><div class="t1" style="font-size:14px">Тихие часы</div><div class="t2">В это время уведомления не приходят на телефон, но остаются в колокольчике</div></div>${swHTML(NS.q.on)}</div>`
     + (NS.q.on ? `<div class="row" style="margin-top:10px"><div class="tiny">с</div><div class="step"><button onclick="nsHour('from',-1)">−</button><span>${hh(NS.q.from)}</span><button onclick="nsHour('from',1)">+</button></div><div class="tiny">до</div><div class="step"><button onclick="nsHour('to',-1)">−</button><span>${hh(NS.q.to)}</span><button onclick="nsHour('to',1)">+</button></div></div>` : '') + '</div><div class="tiny">Отключённые виды уведомлений не сохраняются и не показываются.</div>';
 }
-function nsSave() { render(true); pushSoon(); }
+function nsSave() { NS.ld = true; render(true); pushSoon(); }
 function nsToggle(k) { const i = NS.off.indexOf(k); if (i >= 0) NS.off.splice(i, 1); else NS.off.push(k); haptic(8); nsSave(); }
 function nsQuiet() { NS.q.on = !NS.q.on; haptic(8); nsSave(); }
 function nsHour(w, d) { NS.q[w] = (NS.q[w] + d + 24) % 24; nsSave(); }
@@ -4364,7 +4368,14 @@ function geoAccept() {
   GCS.me = {v: 1, on: true, ts: Date.now(), name: cr(S.me).name}; GEO.denied = false; GEO.asked = false;
   pushSoon(); go({sheet: null, gcx: null, toast: 'Определение прибытия включено, оно работает только во время смены'}); setTimeout(geoSync, 300);
 }
-function geoRevoke() { GCS.me = null; geoWatchStop(); GEO.native = ''; try { if (geoApp()) AndroidBridge.geoSet(false, '[]'); } catch (e) {} pushSoon(); go({sheet: null, toast: 'Согласие отозвано, определение выключено'}); geoPill(); }
+function geoRevoke() {
+  const key = 'gc/' + SY.cid, old = GCS.me;
+  api('/api/push', {changes: [{key, value: null, del: true}]}).then(() => {
+    GCS.me = null; delete SY.mirror[key]; delete SY.base[key]; geoWatchStop(); GEO.native = '';
+    try { if (geoApp()) AndroidBridge.geoSet(false, '[]'); } catch (e) {}
+    saveSync(); go({sheet: null, toast: 'Согласие отозвано, определение выключено'}); geoPill();
+  }).catch(() => { GCS.me = old; go({toast: 'Нет связи: согласие не отозвано, повторите позже'}); });
+}
 function geoBlock() {
   if (S.role !== 'cour' || !SRV) return '';
   const g = GCS.me, on = !!(g && g.on), app = geoApp(), perm = app ? geoPermApp() : -1;
@@ -4510,6 +4521,7 @@ function selfTest() {
   T('менеджер: отпуск в календаре', () => { go({sheet: 'offcal', oc: {cid: COUR[0].id, m: Date.now()}}); offTap(isoDate(new Date())); go({tab: 'plan', sheet: null, view: null}); });
   T('менеджер: курьер в отпуске в плане', () => { go({tab: 'plan', mc: COUR[0].id, day: TODAY, sheet: null}); });
   T('менеджер: подсказки и статусы', () => { NST.s = {1: 'none', 2: 'push'}; go({tab: 'team', tm: 'team', sheet: null, view: null}); });
+  T('снимок данных на телефоне хранит все виды данных', () => { const d = JSON.parse(snapshotData()); ['NS', 'NST', 'GSD', 'OFF', 'GCS', 'PR', 'ex2'].forEach(k => { if (!(k in d)) throw new Error('в снимке нет ' + k); }); });
   out.errors = out.errors.concat(errs);
   document.body.insertAdjacentHTML('beforeend', '<pre id="selftest">' + JSON.stringify(out) + '</pre>');
 }
