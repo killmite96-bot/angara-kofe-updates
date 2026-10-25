@@ -1,9 +1,9 @@
 {
-    "content":  50,
+    "content":  51,
     "apk":  12,
-    "notes":  "Реакции: без зелёной обводки, анимация при нажатии.",
+    "notes":  "Реакции: тёмная плашка, хорошо видна на любом фоне.",
     "contentFile":  "index.html",
-    "contentSha256":  "2f5271183411935c25934d75ccacadef50f9b0c90c86d35b25a720b0371ce481",
+    "contentSha256":  "dcf6987ac82d455489a3378ee30e17af832119f8a78aec70dabbf0aa7b560509",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "bf510c22e490b67c5c2e7b53807b1b5505799a0f760cebee530ee4aa7c7f43df"
 }

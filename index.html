@@ -121,7 +121,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 50;
+const APP_VERSION = 51;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1539,7 +1539,7 @@ function rxList(th, id) {   // [{k, users:[...]}] по видам реакций
 function rxChips(th, m) {
   const l = rxList(th, m.id); if (!l.length) return '';
   const me = String(meKey());
-  return '<div style="margin-top:4px">' + l.map(r => `<span data-rxc="${m.id}:${r.k}" class="${RXA === m.id + ':' + r.k ? 'rxpop' : ''}" onclick="event.stopPropagation();toggleRx('${th}','${m.id}','${r.k}')" style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;margin:0 4px 2px 0;border-radius:12px;background:${r.users.includes(me) ? 'rgba(255,255,255,.24)' : 'rgba(255,255,255,.09)'}">${rxIcon(r.k, 15)}${r.users.length > 1 ? `<span style="font-size:12px;font-weight:600">${r.users.length}</span>` : ''}</span>`).join('') + '</div>';
+  return '<div style="margin-top:4px">' + l.map(r => `<span data-rxc="${m.id}:${r.k}" class="${RXA === m.id + ':' + r.k ? 'rxpop' : ''}" onclick="event.stopPropagation();toggleRx('${th}','${m.id}','${r.k}')" style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;margin:0 4px 2px 0;border-radius:12px;background:${r.users.includes(me) ? '#0b120e' : 'rgba(0,0,0,.32)'};border:1px solid rgba(255,255,255,.14)">${rxIcon(r.k, 15)}${r.users.length > 1 ? `<span style="font-size:12px;font-weight:600">${r.users.length}</span>` : ''}</span>`).join('') + '</div>';
 }
 let RXA = null;   // реакция, которую только что поставили: её значок «выпрыгивает»
 function rxBurst(id, k) {   // всплывающий значок над сообщением
