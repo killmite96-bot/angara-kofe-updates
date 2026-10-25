@@ -191,7 +191,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 73;
+const APP_VERSION = 74;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -3004,7 +3004,7 @@ const fxApply = () => document.documentElement.classList.toggle('fxoff', FX_OFF)
 fxApply();
 function fxToggle() { FX_OFF = !FX_OFF; try { localStorage.setItem(FX_KEY, FX_OFF ? '1' : '0'); } catch (e) {} fxApply(); render(true); }
 function fxBlock() {
-  return `<h3>Оформление</h3><div class="card"><div class="row" onclick="fxToggle()" style="cursor:pointer"><div class="grow"><div class="t1" style="font-size:14px">Меньше анимаций</div><div class="tiny">Отключает плавные эффекты и вибрацию при нажатиях: полезно на слабом телефоне или для экономии батареи.</div></div>${swHTML(FX_OFF)}</div><div class="row" onclick="sndToggle()" style="cursor:pointer;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)"><div class="grow"><div class="t1" style="font-size:14px">Звуки интерфейса</div><div class="tiny">Тихие сигналы при отправке сообщения, сдаче точки и реакциях.</div></div>${swHTML(SNDUI)}</div></div>`;
+  return `<h3>Оформление</h3><div class="card"><div class="row" onclick="fxToggle()" style="cursor:pointer"><div class="grow"><div class="t1" style="font-size:14px">Меньше анимаций</div><div class="tiny">Отключает плавные эффекты и вибрацию при нажатиях: полезно на слабом телефоне или для экономии батареи.</div></div>${swHTML(FX_OFF)}</div><div class="row" onclick="sndToggle()" style="cursor:pointer;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)"><div class="grow"><div class="t1" style="font-size:14px">Звуки интерфейса</div><div class="tiny">Тихие сигналы при отправке сообщения, сдаче точки и реакциях.</div></div>${swHTML(SNDUI)}</div></div><div class="tiny" style="text-align:center;margin-top:8px">Версия приложения ${APP_VERSION}${WEBNEW > APP_VERSION ? ' · есть новая (' + WEBNEW + ') <span style="color:var(--g);cursor:pointer" onclick="webReload()">обновить</span>' : ''}</div>`;
 }
 function haptic(p) { if (FX_OFF) return; try { if (navigator.vibrate) navigator.vibrate(p || 8); } catch (e) {} }
 document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.btn,.tabs button,.box,.step button,.seg button,.days button,.chips button,.bell,.sendb,.lvp button')) haptic(8); }, true);
@@ -3267,6 +3267,34 @@ function updBadge() {
     if (n > 0) navigator.setAppBadge(n); else navigator.clearAppBadge();
   } catch (e) {}
 }
+
+/* ===================== ОБНОВЛЕНИЕ ВЕБ-ВЕРСИИ ===================== */
+// Приложение из Chrome и страница в браузере сами проверяют, не вышла ли новая версия: Android держит свёрнутое приложение в памяти, и без этого оно могло неделями работать на старой странице.
+let WEBNEW = 0, WEBCHK = 0;
+function webReload() { try { sessionStorage.setItem('angara_wr', String(Date.now())); } catch (e) {} try { saveAll(); } catch (e) {} try { if (window.caches) caches.delete('app'); } catch (e) {} location.reload(); }
+const webBusy = () => !!(S.visit || S.sheet || S.cam || S.shade || S.viewer || CROP || (S.chatDraft && S.chatDraft.trim()) || S.edit || BK.on);
+function webBanner() {
+  if (document.getElementById('wupd')) return;
+  const d = document.createElement('div'); d.id = 'wupd';
+  d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:40;background:#17402a;border:1px solid var(--g);border-radius:16px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.5)';
+  d.innerHTML = '<div class="grow" style="font-size:13px">Вышла новая версия приложения</div><button class="btn sm" style="padding:7px 12px" onclick="webReload()">Обновить</button>';
+  document.body.appendChild(d);
+}
+function webUpdateCheck(force) {
+  if (window.AndroidBridge || !/^https?:$/.test(location.protocol)) return;
+  if (!force && Date.now() - WEBCHK < 45000) return; WEBCHK = Date.now();
+  fetch('/update/version.json?t=' + Date.now(), {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(j => {
+    if (!j || !(+j.content > APP_VERSION)) return;
+    WEBNEW = +j.content;
+    if (document.hidden) return;
+    let recent = false; try { recent = Date.now() - (+sessionStorage.getItem('angara_wr') || 0) < 120000; } catch (e) {}   // защита от бесконечной перезагрузки, если страница почему-то отстаёт от сервера
+    if (!webBusy() && !recent) webReload(); else webBanner();   // не прерываем визит, ввод сообщения и открытые окна: предлагаем нажать «Обновить»
+  }).catch(() => {});
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) webUpdateCheck(); });
+window.addEventListener('online', () => webUpdateCheck(true));
+setInterval(() => { if (!document.hidden) webUpdateCheck(); }, 300000);
+setTimeout(() => webUpdateCheck(true), 3000);
 
 // запуск: при ошибке один раз сбрасываем сохранённый на телефоне снимок (все данные на сервере) и пробуем снова; если не вышло — понятное сообщение вместо пустого экрана
 function bootApp() { syncBoot(); render(); }
