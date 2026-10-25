@@ -1,9 +1,9 @@
 {
-    "content":  83,
+    "content":  84,
     "apk":  18,
-    "notes":  "Смена: на экране «Маршрут» карточка «Вы на смене» с таймером и кнопкой «Завершить смену».",
+    "notes":  "Голосовые: точнее определяется причина, если микрофон не включается; на iPhone запись стала надёжнее.",
     "contentFile":  "index.html",
-    "contentSha256":  "b3d851eb96cb668eded2bb23828563673e82c2efad3b606f1a81ca6c4fed7fd6",
+    "contentSha256":  "c8b7457c2bc2a6437f19fa5e924fa25f9dfea5b570620555c56aceaf01d4d2c9",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "06de9753363363d439675b942e7217765b87ae8ee61e1093b9cad437f9c27500"
 }

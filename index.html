@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 83;
+const APP_VERSION = 84;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -3938,10 +3938,17 @@ function micStart() {
 }
 function micGo() {
   if (S.sheet) go({sheet: null});
-  navigator.mediaDevices.getUserMedia({audio: {echoCancellation: true, noiseSuppression: true}}).then(st => {
-    try { localStorage.setItem('angara_mic', '1'); } catch (e) {}
-    recBegin(st);
-  }).catch(e => { try { localStorage.removeItem('angara_mic'); } catch (e2) {} go({sheet: 'micperm', mp: e && e.name === 'NotFoundError' ? 'nomic' : 'denied'}); });
+  const fail = (e, where) => {
+    try { window.__log({k: 'mic', w: where, n: e && e.name, m: String((e && e.message) || '').slice(0, 100)}); } catch (x) {}
+    try { localStorage.removeItem('angara_mic'); } catch (x) {}
+    const n = (e && e.name) || '';
+    go({sheet: 'micperm', mp: n === 'NotAllowedError' || n === 'SecurityError' || n === 'PermissionDeniedError' ? 'denied' : n === 'NotFoundError' ? 'nomic' : 'error', mpe: n + (e && e.message ? ': ' + String(e.message).slice(0, 90) : '')});
+  };
+  const ask = c => navigator.mediaDevices.getUserMedia(c);
+  ask({audio: {echoCancellation: true, noiseSuppression: true}}).catch(e => e && (e.name === 'OverconstrainedError' || e.name === 'TypeError') ? ask({audio: true}) : Promise.reject(e)).then(st => {
+    try { localStorage.setItem('angara_mic', '1'); } catch (x) {}
+    try { recBegin(st); } catch (e) { try { st.getTracks().forEach(t => t.stop()); } catch (x) {} fail(e, 'rec'); }
+  }, e => fail(e, 'gum'));
 }
 function recBar(on) {
   let b = document.getElementById('recbar');
@@ -3959,12 +3966,12 @@ function recBegin(st) {
   Object.assign(REC, {on: true, st, mr, chunks: [], t0: Date.now(), lv: [], cancel: false, mime: mr.mimeType || mime, an: null});
   mr.ondataavailable = e => { if (e.data && e.data.size) REC.chunks.push(e.data); };
   mr.onstop = recFinish;
-  try { const AC = window.AudioContext || window.webkitAudioContext; REC.ctx = new AC(); const src = REC.ctx.createMediaStreamSource(st); REC.an = REC.ctx.createAnalyser(); REC.an.fftSize = 256; src.connect(REC.an); } catch (e) { REC.an = null; }
+  if (!isIOS) try { const AC = window.AudioContext || window.webkitAudioContext; REC.ctx = new AC(); const src = REC.ctx.createMediaStreamSource(st); REC.an = REC.ctx.createAnalyser(); REC.an.fftSize = 256; src.connect(REC.an); } catch (e) { REC.an = null; }
   mr.start(250); recBar(true); haptic(12);
   clearInterval(REC.tm); REC.tm = setInterval(recTick, 90);
 }
 function recTick() {
-  if (!REC.on) return; const el = Date.now() - REC.t0; let lv = .15;
+  if (!REC.on) return; const el = Date.now() - REC.t0; let lv = .12 + Math.random() * .45;   // на iPhone уровень звука не читаем (иначе может пропасть запись), полоски просто колышутся
   if (REC.an) { const buf = new Uint8Array(REC.an.fftSize); REC.an.getByteTimeDomainData(buf); let s = 0; for (let i = 0; i < buf.length; i++) { const x = (buf[i] - 128) / 128; s += x * x; } lv = Math.min(1, Math.sqrt(s / buf.length) * 3.2); }
   REC.lv.push(lv);
   const t = document.getElementById('rect'); if (t) t.textContent = fmtDur(el / 1000);
@@ -4152,11 +4159,11 @@ function sheetNew() {
     <button class="btn" style="margin-top:10px" onclick="micGo()">Разрешить доступ</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Не сейчас</button>`;
   if (s === 'micperm') {
     const mp = S.mp, apk = !!(window.AndroidBridge && AndroidBridge.openAppSettings);
-    const steps = mp === 'nomic' ? 'Микрофон на этом устройстве не найден.' : mp === 'nosupport' ? 'Этот браузер не умеет записывать звук. Откройте приложение в Chrome (Android) или Safari (iPhone) либо обновите его.'
+    const steps = mp === 'error' ? 'Телефон не дал включить запись, хотя разрешение могло быть выдано. Закройте приложение полностью и откройте снова' + (isIOS ? '; если не поможет, откройте сайт в Safari, а не с экрана «Домой»' : '') + '. Код ошибки: ' + esc(S.mpe || '') : mp === 'nomic' ? 'Микрофон на этом устройстве не найден.' : mp === 'nosupport' ? 'Этот браузер не умеет записывать звук. Откройте приложение в Chrome (Android) или Safari (iPhone) либо обновите его.'
       : apk ? 'Откройте настройки приложения: Разрешения → Микрофон → «Разрешить только при использовании». Затем вернитесь сюда.'
       : isIOS ? 'Откройте «Настройки» iPhone → Safari → Микрофон и выберите «Спросить» или «Разрешить». Затем вернитесь в приложение.'
       : 'Нажмите на значок замка рядом с адресом сайта → «Разрешения» → «Микрофон» → «Разрешить». Для установленного приложения: Настройки телефона → Приложения → Ангара Кофе → Разрешения → Микрофон.';
-    return `<h2>${mp === 'nomic' || mp === 'nosupport' ? 'Запись недоступна' : 'Микрофон выключен'}</h2><div class="card"><div class="row"><div style="color:var(--o)">${ic('mic', 36)}</div><div class="grow t2">${steps}</div></div></div>
+    return `<h2>${mp === 'nomic' || mp === 'nosupport' || mp === 'error' ? 'Запись недоступна' : 'Микрофон выключен'}</h2><div class="card"><div class="row"><div style="color:var(--o)">${ic('mic', 36)}</div><div class="grow t2">${steps}</div></div></div>
       ${apk && mp === 'denied' ? '<button class="btn" style="margin-top:10px" onclick="AndroidBridge.openAppSettings()">Открыть настройки</button>' : ''}
       ${mp === 'denied' ? '<button class="btn sec" style="margin-top:8px" onclick="micGo()">Попробовать ещё раз</button>' : ''}
       <button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
