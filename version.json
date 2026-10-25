@@ -1,9 +1,9 @@
 {
-    "content":  37,
+    "content":  38,
     "apk":  9,
-    "notes":  "Автоочистка: проверки с фото и уведомления старше 30 дней, переписка старше 90 дней удаляются сами, память не заполняется.",
+    "notes":  "Общий чат команды и личные чаты курьер-курьер; уведомления на iPhone при закрытом приложении (Профиль -\u003e Уведомления).",
     "contentFile":  "index.html",
-    "contentSha256":  "93143d3d88997b0d4dcd72d75ce5fbb7c7c2b92f991108fabe3312d8b66062be",
+    "contentSha256":  "328b167f6f24e9ae660a6a54aa082c9b3ca8a9173878e5e91e18465eeb23faa9",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "c96123a54afae7aea227da8dc7714daefe15b97b184422ee03aa985f5ea38045"
+    "apkSha256":  "cbe7a65a323a3ae248cf47582389f1a6db58dc308a63afc53ad0cbeddbb187fe"
 }

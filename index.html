@@ -115,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 37;
+const APP_VERSION = 38;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -440,6 +440,7 @@ const CHAT = {
   1:[{id:'seed1', ts:1, from:'mgr', text:'Доброе утро! Сегодня 7 точек, 4 из них с мойкой. Начните с базы.', t:'08:05', pid:null, read:true}, {id:'seed2', ts:2, from:'cour', text:'Принял, выезжаю на базу.', t:'08:07', pid:null, read:true}],
   2:[]
 };
+const GCHAT = [], DMS = {};   // общий чат команды и личные чаты курьер↔курьер (ключ «меньший id-больший id»)
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 function sendMsg(cid, from, text, pid) {
   const d = new Date(), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
@@ -502,7 +503,7 @@ function nozzleSVG(ghost) {
 }
 
 /* ===================== СОСТОЯНИЕ ===================== */
-let S = {role:null, me:1, mc:1, tab:'', day:TODAY, view:null, sheet:null, cam:null, visit:null, q:'', flt:'all', toast:'', sh:null, lg:{login:'', pass:'', err:''}, cf:null, shade:false, redo:null, rc:null, bf:null, chatWith:null, chatDraft:'', ctxOff:false, focusChat:false};
+let S = {role:null, me:1, mc:1, tab:'', day:TODAY, view:null, sheet:null, cam:null, visit:null, q:'', flt:'all', toast:'', sh:null, lg:{login:'', pass:'', err:''}, cf:null, shade:false, redo:null, rc:null, bf:null, th:null, chatPid:null, chatDraft:'', ctxOff:false, focusChat:false};
 const $ = id => document.getElementById(id);
 // отметка уровня пальцем применяется только по кнопке «Готово»: если окно закрыли иначе (нажатием вне окна, кнопкой «Назад»), значение возвращается
 function lvRevert() {
@@ -541,7 +542,7 @@ function shadeHTML() {
         : `<div style="margin-top:8px"><span class="pill ${r.status === 'ok' ? 'ok' : 'bad'}">${r.status === 'ok' ? 'принято' : 'отправлено на пересъёмку'}</span></div>`;
     }
     if (n.kind === 'redo') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="closeShade();openPoint(${n.pid})">Открыть точку</button></div>`;
-    if (n.kind === 'chat') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="openChatFrom(${n.cid})">Ответить в чате</button></div>`;
+    if (n.kind === 'chat') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="openTh('${n.th || 'm:' + n.cid}')">Ответить в чате</button></div>`;
     if (n.kind === 'move' && n.mvId) { const m = MV.find(x => x.id === n.mvId); if (m && m.status === 'pending' && S.role === 'mgr') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="mvApprove('${m.id}')">Принять</button><button class="btn sec sm" onclick="mvDecline('${m.id}')">Отклонить</button></div>`; else if (m && m.status !== 'pending') h += `<div style="margin-top:8px"><span class="pill ${m.status === 'ok' ? 'ok' : 'bad'}">${m.status === 'ok' ? 'принято' : 'отклонено'}</span></div>`; }
     h += '</div>';
   });
@@ -1037,7 +1038,7 @@ function pruneOld() {
   const now = Date.now(), D = 86400000;
   for (let i = reviews.length - 1; i >= 0; i--) if (reviews[i].id > 1e12 && now - reviews[i].id > 30 * D) reviews.splice(i, 1);
   for (let i = NOTIFS.length - 1; i >= 0; i--) if (NOTIFS[i].ts > 1e12 && now - NOTIFS[i].ts > 30 * D) NOTIFS.splice(i, 1);
-  Object.keys(CHAT).forEach(c => { const a = CHAT[c]; for (let i = a.length - 1; i >= 0; i--) if (a[i].ts > 1e12 && now - a[i].ts > 90 * D) a.splice(i, 1); });
+  [...Object.values(CHAT), ...Object.values(DMS), GCHAT].forEach(a => { for (let i = a.length - 1; i >= 0; i--) if (a[i].ts > 1e12 && now - a[i].ts > 90 * D) a.splice(i, 1); });
 }function refreshDay() {
   pruneOld();
   if (todayIdx() !== TODAY) { TODAY = todayIdx(); S.day = TODAY; if (S.role) render(true); }
@@ -1366,38 +1367,80 @@ function whScreen() {
 const whAdj = (id, d) => { const g = ING.find(x => x.id === id); WH[id] = Math.max(0, +(WH[id] + d * g.st).toFixed(1)); render(true); };
 
 /* ===================== ЧАТ ===================== */
-const chatUnread = () => S.role === 'mgr' ? Object.values(CHAT).flat().filter(m => m.from === 'cour' && !m.read).length : (CHAT[S.me] || []).filter(m => m.from === 'mgr' && !m.read).length;
+// Беседы: 'g' — общий чат всей команды, 'm:<id курьера>' — курьер и менеджер, 'd:<id курьера>' — личный чат курьер↔курьер (виден только им двоим)
+const meKey = () => S.role === 'mgr' ? 'mgr' : S.me;
+const dmKey = (a, b) => Math.min(a, b) + '-' + Math.max(a, b);
+const SEEN_KEY = 'angara_kofe_seen';
+let SEEN = {}; try { SEEN = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') || {}; } catch (e) {}
+function thMsgs(th) {
+  if (th === 'g') return GCHAT;
+  if (th[0] === 'd') return DMS[dmKey(S.me, +th.slice(2))] || [];
+  return CHAT[th.slice(2)] || [];
+}
+const thUnread = th => {
+  const a = thMsgs(th);
+  if (th[0] === 'm') { const me = S.role === 'mgr' ? 'mgr' : 'cour'; return a.filter(m => m.from !== me && !m.read).length; }
+  const k = String(meKey()), seen = SEEN[th] || 0;
+  return a.filter(m => String(m.from) !== k && m.ts > seen).length;
+};
+function thList() {
+  const act = COUR.filter(c => c.active && (S.role === 'mgr' || c.id !== S.me));
+  if (S.role === 'mgr') return ['g', ...act.map(c => 'm:' + c.id)];
+  return ['g', 'm:' + S.me, ...act.map(c => 'd:' + c.id)];
+}
+const chatUnread = () => thList().reduce((n, th) => n + thUnread(th), 0);
 const tabBadge = k => { const n = k === 'mgr' ? pendCount() : k === 'chat' ? chatUnread() : 0; return n ? `<i class="tb">${n}</i>` : ''; };
-function openChatFrom(cid) { closeShade(); go({tab:'chat', view:null, chatWith:S.role === 'mgr' ? cid : null}); }
+function openTh(th) { closeShade(); go({tab:'chat', view:null, th:th || null}); }
+const thTitle = th => th === 'g' ? 'Общий чат' : th[0] === 'd' ? cr(+th.slice(2)).name : S.role === 'mgr' ? cr(+th.slice(2)).name : 'Менеджер';
+const sender = f => f === 'mgr' ? MGR.name : (cr(+f) || {name:'?'}).name;
 function chatScreen() {
-  const mgr = S.role === 'mgr', me = mgr ? 'mgr' : 'cour';
-  if (mgr && S.chatWith === null) {
-    let h = topbar('Чат', 'Переписка с курьерами') + '<div class="body">';
-    COUR.filter(c => c.active).forEach(c => {
-      const m = CHAT[c.id] || [], last = m[m.length - 1], un = m.filter(x => x.from === 'cour' && !x.read).length;
-      h += `<div class="card" onclick="go({chatWith:${c.id}})"><div class="row">${avatar(c.id, c.name, 38)}
-        <div class="grow"><div class="t1">${c.name}</div><div class="t2">${last ? (last.from === 'mgr' ? 'Вы: ' : '') + esc(last.text.slice(0, 46)) : 'Сообщений нет'}</div></div>${un ? `<span class="pill warn">${un}</span>` : ''}</div></div>`;
+  const mgr = S.role === 'mgr';
+  if (!S.th) {
+    let h = topbar('Чат', mgr ? 'Общий чат и переписка с курьерами' : 'Команда и менеджер') + '<div class="body">';
+    thList().forEach(th => {
+      const m = thMsgs(th), last = m[m.length - 1], un = thUnread(th), you = last && String(last.from) === String(th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey());
+      const who = last ? (you ? 'Вы: ' : (th === 'g' ? sender(last.from) + ': ' : '')) : '';
+      const av = th === 'g' ? `<div class="av" style="width:38px;height:38px;border-radius:50%;background:var(--g);display:flex;align-items:center;justify-content:center;color:#06210f">${ic('users', 20)}</div>`
+        : th === 'm:' + S.me ? `<div class="av" style="width:38px;height:38px;border-radius:50%;background:#26382e;display:flex;align-items:center;justify-content:center">${ic('shield', 20)}</div>`
+        : avatar(+th.slice(2), thTitle(th), 38);
+      h += `<div class="card" onclick="go({th:'${th}'})"><div class="row">${av}
+        <div class="grow"><div class="t1">${th === 'm:' + S.me ? 'Менеджер' : thTitle(th)}</div><div class="t2">${last ? who + esc((last.text || '').slice(0, 46)) : 'Сообщений нет'}</div></div>${un ? `<span class="pill warn">${un}</span>` : ''}</div></div>`;
     });
     return h + '</div>';
   }
-  const cid_ = mgr ? S.chatWith : S.me, msgs = CHAT[cid_] || [];
-  msgs.forEach(m => { if (m.from !== me) m.read = true; });
-  NOTIFS.forEach(n => { if (n.kind === 'chat' && n.to === nkey() && n.cid === cid_) n.read = true; });
-  const inc = msgs.slice().reverse().find(m => m.from !== me && m.pid), ctx = inc && !S.ctxOff ? inc.pid : null;
-  let h = topbar(mgr ? 'Чат · ' + cr(cid_).name : 'Чат с менеджером', mgr ? '<button class="back" style="margin:0" onclick="go({chatWith:null})">‹ Все чаты</button>' : 'Задавайте вопросы и отвечайте на комментарии');
+  const th = S.th, msgs = thMsgs(th), me = th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey();
+  if (th[0] === 'm') msgs.forEach(m => { if (m.from !== me) m.read = true; });
+  else if (msgs.length) { SEEN[th] = msgs[msgs.length - 1].ts; try { localStorage.setItem(SEEN_KEY, JSON.stringify(SEEN)); } catch (e) {} }
+  NOTIFS.forEach(n => { if (n.kind === 'chat' && n.to === nkey() && (n.th || 'm:' + n.cid) === th) n.read = true; });
+  const inc = msgs.slice().reverse().find(m => String(m.from) !== String(me) && m.pid), ctx = S.chatPid || (inc && !S.ctxOff ? inc.pid : null);
+  let h = topbar(thTitle(th), '<button class="back" style="margin:0" onclick="go({th:null})">‹ Все чаты</button>');
   h += '<div class="body">';
   if (!msgs.length) h += '<div class="card t2">Пока сообщений нет.</div>';
-  msgs.forEach(m => h += `<div class="msg ${m.from === me ? 'me' : 'them'}">${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="openPoint(${m.pid})">${ic('pin', 13)} ${pt(m.pid).name}</div>` : ''}<div>${esc(m.text)}</div><div class="mt">${m.t}</div></div>`);
-  h += `</div><div style="background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">Ответ по точке: ${pt(ctx).name} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true})">✕</span></div>` : ''}
+  msgs.forEach(m => {
+    const mine = String(m.from) === String(me);
+    h += `<div class="msg ${mine ? 'me' : 'them'}">${!mine && th === 'g' ? `<div class="tiny" style="margin-bottom:3px;color:var(--g)">${esc(sender(m.from))}</div>` : ''}${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="openPoint(${m.pid})">${ic('pin', 13)} ${pt(m.pid) ? pt(m.pid).name : 'точка'}</div>` : ''}<div>${esc(m.text)}</div><div class="mt">${m.t}</div></div>`;
+  });
+  h += `</div><div style="background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">Ответ по точке: ${pt(ctx) ? pt(ctx).name : ''} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true,chatPid:null})">✕</span></div>`
+    : `<div style="margin-bottom:6px"><select onchange="S.chatPid=+this.value||null;render()" style="margin:0;padding:5px 8px;font-size:13px;max-width:100%"><option value="">+ привязать точку</option>${P.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>`}
     <div class="row"><input type="text" id="chatin" placeholder="Сообщение" value="${esc(S.chatDraft)}" oninput="S.chatDraft=this.value" onkeydown="if(event.key==='Enter')sendChat()" style="margin:0"><button class="btn sm" onclick="sendChat()">${ic('send', 17)}</button></div></div>`;
   return h;
 }
 function sendChat() {
-  const t = S.chatDraft.trim(); if (!t) return;
-  const mgr = S.role === 'mgr', cid_ = mgr ? S.chatWith : S.me, me = mgr ? 'mgr' : 'cour';
-  const inc = (CHAT[cid_] || []).slice().reverse().find(m => m.from !== me && m.pid);
-  sendMsg(cid_, me, t, inc && !S.ctxOff ? inc.pid : null);
-  S.chatDraft = ''; S.ctxOff = false; S.focusChat = true; render();
+  const t = S.chatDraft.trim(), th = S.th; if (!t || !th) return;
+  const mgr = S.role === 'mgr', me = th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey();
+  const inc = thMsgs(th).slice().reverse().find(m => String(m.from) !== String(me) && m.pid);
+  const pid = S.chatPid || (inc && !S.ctxOff ? inc.pid : null);
+  if (th[0] === 'm') sendMsg(+th.slice(2), me, t, pid); else sendTeamMsg(th, t, pid);
+  S.chatDraft = ''; S.ctxOff = false; S.chatPid = null; S.focusChat = true; render();
+}
+function sendTeamMsg(th, text, pid) {
+  const d = new Date(), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), from = meKey();
+  const m = {id:uid(), ts:Date.now(), from, text, t, pid:pid || null};
+  let to = [];
+  if (th === 'g') { GCHAT.push(m); to = ['mgr', ...COUR.filter(c => c.active).map(c => c.id)].filter(x => String(x) !== String(from)); }
+  else { const other = +th.slice(2), k = dmKey(S.me, other); (DMS[k] = DMS[k] || []).push(m); to = [other]; }
+  const label = th === 'g' ? 'Общий чат · ' + sender(from) : sender(from);
+  to.forEach(x => notify(x, 'chat', label + ': ' + text, {th:th === 'g' ? 'g' : 'd:' + S.me, pid:m.pid}));
 }
 function askComment(id) { go({shade:false, sheet:'rcomment', rc:{id, text:''}}); }
 function sendRC(accept) {
@@ -1423,7 +1466,7 @@ function shiftCard() {
     const s = shiftStatus(c.id);
     h += `<div style="margin-top:10px"><div class="row">${avatar(c.id, c.name, 32)}
       <div class="grow"><div class="t1" style="font-size:14px">${c.name}</div><div class="t2">${s.done} из ${s.n} точек · ${s.info}</div></div>
-      <span class="pill ${s.cls}">${s.t}</span><button class="btn sec sm" style="padding:5px 9px" onclick="go({tab:'chat',chatWith:${c.id}})">${ic('chat', 16)}</button></div>
+      <span class="pill ${s.cls}">${s.t}</span><button class="btn sec sm" style="padding:5px 9px" onclick="go({tab:'chat',th:'m:${c.id}'})">${ic('chat', 16)}</button></div>
       <div class="bar"><i style="width:${Math.round(s.done / s.n * 100)}%;background:var(--g)"></i></div></div>`;
   });
   if (off.length) h += `<div class="tiny" style="margin-top:10px">Выходной: ${off.map(c => c.name).join(', ')}</div>`;
@@ -1623,7 +1666,7 @@ function sheet() {
       <input type="password" placeholder="Повторите новый пароль" autocomplete="off" value="${esc(f.n2)}" oninput="S.pw.n2=this.value">
       ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${f.err}</div>` : ''}
       <button class="btn sec" style="margin:8px 0" onclick="changePass()">Сменить пароль</button>`;
-    h += updBlock();
+    h += pushBlock() + updBlock();
     return h + `<button class="btn" style="background:#4a1a1a;color:#ffb0b0;margin-top:12px" onclick="doLogout()">Выйти из профиля</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
   }
   if (S.sheet === 'water') {
@@ -1959,7 +2002,7 @@ window.appBack = () => {
   if (S.shade) { closeShade(); return true; }
   if (S.sheet) { go({sheet:null}); return true; }
   if (S.view) { go({view:null}); return true; }
-  if (S.role === 'mgr' && S.tab === 'chat' && S.chatWith !== null) { go({chatWith:null}); return true; }
+  if (S.tab === 'chat' && S.th) { go({th:null}); return true; }
   return false;
 };
 
@@ -2027,7 +2070,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, GCHAT, DMS, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -2037,7 +2080,7 @@ function restoreData(txt) {
   replaceArr(P, d.P); P.forEach(p => { p.units.forEach(u => { u.loc = p; }); const s = PTS_SRC[p.id - 1]; if (s && s[0] === p.name) { p.lat = s[5]; p.lon = s[6]; } });
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
-  replaceObj(CHAT, d.CHAT); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
+  replaceObj(CHAT, d.CHAT); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
   nid = d.nid; CITY = d.CITY;
   if (d.sess && d.sess.role && (d.sess.role === 'mgr' || cr(d.sess.me))) Object.assign(S, d.sess, {view:null, sheet:null, cam:null, shade:false});
@@ -2163,16 +2206,20 @@ function docsFromState() {
   Object.keys(ld).forEach(c => { d['ld/' + c] = ld[c]; });
   NOTIFS.forEach(n => { d['ntf/' + n.to + '/' + n.id] = n; });
   Object.keys(CHAT).forEach(c => CHAT[c].forEach(m => { d['msg/' + c + '/' + m.id] = m; }));
+  GCHAT.forEach(m => { d['gmsg/' + m.id] = m; });
+  Object.keys(DMS).forEach(k => DMS[k].forEach(m => { d['dm/' + k + '/' + m.id] = m; }));
   reviews.forEach(r => { d['rev/' + r.id] = r; });
   return d;
 }
 // те же правила, что на сервере: сервер всё равно перепроверит
 function canWriteKey(k, v) {
-  if (SY.role === 'mgr') return k !== 'cour' && k !== 'wk';
+  if (SY.role === 'mgr') return k !== 'cour' && k !== 'wk' && !k.startsWith('dm/');
   const p = k.split('/'), h = p[0], me = String(SY.cid);
+  if (h === 'gmsg') return !v || String(v.from) === me;
+  if (h === 'dm') return p[1].split('-').includes(me) && (!v || String(v.from) === me);
   if (h === 'pt' || h === 'wh') return true;
   if (h === 'sched' || h === 'ld' || h === 'msg' || h === 'av' || h === 'prog' || h === 'mv') return p[1] === me;
-  if (h === 'ntf') return p[1] === 'mgr' || p[1] === me;
+  if (h === 'ntf') return p[1] === 'mgr' || p[1] === me || (!!v && v.kind === 'chat');
   if (h === 'rev') return !v || String(v.cid) === me;
   return false;
 }
@@ -2230,13 +2277,17 @@ function applyDoc(k, v, dele) {
     upsert(NOTIFS, dele ? {id:p[2]} : v, dele, byTsDesc);
   } else if (h === 'msg') {
     const c = +p[1]; ensureCour(c); upsert(CHAT[c], dele ? {id:p[2]} : v, dele, byTsAsc);
+  } else if (h === 'gmsg') {
+    upsert(GCHAT, dele ? {id:p[1]} : v, dele, byTsAsc);
+  } else if (h === 'dm') {
+    upsert(DMS[p[1]] = DMS[p[1]] || [], dele ? {id:p[2]} : v, dele, byTsAsc);
   } else if (h === 'rev') {
     upsert(reviews, dele ? {id:p[1]} : v, dele, (a, b) => String(b.id).length - String(a.id).length || b.id - a.id);
   }
 }
 function resetFromDocs(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
-  [CHAT, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
+  [CHAT, DMS, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
   SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
     if (d.dele) return;
@@ -2380,10 +2431,43 @@ function loginToken(i) {
     render();
   });
 }
+/* ===================== УВЕДОМЛЕНИЯ ПРИ ЗАКРЫТОМ ПРИЛОЖЕНИИ (iPhone, браузер) ===================== */
+// В приложении для Android уведомления приходят через саму оболочку; в iPhone и в браузере — через веб-уведомления (нужен HTTPS и иконка «Домой»).
+const PUSH_KEY = 'angara_kofe_push';
+const pushIsApp = () => { try { return !!window.AndroidBridge; } catch (e) { return false; } };
+const pushCan = () => !pushIsApp() && !!SRV && /^https:/.test(SRV) && 'serviceWorker' in navigator && 'Notification' in window && 'PushManager' in window;
+const pushOn = () => { try { return localStorage.getItem(PUSH_KEY) === '1' && Notification.permission === 'granted'; } catch (e) { return false; } };
+function pushKeyBytes(k) { const s = atob((k + '==='.slice((k.length + 3) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(s, c => c.charCodeAt(0)); }
+async function pushSubscribe() {
+  const reg = await navigator.serviceWorker.register('/sw.js');
+  await navigator.serviceWorker.ready;
+  const v = await api('/api/vapid'); if (!v.ok) throw new Error('Сервер пока не поддерживает уведомления');
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:pushKeyBytes(v.key)});
+  await api('/api/push-sub', {sub:sub.toJSON()});
+  try { localStorage.setItem(PUSH_KEY, '1'); } catch (e) {}
+}
+function pushEnable() {
+  if (!pushCan()) return go({toast:'Сначала добавьте приложение на экран «Домой» и откройте его с иконки'});
+  Notification.requestPermission().then(p => {
+    if (p !== 'granted') return go({toast:'Уведомления запрещены в настройках телефона'});
+    return pushSubscribe().then(() => go({toast:'Уведомления включены'}));
+  }).catch(e => go({toast:e.message || 'Не удалось включить уведомления'}));
+}
+function pushDisable() {
+  const done = () => { try { localStorage.removeItem(PUSH_KEY); } catch (e) {} go({toast:'Уведомления выключены'}); };
+  navigator.serviceWorker.getRegistration('/sw.js').then(r => r && r.pushManager.getSubscription()).then(s => s ? api('/api/push-unsub', {sub:s.toJSON()}).then(() => s.unsubscribe()) : null).then(done, done);
+}
+function pushResync() { if (pushCan() && SY.token && pushOn()) pushSubscribe().catch(() => {}); }
+function pushBlock() {
+  if (pushIsApp() || !SRV) return '';
+  if (!pushCan()) return '<h3>Уведомления</h3><div class="card"><div class="tiny">На iPhone: откройте адрес приложения в Safari, затем «Поделиться» → «На экран Домой», запустите приложение с иконки и включите уведомления здесь. Нужен iOS 16.4 или новее.</div></div>';
+  return '<h3>Уведомления</h3><div class="card"><div class="tiny" style="margin-bottom:8px">' + (pushOn() ? 'Включены: сообщения и задачи придут, даже если приложение закрыто.' : 'Включите, чтобы получать сообщения и задачи, когда приложение закрыто.') + '</div>' + (pushOn() ? '<button class="btn sec sm" onclick="pushDisable()">Выключить уведомления</button>' : '<button class="btn sm" onclick="pushEnable()">Включить уведомления</button>') + '</div>';
+}
 function startServerSession(j, l, rem) {
   let seed = false;
   {
-    Object.assign(SY, {token:j.token, role:j.role, cid:j.cid, login:l});
+    Object.assign(SY, {token:j.token, role:j.role, cid:j.cid, login:l}); setTimeout(pushResync, 4000);
     return api('/api/state?since=0').then(st => {
       if (st.empty) {
         if (j.role !== 'mgr') throw new Error('Менеджер ещё не заполнил данные на сервере, зайдите позже');
