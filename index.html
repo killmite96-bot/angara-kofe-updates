@@ -115,7 +115,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 46;
+const APP_VERSION = 47;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2188,7 +2188,7 @@ const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
     v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, GCHAT, DMS, RD, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK,
-    sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}
+    sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
 function restoreData(txt) {
@@ -2200,10 +2200,11 @@ function restoreData(txt) {
   replaceObj(CHAT, d.CHAT); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
   nid = d.nid; CITY = d.CITY;
+  if (d.sy && SY.token) Object.assign(SY, {seq:d.sy.seq || 0, mirror:d.sy.mirror || {}, base:d.sy.base || {}});   // без отметок (старый снимок или сбой) — полная сверка с сервером, без удалений
   if (d.sess && d.sess.role && (d.sess.role === 'mgr' || cr(d.sess.me))) Object.assign(S, d.sess, {view:null, sheet:null, cam:null, shade:false});
   return true;
 }
-function saveAll() { try { localStorage.setItem(STORE_KEY, snapshotData()); } catch (e) {} if (SY.on) saveSync(); }
+function saveAll() { try { localStorage.setItem(STORE_KEY, snapshotData()); } catch (e) {} if (SY.on) saveSyncKey(); }
 let saveT = 0;
 function saveSoon() { clearTimeout(saveT); saveT = setTimeout(saveAll, 400); if (typeof SY !== 'undefined' && SY.on) pushSoon(); }
 window.appSave = saveAll;
@@ -2284,7 +2285,7 @@ if (!SRV) { try { SRV = window.AndroidBridge && AndroidBridge.serverUrl ? String
 if (!SRV && /^https?:$/.test(location.protocol)) SRV = location.origin;
 SRV = SRV.trim().replace(/\/+$/, '');
 const SY = {token:'', role:'', cid:0, login:'', seq:0, mirror:{}, base:{}, on:false, net:false, pend:{}, pushing:false, es:null};
-try { const t = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (t && t.url === SRV && t.token) Object.assign(SY, {token:t.token, role:t.role, cid:t.cid, login:t.login || '', seq:t.seq || 0, mirror:t.mirror || {}, base:t.base || {}}); } catch (e) {}
+try { const t = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (t && t.url === SRV && t.token) Object.assign(SY, {token:t.token, role:t.role, cid:t.cid, login:t.login || ''}); } catch (e) {}
 // сообщаем оболочке Android данные входа: пока приложение закрыто, она раз в ~15 минут проверяет новые уведомления
 let swTokLast = null;
 function swTok(tok) {   // вход приложения для service worker: уведомление сможет само отметить прочитанным или отправить ответ
@@ -2295,7 +2296,10 @@ function bgSession(on) {
   swTok(on ? SY.token : '');
   try { if (window.AndroidBridge && AndroidBridge.setSession) { if (on) AndroidBridge.setSession(SRV, SY.token, SY.role, SY.cid | 0, SY.seq | 0); else AndroidBridge.clearSession(); } } catch (e) {}
 }
-function saveSync() { bgSession(true); try { localStorage.setItem(SYNC_KEY, JSON.stringify({url:SRV, token:SY.token, role:SY.role, cid:SY.cid, login:SY.login, seq:SY.seq, mirror:SY.mirror, base:SY.base})); } catch (e) {} }
+// Отметки «что уже на сервере» (seq, mirror, base) хранятся в одном снимке вместе с самими данными: если снимок записать не удалось, остаются и старые данные, и старые отметки, и они согласованы.
+// Раньше отметки сохранялись отдельно: при сбое записи данных приложение после перезапуска видело «пропавшие» документы и отправляло их удаление на сервер.
+function saveSyncKey() { bgSession(true); try { localStorage.setItem(SYNC_KEY, JSON.stringify({url:SRV, token:SY.token, role:SY.role, cid:SY.cid, login:SY.login})); } catch (e) {} }
+function saveSync() { saveSyncKey(); clearTimeout(saveT); saveT = setTimeout(saveAll, 400); }
 function setServer(v) {
   v = (v || '').trim().replace(/\/+$/, '');
   if (v && !/^https?:\/\//i.test(v)) v = 'http://' + v;
@@ -2499,8 +2503,10 @@ function pushChanges() {
     ch.push({key:k, value:JSON.parse(js)}); sig[k] = s; bas[k] = js;
   });
   Object.keys(SY.mirror).forEach(k => {
-    if (!(k in cur) && canWriteKey(k, null)) { ch.push({key:k, value:null, del:true}); sig[k] = null; }
+    if (!(k in cur) && canWriteKey(k, null)) { if (/^(msg|gmsg|dm|rd)\//.test(k)) { delete SY.mirror[k]; return; } ch.push({key:k, value:null, del:true}); sig[k] = null; }   // переписку чистит сервер, телефон её не удаляет
   });
+  const dels = ch.filter(x => x.del).length;
+  if (dels > 15 && dels > Object.keys(SY.mirror).length * .25) { SY.mirror = {}; SY.base = {}; SY.seq = 0; syncResume(); return; }   // слишком много «пропавших» документов: данные на телефоне повреждены, берём всё заново с сервера
   if (!ch.length) return;
   SY.pushing = true; SY.pend = sig;
   api('/api/push', {changes:ch}).then(() => {
