@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 89;
+const APP_VERSION = 90;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -3120,7 +3120,7 @@ function uiAfterRender() {
   SHEETSEEN = S.sheet || null;
   if (S.shade && !SHADESEEN) { const o = $('sheetshade'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
   SHADESEEN = !!S.shade;
-  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); } catch (e) {}
+  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); chatStick(); } catch (e) {}
 }
 // шапка сжимается, только если у экрана достаточно прокрутки: иначе после сжатия прокрутка «съедается», шапка снова растёт, и всё дёргается по кругу
 function hdrState(tp, bd) {
@@ -3627,7 +3627,7 @@ if (window.visualViewport) {
     const app = $('app'); if (!app || getComputedStyle(app).position !== 'fixed') return;
     const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)), on = kb > 80;
     app.style.transition = 'bottom .2s ease-out'; app.style.bottom = on ? kb + 'px' : '';
-    if (on && S.tab === 'chat' && S.th) { const b = document.querySelector('.body'); if (b) b.scrollTop = b.scrollHeight; }
+    if (S.tab === 'chat' && S.th && !S.view) { if (on) CHATPIN = true; chatPinNow(); }   // клавиатура сдвинула окно: список переписки остаётся прижатым к последнему сообщению
   };
   vv.addEventListener('resize', upd); vv.addEventListener('scroll', upd);
 }
@@ -4160,6 +4160,17 @@ function saveCam() {
   const f = S.cs, u = f.url.trim(); if (u && !/^https?:\/\/\S+$/i.test(u)) return go({toast: 'Ссылка должна начинаться с http:// или https://'});
   if (u) pt(f.pid).cam = u.slice(0, 300); else delete pt(f.pid).cam;
   go({sheet: null, cs: null, toast: u ? 'Ссылка на камеру сохранена' : 'Ссылка на камеру убрана'});
+}
+
+/* ----- переписка всегда прижата к последнему сообщению, пока вы не прокрутили её вверх сами ----- */
+let CHATPIN = true, CHATTH = null;
+function chatPinNow() { [0, 150, 350, 700].forEach(t => setTimeout(() => { const b = document.querySelector('#app .body'); if (b && CHATPIN && S.tab === 'chat' && S.th && !S.view) b.scrollTop = b.scrollHeight; }, t)); }
+function chatStick() {
+  const body = document.querySelector('#app .body');
+  if (S.tab !== 'chat' || !S.th || S.view || !body) { CHATTH = null; return; }
+  if (CHATTH !== S.th) { CHATTH = S.th; CHATPIN = true; }
+  body.onscroll = () => { CHATPIN = body.scrollHeight - body.scrollTop - body.clientHeight < 120; };
+  chatPinNow();
 }
 
 /* ----- подсказка «включите уведомления» ----- */

@@ -1,9 +1,9 @@
 {
-    "content":  89,
+    "content":  90,
     "apk":  19,
-    "notes":  "Голосовые можно слушать прямо в шторке уведомлений; исправлены ручки окон и свайп вниз.",
+    "notes":  "Чат: переписка всегда прижата к последнему сообщению, в том числе при появлении и скрытии клавиатуры.",
     "contentFile":  "index.html",
-    "contentSha256":  "6bd972eb7fdda2c6d38dff2cc95cbdc85495575e9f7038006dbef0aebb2a4b7f",
+    "contentSha256":  "1ba61ae7e2d02aba2fb7a044a508a8fe09e16fc93bbcb499c4b47a210a4b951a",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "08078f3093bb889c4eaa9097c97e8a044acdf501a57ac927e064aff5d3ace410"
 }
