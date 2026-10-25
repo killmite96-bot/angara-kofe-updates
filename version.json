@@ -1,9 +1,9 @@
 {
-    "content":  56,
+    "content":  57,
     "apk":  13,
-    "notes":  "Исправлен пустой экран при запуске: если вкладка не сохранилась, открывается главная.",
+    "notes":  "Приложение из Chrome: собственная заставка вместо заставки Chrome (пустая заставка Chrome + заставка с паром).",
     "contentFile":  "index.html",
-    "contentSha256":  "c5f64be7567205b18d754a86b9c357b7b785747ff5fc6551c0265711751f98b8",
+    "contentSha256":  "d18fb775f8ab958eaaf9587621c582b3275f38d74c315f69736c3a0467091543",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "950fc24661d3a10c9505ed29af2c83ed41cfa3e0eded498c6feed43ef855cbb0"
 }

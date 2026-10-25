@@ -128,7 +128,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 56;
+const APP_VERSION = 57;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2747,13 +2747,13 @@ function saveAccs() { try { localStorage.setItem(ACC_KEY, JSON.stringify(ACCS));
 try { const txt = localStorage.getItem(STORE_KEY); if (txt && !restoreData(txt)) localStorage.removeItem(STORE_KEY); } catch (e) { try { localStorage.removeItem(STORE_KEY); } catch (e2) {} }
 S.day = TODAY; pruneOld(); if (!SRV) weekCheckLocal();
 if (!SRV && !LSEED) { LSEED = true; if (!LESSONS.length) seedLessons(); }
-// заставка при запуске: Android-приложение и значок «Домой» на iPhone
+// заставка при запуске: Android-приложение, значок «Домой» на iPhone и приложение из Chrome (у него собственная заставка Chrome пустая: иконка в манифесте для неё прозрачная)
 const splashLogo = s => {
   const w = (d1, d2, begin) => `<path d="${d1}" fill="none" stroke="#BFEACB" stroke-width="3.5" stroke-linecap="round"><animate attributeName="d" dur="2.4s" begin="${begin}" repeatCount="indefinite" values="${d1};${d2};${d1}"/><animate attributeName="opacity" dur="2.4s" begin="${begin}" repeatCount="indefinite" values=".45;1;.45"/></path>`;
   const A = x => `M${x} 38 C${x - 5} 34 ${x + 5} 30 ${x} 26`, B = x => `M${x} 38 C${x + 5} 34 ${x - 5} 30 ${x} 26`;
   return `<svg width="${s}" height="${s}" viewBox="0 0 108 108" style="display:block"><circle cx="54" cy="54" r="52" fill="#1F7A45"/><path d="M34 46L72 46L68 76Q67 81 62 81L44 81Q39 81 38 76Z" fill="#fff"/><path d="M72 51Q84 51 83 60Q82 68 70 68" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>${w(A(44), B(44), '0s')}${w(A(53), B(53), '-0.8s')}${w(A(62), B(62), '-1.6s')}</svg>`;
 };
-if (pushIsApp() || window.navigator.standalone) {
+if (pushIsApp() || window.navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) {
   const sp = document.createElement('div'); sp.id = 'splash';
   sp.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:99;background:#0e1411;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .5s ease';
   sp.innerHTML = '<div style="animation:rxpop .6s cubic-bezier(.2,1.4,.4,1)">' + splashLogo(104) + '</div><div style="font-size:22px;font-weight:700;letter-spacing:.3px;color:#e9f1eb">Ангара Кофе</div>';
