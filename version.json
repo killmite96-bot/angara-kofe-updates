@@ -1,9 +1,9 @@
 {
-    "content":  59,
-    "apk":  13,
-    "notes":  "Заставка приложения: логотип по центру, надпись «Ангара Кофе» внизу.",
+    "content":  60,
+    "apk":  14,
+    "notes":  "Безопасность: защита от вставки вредного кода, вход передаётся в заголовке, смена пароля завершает другие входы; контроль состояния сервера.",
     "contentFile":  "index.html",
-    "contentSha256":  "2100eb40172ff48cbe9d5a86da9be3a3bfff77d6082959fc084de1312a0d3c62",
+    "contentSha256":  "0be591abdc7b824b6c7bf32c229e93859c5b50bea80fd750c4b3abc11f16d95c",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "260970b3caa4a5c83c55e42721e4c81ddde2d2d459397ad2c5076c8149b22093"
+    "apkSha256":  "5a3220d98395bbd932527f881ed2c8d972be22d6e1f0fca8e686949666bc6fa8"
 }

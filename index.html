@@ -128,7 +128,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 59;
+const APP_VERSION = 60;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -239,7 +239,7 @@ const exReplace = st => pickImage(640, d => { EX[st] = d; go({toast:'Приме�
 const AV = {};   // аватарки: 'mgr' или номер курьера -> уменьшенное фото (data URL)
 function avatar(key, name, size) {
   const st = `min-width:${size}px;width:${size}px;height:${size}px;border-radius:50%`;
-  return AV[key] ? `<img src="${AV[key]}" alt="" style="${st};object-fit:cover;flex:none;display:block">` : `<div class="badge b1" style="${st};font-size:${Math.round(size / 2.4)}px">${(name || '?')[0]}</div>`;
+  return /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(AV[key] || '') ? `<img src="${AV[key]}" alt="" style="${st};object-fit:cover;flex:none;display:block">` : `<div class="badge b1" style="${st};font-size:${Math.round(size / 2.4)}px">${esc((name || '?')[0])}</div>`;
 }
 const PTS_SRC = [
   // [название, адрес, [дизайны станций], окно визита, особые задачи, lat, lon] (координаты условные, нужны только для оценки расстояний)
@@ -540,7 +540,7 @@ function login(role, id) {
 const nkey = () => S.role === 'mgr' ? 'mgr' : S.me;
 const unread = () => NOTIFS.filter(n => n.to === nkey() && !n.read).length;
 const pendCount = () => reviews.filter(r => r.status === 'pending').length;
-const topbar = (t, s) => `<div class="top"><div class="trow"><h1>${t}</h1><div class="tact"><button class="logout" onclick="go({sheet:'profile',pf:null,pw:{old:'',n1:'',n2:'',err:''}})">${avatar(S.role === 'mgr' ? 'mgr' : S.me, S.role === 'mgr' ? MGR.name : cr(S.me).name, 24)}<span>${S.role === 'mgr' ? MGR.name : cr(S.me).name}</span></button><button class="bell" onclick="go({shade:true})">${ic('bell', 20)}${unread() ? `<i>${unread()}</i>` : ''}</button></div></div><div class="sub">${s || ''}</div></div>`;
+const topbar = (t, s) => `<div class="top"><div class="trow"><h1>${t}</h1><div class="tact"><button class="logout" onclick="go({sheet:'profile',pf:null,pw:{old:'',n1:'',n2:'',err:''}})">${avatar(S.role === 'mgr' ? 'mgr' : S.me, S.role === 'mgr' ? MGR.name : cr(S.me).name, 24)}<span>${esc(S.role === 'mgr' ? MGR.name : cr(S.me).name)}</span></button><button class="bell" onclick="go({shade:true})">${ic('bell', 20)}${unread() ? `<i>${unread()}</i>` : ''}</button></div></div><div class="sub">${s || ''}</div></div>`;
 function closeShade() { NOTIFS.forEach(n => { if (n.to === nkey()) n.read = true; }); go({shade:false}); }
 function clearNotifs() { const k = nkey(), keep = NOTIFS.filter(n => n.to !== k); NOTIFS.length = 0; NOTIFS.push(...keep); render(); }
 function askRedo(id) { go({shade:false, sheet:'redo', redo:id}); }
@@ -604,7 +604,7 @@ function popHTML() {
   list.forEach(n => {
     const r = n.rvId ? reviews.find(x => x.id === n.rvId) : null, p = r ? pt(r.pid) : null;
     h += `<div class="card ncard" data-id="${n.id}" style="touch-action:pan-y;${n.read ? '' : 'border-color:var(--g)'}"><div class="row" style="align-items:flex-start"><div style="color:${n.kind === 'redo' ? 'var(--o)' : 'var(--g)'}">${ic(n.kind === 'photo' ? 'camera' : n.kind === 'ok' ? 'check' : n.kind === 'chat' ? 'chat' : n.kind === 'water' ? 'drop' : n.kind === 'move' ? 'move' : 'warn', 24)}</div>
-      <div class="grow"><div class="t1" style="font-size:14px">${n.text}</div><div class="t2">${n.t}${n.read ? '' : ` · <span style="color:var(--g);cursor:pointer" onclick="markRead('${n.id}')">Прочитано</span>`}</div></div></div>`;
+      <div class="grow"><div class="t1" style="font-size:14px">${esc(n.text)}</div><div class="t2">${n.t}${n.read ? '' : ` · <span style="color:var(--g);cursor:pointer" onclick="markRead('${n.id}')">Прочитано</span>`}</div></div></div>`;
     if (r) {
       h += `<div class="row" style="margin-top:8px;align-items:flex-start"><div class="photo" style="width:64px;height:100px">${((r.photos && r.photos[0]) || r.photo) ? ((r.photos && r.photos[0]) || r.photo).svg : stationSVG(pst(p))}</div>
         ${r.type >= 2 ? `<div class="photo" style="width:64px;height:86px">${((r.nozzles && r.nozzles[0]) || r.nozzle) ? ((r.nozzles && r.nozzles[0]) || r.nozzle).svg : nozzleSVG(false, true)}</div>` : ''}
@@ -785,15 +785,15 @@ function routeScreen() {
   let h = topbar('Маршрут на сегодня', `${WD[TODAY]} · ${list.length} точек · выполнено ${done}`);
   h += '<div class="body">';
   const loaded = LOADED[S.me + ':' + TODAY];
-  h += `<div class="card" style="border-color:${loaded ? 'var(--line)' : 'var(--o)'}"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${DEPOT.name}</div><div class="t2">${DEPOT.addr || 'Адрес базы не указан'}</div>
+  h += `<div class="card" style="border-color:${loaded ? 'var(--line)' : 'var(--o)'}"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(DEPOT.name)}</div><div class="t2">${esc(DEPOT.addr || 'Адрес базы не указан')}</div>
     <div class="t2" style="color:${loaded ? 'var(--g)' : 'var(--o)'}">${loaded ? '✓ Загрузка подтверждена' : 'Начало смены: заедьте за ингредиентами'}</div>
-    ${!loaded && passNeed(S.me).length ? `<div class="t2" style="color:var(--o);margin-top:2px">${ic('pass', 14)} Возьмите пропуск: ${passNeed(S.me).map(p => p.name).join(', ')}</div>` : ''}</div><button class="btn sm" onclick="go({sheet:'tobase'})">На базу ▸</button></div></div>`;
+    ${!loaded && passNeed(S.me).length ? `<div class="t2" style="color:var(--o);margin-top:2px">${ic('pass', 14)} Возьмите пропуск: ${esc(passNeed(S.me).map(p => p.name).join(', '))}</div>` : ''}</div><button class="btn sm" onclick="go({sheet:'tobase'})">На базу ▸</button></div></div>`;
   if (lg.out.length) {
     const nearest = lg.out.slice().sort((a, b) => a.d - b.d)[0], p = pt(nearest.x.pid), next = lg.out[0];
     h += `<div class="nav"><div class="tiny">${next.x === nearest.x ? 'Следующая точка (она же ближайшая)' : 'Следующая по маршруту'}</div>
-      <div class="t1" style="font-size:17px;margin-top:2px">${pt(next.x.pid).name}</div>
+      <div class="t1" style="font-size:17px;margin-top:2px">${esc(pt(next.x.pid).name)}</div>
       <div class="row" style="margin-top:6px"><div class="big">${next.d.toFixed(1)} км</div><div class="t2">≈ ${eta(next.d)} мин в пути</div></div>
-      ${next.x !== nearest.x ? `<div class="tiny" style="margin-top:6px;color:var(--o)">Ближе всего: ${p.name} — ${nearest.d.toFixed(1)} км</div>` : ''}
+      ${next.x !== nearest.x ? `<div class="tiny" style="margin-top:6px;color:var(--o)">Ближе всего: ${esc(p.name)} — ${nearest.d.toFixed(1)} км</div>` : ''}
       <div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="go({sheet:'mapone'})">Навигатор ▸</button>
       <button class="btn sec sm" onclick="doOpt()">Построить по ближайшим</button></div></div>`;
     h += `<div class="row" style="margin:6px 2px"><div class="grow tiny">Осталось ${lg.out.length} точек · ${lg.tot.toFixed(1)} км · ≈ ${Math.floor(mins / 60)} ч ${mins % 60} мин</div></div>`;
@@ -804,7 +804,7 @@ function routeScreen() {
     const p = pt(x.pid), d = km(prev, p); if (!x.done) { n++; prev = p; }
     h += `<div class="card" onclick="openPoint(${p.id})" style="${x.done ? 'opacity:.55' : ''}"><div class="row">
       <div class="badge ${bcls(x.type)}">${tl(x.type)}</div>
-      <div class="grow"><div class="t1">${p.name}</div><div class="t2">${p.addr}${p.units.length > 1 ? ' · ' + p.units.length + ' станции' : ''}${x.done ? '' : ' · ' + d.toFixed(1) + ' км'}</div>${p.win && !x.done ? `<div class="t2" style="color:var(--o)">${ic('clock', 13)} ${p.win}</div>` : ''}</div>
+      <div class="grow"><div class="t1">${esc(p.name)}</div><div class="t2">${esc(p.addr)}${p.units.length > 1 ? ' · ' + p.units.length + ' станции' : ''}${x.done ? '' : ' · ' + d.toFixed(1) + ' км'}</div>${p.win && !x.done ? `<div class="t2" style="color:var(--o)">${ic('clock', 13)} ${p.win}</div>` : ''}</div>
       ${x.done ? '<span class="pill ok">сдана</span>' : x.redo ? '<span class="pill bad">переснять</span>' : `<span class="dot d${health(p)}"></span>`}</div>
       ${!x.done ? `<div class="t2" style="margin-top:8px">${x.type === 3 ? 'Генеральная уборка · ' : x.type === 2 ? 'Промывка миксеров с разбором + носики · ' : ''}везти с базы: ${shortNeed(p)}</div>` : ''}</div>`;
   });
@@ -901,7 +901,7 @@ function scheduleScreen() {
   list.forEach((x, i) => {
     const p = pt(x.pid);
     h += `<div class="card" onclick="openPoint(${p.id})"><div class="row"><div class="badge ${bcls(x.type)}">${tl(x.type)}</div>
-      <div class="grow"><div class="t1">${i + 1}. ${p.name}</div><div class="t2">${p.addr}</div></div>${x.done ? '<span class="pill ok">выполнена</span>' : mvBtn(x)}</div>${mvNote(x)}</div>`;
+      <div class="grow"><div class="t1">${i + 1}. ${esc(p.name)}</div><div class="t2">${esc(p.addr)}</div></div>${x.done ? '<span class="pill ok">выполнена</span>' : mvBtn(x)}</div>${mvNote(x)}</div>`;
   });
   const cnt = t => list.filter(x => x.type === t).length;
   if (list.length) h += `<div class="tiny" style="margin-top:6px">Тип 1: ${cnt(1)} · Тип 2: ${cnt(2)}${cnt(3) ? ' · Генеральная: ' + cnt(3) : ''} · заработок за день: ${money(list.reduce((s, x) => s + rateOf(cr(c), x.type), 0))}</div>`;
@@ -920,7 +920,7 @@ function pointsScreen() {
     .forEach(p => {
       const low = []; p.units.forEach((u, i) => ING.forEach(g => { if (frac(u, g) < .4) low.push({g, u, i}); })); low.length = Math.min(low.length, 3);
       h += `<div class="card" onclick="openPoint(${p.id})"><div class="row"><span class="dot d${health(p)}"></span>
-        <div class="grow"><div class="t1">${p.name}</div><div class="t2">${p.addr}${p.units.length > 1 ? ' · ' + p.units.length + ' станции' : ''} · визит ${ago(p.last)}</div></div>${needT2(p) ? '<span class="pill warn">тип 2</span>' : ''}</div>
+        <div class="grow"><div class="t1">${esc(p.name)}</div><div class="t2">${esc(p.addr)}${p.units.length > 1 ? ' · ' + p.units.length + ' станции' : ''} · визит ${ago(p.last)}</div></div>${needT2(p) ? '<span class="pill warn">тип 2</span>' : ''}</div>
         ${(low.length || arrPills(p)) ? `<div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">${arrPills(p)}${low.map(o => `<span class="pill bad">${gn(o.g, p)}${unitLabel(p, o.i)}: ${fmtCur(o.u, o.g)}</span>`).join('')}</div>` : ''}</div>`;
     });
   return h + '</div>';
@@ -1137,7 +1137,7 @@ function stockRows(p) {
 }
 function pointCard(id) {
   const p = pt(id), item = S.role === 'cour' ? L(S.me, TODAY).find(x => x.pid === id) : null;
-  let h = `<div class="top"><button class="back" onclick="go({view:null})">‹ Назад</button><h1>${p.name}</h1><div class="sub">${p.addr}</div></div><div class="body">`;
+  let h = `<div class="top"><button class="back" onclick="go({view:null})">‹ Назад</button><h1>${esc(p.name)}</h1><div class="sub">${esc(p.addr)}</div></div><div class="body">`;
   h += `<div class="card"><div class="row">${p.units.map(u => `<div style="width:56px;height:80px" class="photo">${stationSVG(u.st)}</div>`).join('')}
     <div class="grow"><div class="t1" style="font-size:14px">${p.units.length > 1 ? p.units.length + ' станции' : 'Станция'}</div>${p.units.map((u, i) => `<div class="t2">${p.units.length > 1 ? (i + 1) + '. ' : ''}${STN[u.st]}</div>`).join('')}<div class="t2">Визит: ${ago(p.last)} · мойка (тип 2): ${ago(p.last2)}</div>
     ${needT2(p) ? '<div style="margin-top:6px"><span class="pill warn">рекомендуем тип 2</span></div>' : ''}</div></div></div>`;
@@ -1206,7 +1206,7 @@ function backroomHTML(v, quick) {
 }
 function visitScreen() {
   const v = S.visit, p = pt(v.pid);
-  let h = `<div class="top"><button class="back" onclick="go({view:{type:'point',id:${p.id}}})">‹ К точке</button><h1>${v.quick ? 'Обновление остатков' : v.type === 3 ? 'Генеральная уборка' : 'Визит · тип ' + v.type}</h1><div class="sub">${p.name}</div></div>`;
+  let h = `<div class="top"><button class="back" onclick="go({view:{type:'point',id:${p.id}}})">‹ К точке</button><h1>${v.quick ? 'Обновление остатков' : v.type === 3 ? 'Генеральная уборка' : 'Визит · тип ' + v.type}</h1><div class="sub">${esc(p.name)}</div></div>`;
   if (!v.quick) h += `<div class="prog">${[0, 1, 2, 3, 4, 5].map(i => `<i class="${i <= v.step ? 'on' : ''}"></i>`).join('')}</div>`;
   h += '<div class="body">';
   if (v.step === 0) {
@@ -1268,7 +1268,7 @@ function visitScreen() {
   }
   return h + '</div>';
 }
-const chkRow = (k, t) => { const on = S.visit.checks[k]; return `<div class="chk" onclick="ck('${k}')"><div class="box ${on ? 'on' : ''}">${on ? '✓' : ''}</div><div class="grow" style="font-size:14px">${t}</div></div>`; };
+const chkRow = (k, t) => { const on = S.visit.checks[k]; return `<div class="chk" onclick="ck('${k}')"><div class="box ${on ? 'on' : ''}">${on ? '✓' : ''}</div><div class="grow" style="font-size:14px">${esc(t)}</div></div>`; };
 const checksDone = () => { const v = S.visit, p = pt(v.pid); return CHK1.every((_, i) => v.checks['a' + i]) && p.notes.every((_, i) => v.checks['n' + i]) && (v.type === 1 || (CHK2.every((_, i) => v.checks['b' + i]) && p.units.every((_, i) => v.NP[i]) && (v.type < 3 || CHK3.every((_, i) => v.checks['g' + i])))); };
 function dv(id, d) { const g = ING.find(x => x.id === id), st = g.t === 'count' ? 10 : (g.u === 'бут' || g.u === 'уп' ? 1 : .5); S.visit.deliv[id] = Math.max(0, +(S.visit.deliv[id] + d * st).toFixed(1)); render(true); }
 const sl = (id, i) => { S.visit.after[id] = i / 4; render(true); };
@@ -1343,7 +1343,7 @@ function payScreen() {
   h += '<div class="body">';
   COUR.forEach(c => {
     const r = pay(c.id); sum += r.total;
-    h += `<div class="card"><div class="row"><div class="grow t1">${c.name}</div><div class="big" style="font-size:20px">${money(r.total)}</div></div>
+    h += `<div class="card"><div class="row"><div class="grow t1">${esc(c.name)}</div><div class="big" style="font-size:20px">${money(r.total)}</div></div>
       <div class="t2">подтверждено ${money(r.ok)} · на проверке ${money(r.pend)} · план ${money(r.plan)}</div>
       <div class="kv" style="margin-top:8px"><span>Тип 1 × ${r.n1}</span><div class="step"><button onclick="rate(${c.id},'r1',-50)">−</button><span style="min-width:64px">${money(c.r1)}</span><button onclick="rate(${c.id},'r1',50)">+</button></div></div>
       <div class="kv"><span>Тип 2 × ${r.n2}</span><div class="step"><button onclick="rate(${c.id},'r2',-50)">−</button><span style="min-width:64px">${money(c.r2)}</span><button onclick="rate(${c.id},'r2',50)">+</button></div></div>
@@ -1358,7 +1358,7 @@ const rate = (id, k, d) => { cr(id)[k] = Math.max(0, cr(id)[k] + d); render(true
 function planScreen() {
   const c = S.mc, list = L(c, S.day);
   let h = topbar('Планирование', 'Курьер, день, адреса и тип визита');
-  h += '<div class="body">' + mvBlock() + shiftCard() + '<div class="chips">' + COUR.filter(x => x.active).map(x => `<button class="${x.id === c ? 'on' : ''}" onclick="go({mc:${x.id}})">${x.name}</button>`).join('') + '</div>';
+  h += '<div class="body">' + mvBlock() + shiftCard() + '<div class="chips">' + COUR.filter(x => x.active).map(x => `<button class="${x.id === c ? 'on' : ''}" onclick="go({mc:${x.id}})">${esc(x.name)}</button>`).join('') + '</div>';
   h += '<div class="days">' + WD.map((d, i) => `<button class="${i === S.day ? 'on' : ''} ${i === TODAY ? 'today' : ''}" onclick="go({day:${i}})">${d}<small>${L(c, i).length} т.</small></button>`).join('') + '</div>';
   let from = DEPOT, tot = 0;
   list.forEach(x => { tot += km(from, pt(x.pid)); from = pt(x.pid); });
@@ -1367,7 +1367,7 @@ function planScreen() {
   const cond = (TEMPLATE[c] ? TEMPLATE[c][S.day] : []).filter(x => x.cond && !list.some(y => y.pid === x.pid));
   cond.forEach(x => {
     const p = pt(x.pid), need = health(p) !== 'g';
-    h += `<div class="card" style="border-color:${need ? 'var(--o)' : 'var(--line)'}"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${p.name}: визит по остаткам</div>
+    h += `<div class="card" style="border-color:${need ? 'var(--o)' : 'var(--line)'}"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}: визит по остаткам</div>
       <div class="t2">${need ? 'Остатки низкие, визит нужен' : 'Остатки в норме, визит можно пропустить'}</div></div><button class="btn sm ${need ? '' : 'sec'}" onclick="togglePt(${p.id})">Добавить</button></div></div>`;
   });
   h += deepCard();
@@ -1376,7 +1376,7 @@ function planScreen() {
   if (!list.length) h += '<div class="card t2">На этот день адресов нет. Добавьте точки.</div>';
   list.forEach((x, i) => {
     const p = pt(x.pid);
-    h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${i + 1}. ${p.name}</div><div class="t2">${p.addr} ${x.done ? '· выполнена' : ''}</div></div>
+    h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${i + 1}. ${esc(p.name)}</div><div class="t2">${esc(p.addr)} ${x.done ? '· выполнена' : ''}</div></div>
       <div class="seg" style="margin:0;width:112px"><button class="${x.type === 1 ? 'on' : ''}" onclick="setType(${i},1)">1</button><button class="${x.type === 2 ? 'on' : ''}" onclick="setType(${i},2)">2</button><button class="${x.type === 3 ? 'on' : ''}" onclick="setType(${i},3)">Г</button></div>
       <div style="display:flex;flex-direction:column"><button class="step" style="background:none;border:0;color:var(--mut);cursor:pointer;font-size:12px" onclick="mv(${i},-1)">▲</button><button class="step" style="background:none;border:0;color:var(--mut);cursor:pointer;font-size:12px" onclick="mv(${i},1)">▼</button></div>
       <button style="background:none;border:0;color:var(--r);font-size:18px;cursor:pointer" onclick="rmPt(${i})">✕</button></div></div>`;
@@ -1390,7 +1390,7 @@ const deepText = p => p.deep + ' дн. назад · ' + (deepLeft(p) < 0 ? 'п�
 function deepCard() {
   const due = P.slice().sort((a, b) => deepLeft(a) - deepLeft(b)), soon = due.filter(p => deepLeft(p) <= 14).length;
   let h = `<div class="card"><div class="t1" style="font-size:14px">Генеральная уборка · раз в 3 месяца</div><div class="t2">Пора или скоро срок (14 дней): ${soon}</div>`;
-  due.slice(0, 4).forEach(p => { h += `<div class="row" style="margin-top:8px"><div class="grow"><div class="t1" style="font-size:13px">${p.name}</div><div class="t2" style="color:${deepLeft(p) <= 14 ? 'var(--o)' : 'var(--mut)'}">${deepText(p)}</div></div><button class="btn sec sm" onclick="addDeep(${p.id})">Г на ${WD[S.day]}</button></div>`; });
+  due.slice(0, 4).forEach(p => { h += `<div class="row" style="margin-top:8px"><div class="grow"><div class="t1" style="font-size:13px">${esc(p.name)}</div><div class="t2" style="color:${deepLeft(p) <= 14 ? 'var(--o)' : 'var(--mut)'}">${deepText(p)}</div></div><button class="btn sec sm" onclick="addDeep(${p.id})">Г на ${WD[S.day]}</button></div>`; });
   return h + '</div>';
 }
 function addDeep(pid) {
@@ -1424,7 +1424,7 @@ function togglePt(id) {
 function whScreen() {
   const need = whNeed();
   let h = topbar('Склад', 'Количество ингредиентов и потребность недели');
-  h += `<div class="body"><div class="card"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${DEPOT.name}</div><div class="t2">${DEPOT.addr || 'Адрес базы не указан'}</div>
+  h += `<div class="body"><div class="card"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(DEPOT.name)}</div><div class="t2">${esc(DEPOT.addr || 'Адрес базы не указан')}</div>
     <div class="tiny">Сюда курьеры приезжают в начале смены за погрузкой</div></div><button class="btn sec sm" onclick="openBase()">Изменить</button></div></div>
     ${P.filter(p => p.water).map(p => `<div class="card"><div class="row"><div style="color:#4fb3ff">${ic('drop', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Заказ воды: ${esc(p.name)}</div><div class="t2">Получатель во ВКонтакте: ${waterSet(p.id).vk ? esc(waterSet(p.id).vk) : '<span style="color:var(--o)">не указан</span>'}</div></div><button class="btn sec sm" onclick="openWaterSet(${p.id})">Изменить</button></div></div>`).join('')}
     <div class="tiny" style="margin:4px 2px">Потребность считается по всем назначенным адресам до конца недели (с запасом 20%).</div>`;
@@ -1506,10 +1506,10 @@ function chatScreen() {
   msgs.forEach(m => {
     const mine = String(m.from) === String(me);
     if (m.del) { h += `<div class="tiny" style="text-align:center;margin:8px 0;opacity:.75">${esc(msgSender(th, m))}: сообщение удалено</div>`; return; }
-    h += `<div class="msg ${mine ? 'me' : 'them'}" style="cursor:pointer" onclick="openMsg('${m.id}')">${!mine && th === 'g' ? `<div class="tiny" style="margin-bottom:3px;color:var(--g)">${esc(sender(m.from))}</div>` : ''}${m.fw ? `<div class="tiny" style="margin-bottom:4px;opacity:.85">↪ Переслано от ${esc(m.fw)}</div>` : ''}${m.re ? `<div style="border-left:3px solid var(--g);padding:2px 8px;margin-bottom:5px;background:rgba(255,255,255,.06);border-radius:4px"><div class="tiny" style="color:var(--g);font-weight:700">${esc(m.re.name)}</div><div class="tiny">${esc(m.re.text)}</div></div>` : ''}${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="event.stopPropagation();openPoint(${m.pid})">${ic('pin', 13)} ${pt(m.pid) ? pt(m.pid).name : 'точка'}</div>` : ''}<div style="white-space:pre-wrap">${esc(m.text)}</div>${rxChips(th, m)}<div class="mt">${m.ed ? `<span style="opacity:.85">${ic('edit', 11)} изменено</span> · ` : ''}${m.t}${mine ? ' ' + ticks(th, m) : ''}</div></div>`;
+    h += `<div class="msg ${mine ? 'me' : 'them'}" style="cursor:pointer" onclick="openMsg('${m.id}')">${!mine && th === 'g' ? `<div class="tiny" style="margin-bottom:3px;color:var(--g)">${esc(sender(m.from))}</div>` : ''}${m.fw ? `<div class="tiny" style="margin-bottom:4px;opacity:.85">↪ Переслано от ${esc(m.fw)}</div>` : ''}${m.re ? `<div style="border-left:3px solid var(--g);padding:2px 8px;margin-bottom:5px;background:rgba(255,255,255,.06);border-radius:4px"><div class="tiny" style="color:var(--g);font-weight:700">${esc(m.re.name)}</div><div class="tiny">${esc(m.re.text)}</div></div>` : ''}${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="event.stopPropagation();openPoint(${m.pid})">${ic('pin', 13)} ${esc(pt(m.pid) ? pt(m.pid).name : 'точка')}</div>` : ''}<div style="white-space:pre-wrap">${esc(m.text)}</div>${rxChips(th, m)}<div class="mt">${m.ed ? `<span style="opacity:.85">${ic('edit', 11)} изменено</span> · ` : ''}${m.t}${mine ? ' ' + ticks(th, m) : ''}</div></div>`;
   });
   const rt = S.reTo && S.reTo.th === th ? S.reTo : null, ed = S.edit && S.edit.th === th;
-  h += `</div><div style="background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${ed ? `<div class="row" style="margin-bottom:6px;border-left:3px solid var(--g);padding:3px 8px;background:rgba(255,255,255,.06);border-radius:4px"><div class="grow tiny" style="color:var(--g);font-weight:700">${ic('edit', 13)} Редактирование сообщения</div><span style="cursor:pointer;padding:4px 8px" onclick="go({edit:null,chatDraft:''})">✕</span></div>` : ''}${rt ? `<div style="border-left:3px solid var(--g);padding:3px 8px;margin-bottom:6px;background:rgba(255,255,255,.06);border-radius:4px" class="row"><div class="grow"><div class="tiny" style="color:var(--g);font-weight:700">Ответ: ${esc(rt.name)}</div><div class="tiny">${esc(rt.text)}</div></div><span style="cursor:pointer;padding:4px 8px" onclick="go({reTo:null})">✕</span></div>` : ''}${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">Ответ по точке: ${pt(ctx) ? pt(ctx).name : ''} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true,chatPid:null})">✕</span></div>`
+  h += `</div><div style="background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${ed ? `<div class="row" style="margin-bottom:6px;border-left:3px solid var(--g);padding:3px 8px;background:rgba(255,255,255,.06);border-radius:4px"><div class="grow tiny" style="color:var(--g);font-weight:700">${ic('edit', 13)} Редактирование сообщения</div><span style="cursor:pointer;padding:4px 8px" onclick="go({edit:null,chatDraft:''})">✕</span></div>` : ''}${rt ? `<div style="border-left:3px solid var(--g);padding:3px 8px;margin-bottom:6px;background:rgba(255,255,255,.06);border-radius:4px" class="row"><div class="grow"><div class="tiny" style="color:var(--g);font-weight:700">Ответ: ${esc(rt.name)}</div><div class="tiny">${esc(rt.text)}</div></div><span style="cursor:pointer;padding:4px 8px" onclick="go({reTo:null})">✕</span></div>` : ''}${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">Ответ по точке: ${esc(pt(ctx) ? pt(ctx).name : '')} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true,chatPid:null})">✕</span></div>`
     : `<div style="margin-bottom:6px"><button class="btn sec sm" onclick="go({sheet:'chatpt'})">${ic('pin', 15)} Привязать точку</button></div>`}
     <div class="row"><input type="text" id="chatin" placeholder="Сообщение" value="${esc(S.chatDraft)}" oninput="S.chatDraft=this.value" onkeydown="if(event.key==='Enter')sendChat()" style="margin:0"><button class="btn sm" onclick="sendChat()">${ic('send', 17)}</button></div></div>`;
   return h;
@@ -1617,11 +1617,11 @@ function shiftCard() {
   on.forEach(c => {
     const s = shiftStatus(c.id);
     h += `<div style="margin-top:10px"><div class="row">${avatar(c.id, c.name, 32)}
-      <div class="grow"><div class="t1" style="font-size:14px">${c.name}</div><div class="t2">${s.done} из ${s.n} точек · ${s.info}</div></div>
+      <div class="grow"><div class="t1" style="font-size:14px">${esc(c.name)}</div><div class="t2">${s.done} из ${s.n} точек · ${s.info}</div></div>
       <span class="pill ${s.cls}">${s.t}</span><button class="btn sec sm" style="padding:5px 9px" onclick="go({tab:'chat',th:'m:${c.id}'})">${ic('chat', 16)}</button></div>
       <div class="bar"><i style="width:${Math.round(s.done / s.n * 100)}%;background:var(--g)"></i></div></div>`;
   });
-  if (off.length) h += `<div class="tiny" style="margin-top:10px">Выходной: ${off.map(c => c.name).join(', ')}</div>`;
+  if (off.length) h += `<div class="tiny" style="margin-top:10px">Выходной: ${esc(off.map(c => c.name).join(', '))}</div>`;
   return h + '</div>';
 }
 
@@ -1633,7 +1633,7 @@ function waterPanel(p, interactive) {
   let h = `<div class="card"><div class="row"><div style="color:#4fb3ff">${ic('drop', 24)}</div><div class="grow"><div class="t1" style="font-size:14px">Вода в бутылях</div><div class="t2">Есть: ${w.n - used} из ${w.n} · израсходовано: ${used}</div></div></div>`;
   h += `<div class="bottles">${w.full.map((f, i) => `<div class="bt ${interactive ? '' : 'ro'}" ${interactive ? `onclick="togBottle(${p.id},${i})"` : ''}>${bottleSVG(f)}<span>${f ? 'есть' : 'пусто'}</span></div>`).join('')}</div>`;
   if (interactive) h += `<div class="tiny" style="margin:6px 0 8px">Нажмите на бутыль: яркая есть, серая израсходована.</div><button class="btn" onclick="openWater(${p.id})">Заказать воду${used ? ' · ' + used + ' бут.' : ''}</button>`;
-  if (w.orders.length) { const o = w.orders[w.orders.length - 1]; h += `<div class="tiny" style="margin-top:8px">Последний заказ: ${o.qty} бут. · ${o.when} · ${o.by}</div>`; }
+  if (w.orders.length) { const o = w.orders[w.orders.length - 1]; h += `<div class="tiny" style="margin-top:8px">Последний заказ: ${o.qty} бут. · ${o.when} · ${esc(o.by)}</div>`; }
   return h + '</div>';
 }
 function togBottle(pid, i) { const w = pt(pid).water; w.full[i] = !w.full[i]; render(true); }
@@ -1688,7 +1688,7 @@ function teamScreen() {
   h += '<div class="body">' + seg + '<button class="btn" style="margin-top:8px" onclick="openCF(null)">+ Новый курьер</button>';
   COUR.forEach(c => {
     let n = 0; for (let d = 0; d < 7; d++) n += L(c.id, d).length;
-    h += `<div class="card" style="${c.active ? '' : 'opacity:.6'}"><div class="row"><div class="grow"><div class="t1">${c.name}</div>
+    h += `<div class="card" style="${c.active ? '' : 'opacity:.6'}"><div class="row"><div class="grow"><div class="t1">${esc(c.name)}</div>
       <div class="t2">Логин: ${c.login} · тип 1 ${money(c.r1)} · тип 2 ${money(c.r2)} · Г ${money(c.r3)}</div></div><span class="pill ${c.active ? 'ok' : 'bad'}">${c.active ? 'активен' : 'отключён'}</span></div>
       <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div>
       <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button></div></div>`;
@@ -1743,14 +1743,14 @@ function mgrScreen() {
   let h = topbar('Проверка фото', pendCount() ? 'Ждут подтверждения: ' + pendCount() : 'Всё проверено'); h += '<div class="body">';
   reviews.forEach((r, i) => {
     const p = pt(r.pid);
-    h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${p.name}</div><div class="t2">${cr(r.cid).name} · ${r.when} · ${r.type === 3 ? 'генеральная уборка' : 'тип ' + r.type}</div></div>
+    h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${esc(p.name)}</div><div class="t2">${esc(cr(r.cid).name)} · ${r.when} · ${r.type === 3 ? 'генеральная уборка' : 'тип ' + r.type}</div></div>
       <span class="pill ${r.status === 'ok' ? 'ok' : r.status === 'redo' ? 'bad' : 'warn'}">${r.status === 'ok' ? 'принято' : r.status === 'redo' ? 'переснять' : 'ждёт'}</span></div>
       ${r.arrive ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${CCOL[r.arrive.clean]}">По прибытии: ${CLEAN[r.arrive.clean]}</span><span class="pill ${r.arrive.trash >= .75 ? 'warn' : ''}">Урна ${Math.round(r.arrive.trash * 100)}%</span></div>` : ''}
       <div class="row" style="margin-top:10px;align-items:flex-start;flex-wrap:wrap"><div><div class="tiny">Пример</div><div class="photo" style="width:92px;height:146px">${exHTML(pst(p))}</div><button class="btn sec sm" style="margin-top:4px;padding:3px 8px;font-size:11px" onclick="exReplace('${pst(p)}')">Заменить</button></div>
       ${(r.photos && r.photos.length ? r.photos : [r.photo]).map((ph, k) => `<div><div class="tiny">Сейчас${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:146px">${ph ? ph.svg : stationSVG(p.units[Math.min(k, p.units.length - 1)].st)}</div></div>`).join('')}
       ${r.type >= 2 ? (r.nozzles && r.nozzles.length ? r.nozzles : [r.nozzle]).map((ph, k) => `<div><div class="tiny">Носики${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:122px">${ph ? ph.svg : nozzleSVG(false)}</div></div>`).join('') : ''}</div>
       ${r.status === 'pending' ? `<div class="btns"><button class="btn sm" onclick="rv(${r.id},'ok')">Принять</button><button class="btn sec sm" onclick="askRedo(${r.id})">Переснять</button><button class="btn sec sm" onclick="askComment(${r.id})">${ic('chat', 15)} Комментарий</button></div>` : ''}
-      ${r.status === 'redo' && r.reason ? `<div class="t2" style="color:#ff8f8f;margin-top:6px">Причина: ${r.reason}</div>` : ''}</div>`;
+      ${r.status === 'redo' && r.reason ? `<div class="t2" style="color:#ff8f8f;margin-top:6px">Причина: ${esc(r.reason)}</div>` : ''}</div>`;
   });
   return h + '</div>';
 }
@@ -1771,7 +1771,7 @@ function sheet() {
     L(c, TODAY).forEach(x => { if (x.done) return; if (x.type >= 2) t2++; ING.forEach(g => tot[g.id] = (tot[g.id] || 0) + needBase(pt(x.pid), g)); });
     const need = passNeed(c), key2 = c + ':' + TODAY;
     let h = '<h2>Погрузка со склада</h2>';
-    if (need.length) h += `<div class="card" style="border-color:var(--o)"><div class="row" onclick="PASS['${key2}']=!PASS['${key2}'];render(true)" style="cursor:pointer"><div style="color:var(--o)">${ic('pass', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Возьмите пропуск: ${need.map(p => p.name).join(', ')}</div><div class="t2">Сегодня в вашем графике есть точка с пропуском. Отметьте, когда он у вас.</div></div><div class="box ${PASS[key2] ? 'on' : ''}">${PASS[key2] ? '✓' : ''}</div></div></div>`;
+    if (need.length) h += `<div class="card" style="border-color:var(--o)"><div class="row" onclick="PASS['${key2}']=!PASS['${key2}'];render(true)" style="cursor:pointer"><div style="color:var(--o)">${ic('pass', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Возьмите пропуск: ${esc(need.map(p => p.name).join(', '))}</div><div class="t2">Сегодня в вашем графике есть точка с пропуском. Отметьте, когда он у вас.</div></div><div class="box ${PASS[key2] ? 'on' : ''}">${PASS[key2] ? '✓' : ''}</div></div></div>`;
     h += '<div class="tiny">Сумма по оставшимся точкам с запасом 20%.</div><div class="card">';
     ING.forEach(g => { const n = tot[g.id] || 0; h += `<div class="chk"><div class="grow t1" style="font-size:14px">${g.n}</div><div class="t1" style="font-size:14px">${g.t === 'count' ? n : +n.toFixed(1)} ${g.u}</div>${WH[g.id] < n ? '<span class="pill bad">на складе мало</span>' : ''}</div>`; });
     h += '</div>';
@@ -1863,7 +1863,7 @@ function sheet() {
   }
   if (S.sheet === 'water') {
     const p = pt(S.wp), msg = waterMsg(p, S.wq);
-    return `<h2>Заказ воды</h2><div class="t2" style="margin-bottom:8px">${p.name} · ${p.addr}</div>
+    return `<h2>Заказ воды</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)} · ${esc(p.addr)}</div>
       <div class="card"><div class="row"><div class="grow t1" style="font-size:14px">Сколько бутылей заказать</div><div class="step"><button onclick="wq(-1)">−</button><span>${S.wq}</span><button onclick="wq(1)">+</button></div></div></div>
       <div class="tiny">Сообщение, которое уйдёт во ВКонтакте:</div><div class="card" style="white-space:pre-wrap;font-size:13px">${esc(msg)}</div>
       ${waterSet(p.id).vk ? `<div class="tiny">Получатель: ${esc(waterSet(p.id).vk)}</div>` : `<div class="card" style="border-color:var(--o)"><div class="t1" style="font-size:14px">Получатель не указан</div><div class="t2">Менеджер задаёт получателя на вкладке «Склад». Напишите ему в чате.</div></div>`}
@@ -1882,7 +1882,7 @@ function sheet() {
   if (S.sheet === 'tobase') {
     if (!DEPOT.addr) return `<h2>Поехали на базу</h2><div class="card"><div class="t1">Адрес базы не указан</div><div class="t2">Менеджер задаёт адрес на вкладке «Склад». Напишите ему в чате.</div></div><button class="btn sec" onclick="go({sheet:null})">Закрыть</button>`;
     const u = urls([DEPOT], null);
-    return `<h2>Поехали на базу</h2><div class="card"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div><div class="t1">${DEPOT.name}</div><div class="t2">${DEPOT.addr || 'Адрес базы не указан'}</div></div></div></div>
+    return `<h2>Поехали на базу</h2><div class="card"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div><div class="t1">${esc(DEPOT.name)}</div><div class="t2">${esc(DEPOT.addr || 'Адрес базы не указан')}</div></div></div></div>
       <div class="tiny">Маршрут построится от вашего текущего местоположения. После загрузки подтвердите её в разделе «Погрузка».</div>
       <div class="btns"><a class="btn sm mapbtn" style="background:#fc3f1d;color:#fff;text-align:center" target="_blank" href="${u.ya}">Яндекс</a>
       <a class="btn sm mapbtn" style="background:#2ca24a;color:#fff;text-align:center" target="_blank" href="${gisRoute([DEPOT], null)}">2ГИС</a></div>
@@ -1900,7 +1900,7 @@ function sheet() {
   if (S.sheet === 'rcomment') {
     const r = reviews.find(x => x.id === S.rc.id), p = pt(r.pid), pend = r.status === 'pending';
     const presets = ['Проверь чистоту за кофемашиной', 'Протри столешницу и фасад', 'Проверь запас сиропов', 'Вынеси мусор перед уходом', 'Всё отлично, спасибо!'];
-    return `<h2>Комментарий курьеру</h2><div class="tiny">${cr(r.cid).name} · ${p.name}. Курьер увидит сообщение в уведомлениях и чате и сможет ответить, пока он на точке.</div>
+    return `<h2>Комментарий курьеру</h2><div class="tiny">${esc(cr(r.cid).name)} · ${esc(p.name)}. Курьер увидит сообщение в уведомлениях и чате и сможет ответить, пока он на точке.</div>
       <div class="chips" style="flex-wrap:wrap;margin-top:10px">${presets.map(t => `<button onclick="S.rc.text='${t}';render()">${t}</button>`).join('')}</div>
       <input type="text" placeholder="Свой комментарий" value="${esc(S.rc.text)}" oninput="S.rc.text=this.value">
       ${pend ? '<button class="btn" style="margin:6px 0 8px" onclick="sendRC(true)">Принять и отправить</button>' : ''}
@@ -1916,7 +1916,7 @@ function sheet() {
   if (S.sheet === 'cform') {
     const f = S.cf;
     return `<h2>${f.id ? 'Изменить курьера' : 'Новый курьер'}</h2>
-      <div class="tiny">Имя</div><input type="text" placeholder="Например, Иван" value="${f.name}" oninput="S.cf.name=this.value">
+      <div class="tiny">Имя</div><input type="text" placeholder="Например, Иван" value="${esc(f.name)}" oninput="S.cf.name=this.value">
       <div class="tiny">Логин для входа</div><input type="text" placeholder="ivan" autocomplete="off" value="${f.login}" oninput="S.cf.login=this.value">
       <div class="tiny">Пароль</div><div class="row"><div class="grow"><input type="text" autocomplete="off" value="${f.pass}" oninput="S.cf.pass=this.value"></div><button class="btn sec sm" onclick="S.cf.pass=genPass();render()">Сгенерировать</button></div>
       <div class="kv" style="margin-top:8px"><span>Тип 1, ₽ за визит</span><div class="step"><button onclick="cfRate('r1',-50)">−</button><span style="min-width:64px">${money(f.r1)}</span><button onclick="cfRate('r1',50)">+</button></div></div>
@@ -1955,10 +1955,10 @@ function sheet() {
     return h + '<button class="btn sec" onclick="go({sheet:null})">Закрыть</button>';
   }
   if (S.sheet === 'add') {
-    let h = `<h2>${cr(S.mc).name}: добавить адреса на ${WD[S.day]}</h2>`;
+    let h = `<h2>${esc(cr(S.mc).name)}: добавить адреса на ${WD[S.day]}</h2>`;
     P.slice().sort((a, b) => ({r:0, y:1, g:2})[health(a)] - ({r:0, y:1, g:2})[health(b)]).forEach(p => {
       const by = takenBy(p.id, S.day), on = by === S.mc;
-      h += `<div class="chk ${by && !on ? 'dis' : ''}" onclick="togglePt(${p.id})"><div class="box ${on ? 'on' : ''}">${on ? '✓' : ''}</div><div class="grow"><div class="t1" style="font-size:14px">${p.name}</div><div class="t2">${p.addr}${by && !on ? ' · у ' + cr(by).name : ''}</div></div>
+      h += `<div class="chk ${by && !on ? 'dis' : ''}" onclick="togglePt(${p.id})"><div class="box ${on ? 'on' : ''}">${on ? '✓' : ''}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(p.addr)}${esc(by && !on ? ' · у ' + cr(by).name : '')}</div></div>
         <span class="dot d${health(p)}" style="margin-top:6px"></span>${needT2(p) ? '<span class="pill warn">тип 2</span>' : ''}</div>`;
     });
     return h + '<button class="btn" style="margin-top:10px" onclick="go({sheet:null})">Готово</button>';
@@ -2461,6 +2461,12 @@ function ensureCour(c) {
   if (!TEMPLATE[c]) TEMPLATE[c] = emptyWeek();
   if (!CHAT[c]) CHAT[c] = [];
 }
+// фото-«картинки» приходят от курьеров как разметка SVG: убираем из неё скрипты и обработчики событий (защита от вставки вредного кода)
+const safeSvg = s => String(s || '').replace(/<\s*(script|iframe|object|embed|foreignObject|style)[\s\S]*?(<\s*\/\s*\1\s*>|$)/gi, '').replace(/[\s"'\/]on[a-z]{3,}\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, ' ').replace(/javascript:/gi, '');
+function cleanRev(v) {
+  ['photo', 'nozzle'].forEach(k => { if (v[k] && v[k].svg) v[k].svg = safeSvg(v[k].svg); });
+  ['photos', 'nozzles'].forEach(k => { if (Array.isArray(v[k])) v[k].forEach(x => { if (x && x.svg) x.svg = safeSvg(x.svg); }); });
+}
 function applyDoc(k, v, dele) {
   const p = k.split('/'), h = p[0];
   if (h === 'cour') {
@@ -2511,6 +2517,7 @@ function applyDoc(k, v, dele) {
   } else if (h === 'dm') {
     upsert(DMS[p[1]] = DMS[p[1]] || [], dele ? {id:p[2]} : v, dele, byTsAsc);
   } else if (h === 'rev') {
+    if (v) cleanRev(v);
     upsert(reviews, dele ? {id:p[1]} : v, dele, (a, b) => String(b.id).length - String(a.id).length || b.id - a.id);
   }
 }
@@ -2617,7 +2624,34 @@ function pushChanges() {
 }
 function openStream() {
   closeStream();
-  if (!SY.on || !window.EventSource) return;
+  if (!SY.on) return;
+  if (window.fetch && window.ReadableStream && window.TextDecoder && window.AbortController) {   // вход передаётся в заголовке, а не в адресе запроса
+    const ac = new AbortController(), mine = {close() { ac.abort(); }};
+    SY.es = mine;
+    fetch(SRV + '/api/stream?since=' + SY.seq, {headers:{Authorization:'Bearer ' + SY.token}, signal:ac.signal}).then(r => {
+      if (r.status === 401) { syncAuthLost(); return; }
+      if (!r.ok || !r.body) throw new Error('stream ' + r.status);
+      setNet(true);
+      const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '';
+      const pump = x => {
+        if (x.done) throw new Error('closed');
+        buf += dec.decode(x.value, {stream:true});
+        let i;
+        while ((i = buf.indexOf('\n\n')) >= 0) {
+          const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+          chunk.split('\n').forEach(line => { if (line.indexOf('data: ') === 0) { let d; try { d = JSON.parse(line.slice(6)); } catch (e) { return; } setNet(true); onRemote([d]); } });
+        }
+        return rd.read().then(pump);
+      };
+      return rd.read().then(pump);
+    }).catch(() => {
+      if (ac.signal.aborted) return;
+      setNet(false);
+      if (SY.es === mine) { SY.es = null; clearTimeout(SY.rt); SY.rt = setTimeout(syncResume, 3000); }
+    });
+    return;
+  }
+  if (!window.EventSource) return;
   const es = new EventSource(SRV + '/api/stream?since=' + SY.seq + '&token=' + encodeURIComponent(SY.token));
   SY.es = es;
   es.onopen = () => setNet(true);
