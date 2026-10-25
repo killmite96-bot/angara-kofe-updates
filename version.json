@@ -1,9 +1,9 @@
 {
-    "content":  116,
+    "content":  117,
     "apk":  20,
-    "notes":  "Плашка точки в цитате ответа светлее.",
+    "notes":  "Выбор нескольких сообщений: переслать в другой или этот же чат и удалить свои пачкой.",
     "contentFile":  "index.html",
-    "contentSha256":  "6d37b9ad7eb526bd73de410d1023ca5875f6aa8eda969235ffc2f9d3a75d1519",
+    "contentSha256":  "3a64b7a928371ec3519c56c8bc785d34b60530487e7fb80068289a2c681e7023",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
 }

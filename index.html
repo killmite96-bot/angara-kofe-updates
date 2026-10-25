@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 116;
+const APP_VERSION = 117;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1643,7 +1643,9 @@ function chatScreen() {
   else if (msgs.length) rdMark(th, msgs[msgs.length - 1].ts);
   NOTIFS.forEach(n => { if (n.kind === 'chat' && n.to === nkey() && (n.th || 'm:' + n.cid) === th) n.read = true; });
   const ctx = chatCtxPid(th, me);
-  let h = topbar(thTitle(th), '<button class="back" style="margin:0" onclick="go({th:null})">‹ Все чаты</button>' + (thPk(th) ? ' ' + prHTML(thPk(th), mgr) : '') + typingHTML(th));
+  const selMode = !!(S.sel && S.sel.th === th), selIds = selMode ? S.sel.ids.filter(id => msgs.some(m => sameId(m.id, id) && !m.del)) : [];
+  if (selMode) S.sel.ids = selIds;
+  let h = topbar(thTitle(th), selMode ? '<button class="back" style="margin:0" onclick="selCancel()">‹ Отмена</button> <b>Выбрано: ' + selIds.length + '</b>' : '<button class="back" style="margin:0" onclick="go({th:null})">‹ Все чаты</button>' + (thPk(th) ? ' ' + prHTML(thPk(th), mgr) : '') + typingHTML(th));
   h += '<div class="body">';
   if (!msgs.length) h += '<div class="card t2">Пока сообщений нет.</div>';
   const firstView = !CHAT_SEEN[th]; CHAT_SEEN[th] = CHAT_SEEN[th] || new Set();
@@ -1651,8 +1653,11 @@ function chatScreen() {
     const mine = String(m.from) === String(me), nx = msgs[mi + 1], isNew = !firstView && !CHAT_SEEN[th].has(String(m.id)); CHAT_SEEN[th].add(String(m.id));
     const tail = !nx || nx.del || String(nx.from) !== String(m.from) || (nx.ts - m.ts) > 180000;
     if (m.del) { h += `<div class="tiny" style="text-align:center;margin:8px 0;opacity:.75">${esc(msgSender(th, m))}: сообщение удалено</div>`; return; }
-    h += `<div class="msg ${mine ? 'me' : 'them'}${tail ? ' tail' : ''}${isNew ? ' msgin' : ''}" data-mid="${m.id}" style="cursor:pointer" onclick="openMsg('${m.id}')">${th === 'g' ? `<div class="tiny" style="margin-bottom:3px;color:var(--g);display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>${mine ? 'Вы' : esc(sender(m.from))}</b>${mine ? '' : prDotHTML(String(m.from))}</div>` : ''}${m.fw ? `<div class="tiny" style="margin-bottom:4px;opacity:.85">↪ Переслано от ${esc(m.fw)}</div>` : ''}${m.re ? `<div style="border-left:3px solid var(--g);padding:2px 8px;margin-bottom:5px;background:rgba(255,255,255,.06);border-radius:4px"><div class="tiny" style="color:var(--g);font-weight:700">${esc(m.re.name)}</div><div style="font-size:13px;line-height:1.3;color:#fff;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${esc(m.re.text)}</div>${m.re.pid && pt(m.re.pid) ? `<div><span style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:1px 8px;border-radius:8px;background:#2c5079;border:1px solid #467aae;color:#e3f0fc;font-size:12px;font-weight:500">${ic('pin', 12)} ${esc(pt(m.re.pid).name)}</span></div>` : ''}</div>` : ''}${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="event.stopPropagation();openPoint(${m.pid})">${ic('pin', 13)} ${esc(pt(m.pid) ? pt(m.pid).name : 'точка')}</div>` : ''}${mdHTML(m)}${m.text ? `<div style="white-space:pre-wrap">${esc(m.text)}</div>` : ''}${rxChips(th, m)}<div class="mt">${m.ed ? `<span style="opacity:.85">${ic('edit', 11)} изменено</span> · ` : ''}${m.t}${mine ? ' ' + ticks(th, m) : ''}</div></div>`;
+    const bub = `<div class="msg ${mine ? 'me' : 'them'}${tail ? ' tail' : ''}${isNew && !selMode ? ' msgin' : ''}" data-mid="${m.id}" style="cursor:pointer" ${selMode ? '' : `onclick="openMsg('${m.id}')"`}>${th === 'g' ? `<div class="tiny" style="margin-bottom:3px;color:var(--g);display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>${mine ? 'Вы' : esc(sender(m.from))}</b>${mine ? '' : prDotHTML(String(m.from))}</div>` : ''}${m.fw ? `<div class="tiny" style="margin-bottom:4px;opacity:.85">↪ Переслано от ${esc(m.fw)}</div>` : ''}${m.re ? `<div style="border-left:3px solid var(--g);padding:2px 8px;margin-bottom:5px;background:rgba(255,255,255,.06);border-radius:4px"><div class="tiny" style="color:var(--g);font-weight:700">${esc(m.re.name)}</div><div style="font-size:13px;line-height:1.3;color:#fff;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${esc(m.re.text)}</div>${m.re.pid && pt(m.re.pid) ? `<div><span style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:1px 8px;border-radius:8px;background:#2c5079;border:1px solid #467aae;color:#e3f0fc;font-size:12px;font-weight:500">${ic('pin', 12)} ${esc(pt(m.re.pid).name)}</span></div>` : ''}</div>` : ''}${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="event.stopPropagation();openPoint(${m.pid})">${ic('pin', 13)} ${esc(pt(m.pid) ? pt(m.pid).name : 'точка')}</div>` : ''}${mdHTML(m)}${m.text ? `<div style="white-space:pre-wrap">${esc(m.text)}</div>` : ''}${rxChips(th, m)}<div class="mt">${m.ed ? `<span style="opacity:.85">${ic('edit', 11)} изменено</span> · ` : ''}${m.t}${mine ? ' ' + ticks(th, m) : ''}</div></div>`;
+    const on = selMode && selIds.some(id => sameId(id, m.id));
+    h += selMode ? `<div class="selrow${on ? ' on' : ''}" onclick="selToggle('${m.id}')"><div class="selbox${on ? ' on' : ''}">${on ? ic('check', 15) : ''}</div>${bub}</div>` : bub;
   });
+  if (selMode) return h + '</div>' + selBarHTML(th, msgs, me, selIds);
   const rt = S.reTo && S.reTo.th === th ? S.reTo : null, ed = S.edit && S.edit.th === th;
   h += `</div><div id="composer" style="position:relative;z-index:7;background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${ed ? `<div class="row" style="margin-bottom:6px;border-left:3px solid var(--g);padding:3px 8px;background:rgba(255,255,255,.06);border-radius:4px"><div class="grow tiny" style="color:var(--g);font-weight:700">${ic('edit', 13)} Редактирование сообщения</div><span style="cursor:pointer;padding:4px 8px" onclick="go({edit:null,chatDraft:''})">✕</span></div>` : ''}${rt ? `<div style="border-left:3px solid var(--g);padding:3px 8px;margin-bottom:6px;background:rgba(255,255,255,.06);border-radius:4px" class="row"><div class="grow"><div class="tiny" style="color:var(--g);font-weight:700">Ответ: ${esc(rt.name)}</div><div style="font-size:13px;line-height:1.3;color:#fff;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(rt.text)}</div>${rt.pid && pt(rt.pid) ? `<div><span style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:1px 8px;border-radius:8px;background:#2c5079;border:1px solid #467aae;color:#e3f0fc;font-size:12px;font-weight:500">${ic('pin', 12)} ${esc(pt(rt.pid).name)}</span></div>` : ''}</div><span style="cursor:pointer;padding:4px 8px" onclick="go({reTo:null})">✕</span></div>` : ''}${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">${ic('pin', 13)} Точка: ${esc(pt(ctx) ? pt(ctx).name : '')} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true,chatPid:null})">✕</span></div>` : ''}
     <div class="row" style="gap:8px">${ed ? '' : `<button class="clipb" onclick="go({sheet:'attach'})" aria-label="Прикрепить">${ic('clip', 22)}</button>`}<input type="text" id="chatin" placeholder="Сообщение" value="${esc(S.chatDraft)}" oninput="S.chatDraft=this.value;composerSync();typingPing()" onkeydown="if(event.key==='Enter')sendChat()" style="margin:0"><button class="sendb${S.chatDraft.trim() || ed ? '' : ' mic'}" id="sendb" onclick="composerAct()">${S.chatDraft.trim() || ed ? ic('send', 18) : ic('mic', 20)}</button></div></div>`;
@@ -1977,7 +1982,7 @@ function sheet() {
   if (S.sheet === 'msgact') {
     const f = S.ma, m = findMsg(f.th, f.id); if (!m) return '<h2>Сообщение удалено</h2><button class="btn sec" onclick="go({sheet:null,ma:null})">Закрыть</button>';
     const prev = `<div class="card" style="margin-top:8px"><div class="tiny" style="color:var(--g);font-weight:700">${esc(msgSender(f.th, m))}${m.fw ? ' · переслано от ' + esc(m.fw) : ''}</div><div style="font-size:14px;margin-top:2px;white-space:pre-wrap">${esc(m.text)}</div></div>`;
-    if (f.fwd) return `<h2>Переслать в…</h2>${prev}<div style="margin-top:8px">${thList().map(t => `<button class="btn sec" style="margin-bottom:6px;text-align:left" onclick="msgForward('${t}')">${t === 'g' ? ic('users', 16) : ic('chat', 16)} ${t === 'm:' + S.me ? 'Менеджер' : esc(thTitle(t))}</button>`).join('')}</div>
+    if (f.fwd) return `<h2>Переслать в…</h2>${prev}<div style="margin-top:8px">${thList().map(t => `<button class="btn sec" style="margin-bottom:6px;text-align:left" onclick="msgForward('${t}')">${t === 'g' ? ic('users', 16) : ic('chat', 16)} ${S.role !== 'mgr' && t === 'm:' + S.me ? 'Менеджер' : esc(thTitle(t))}</button>`).join('')}</div>
       <button class="btn sec" onclick="go({ma:{th:'${f.th}',id:'${f.id}'}})">Назад</button>`;
     const own = String(m.from) === String(f.th[0] === 'm' ? (S.role === 'mgr' ? 'mgr' : 'cour') : meKey());
     if (f.del) return `<h2>Удалить сообщение?</h2>${prev}<div class="tiny" style="margin-top:8px">В чате останется надпись «${esc(msgSender(f.th, m))}: сообщение удалено», текст пропадёт у всех.</div>
@@ -1992,6 +1997,7 @@ function sheet() {
         <button class="btn sec" style="padding:11px 8px" onclick="msgCopy()">${ic('copy', 16)} Копировать</button>
         ${own ? `<button class="btn sec" style="padding:11px 8px" onclick="msgEdit()">${ic('edit', 16)} Изменить</button><button class="btn sec" style="padding:11px 8px;color:#ffb0b0" onclick="go({ma:{th:'${f.th}',id:'${f.id}',del:true}})">${ic('trash', 16)} Удалить</button>` : ''}
       </div>
+      <button class="btn sec" style="margin-bottom:8px" onclick="selStart()">${ic('check', 16)} Выбрать несколько</button>
       <button class="btn sec" onclick="go({sheet:null,ma:null})">Закрыть</button>`;
   }
   if (S.sheet === 'pushhelp') {
@@ -2422,6 +2428,7 @@ window.appBack = () => {
   if (S.cam) { go({cam:null}); return true; }
   if (S.shade) { closeShade(); return true; }
   if (S.sheet) { go({sheet:null}); return true; }
+  if (S.sel) { go({sel:null}); return true; }
   if (S.view) { go({view:null}); return true; }
   if (S.tab === 'chat' && S.th) { go({th:null}); return true; }
   return false;
@@ -3192,7 +3199,7 @@ function uiAfterRender() {
   SHEETSEEN = S.sheet || null;
   if (S.shade && !SHADESEEN) { const o = $('sheetshade'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
   SHADESEEN = !!S.shade;
-  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); geoSync(); kbCheck(); ctxLeave(); } catch (e) {}
+  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); geoSync(); kbCheck(); ctxLeave(); if (S.sel && !(S.tab === 'chat' && S.th === S.sel.th && !S.view)) S.sel = null; } catch (e) {}
 }
 // шапка сжимается, только если у экрана достаточно прокрутки: иначе после сжатия прокрутка «съедается», шапка снова растёт, и всё дёргается по кругу
 function hdrState(tp, bd) {
@@ -3258,7 +3265,7 @@ function replyTo(id) {
   const app = $('app'); let m = null, lp = 0;
   app.addEventListener('touchstart', e => {
     m = null; clearTimeout(lp);
-    if (e.touches.length !== 1 || !(S.tab === 'chat' && S.th) || S.sheet || S.shade || BK.on) return;
+    if (e.touches.length !== 1 || !(S.tab === 'chat' && S.th) || S.sheet || S.shade || BK.on || S.sel) return;
     const el = e.target.closest && e.target.closest('.msg[data-mid]'); if (!el || e.target.closest('.pill')) return;
     const t = e.touches[0]; if (t.clientX < 66) return;
     m = {el, x0: t.clientX, y0: t.clientY, dx: 0, drag: false, id: el.dataset.mid, fired: false, mark: false};
@@ -3901,6 +3908,11 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 #app .body{transition:margin-bottom .24s cubic-bezier(.22,1,.36,1),padding-bottom .24s cubic-bezier(.22,1,.36,1)}
 #app.kb .body{margin-bottom:0;padding-bottom:16px}
 .sheet{overflow-x:hidden}
+.selrow{display:flex;align-items:center;gap:8px;cursor:pointer;margin:0 -4px;padding:0 4px;border-radius:12px}
+.selrow.on{background:rgba(93,255,160,.08)}
+.selrow .msg{pointer-events:none;flex:0 1 auto}
+.selbox{width:22px;height:22px;border-radius:50%;border:2px solid #5a6b61;flex:none;display:flex;align-items:center;justify-content:center;color:#06150c;transition:background .15s,border-color .15s}
+.selbox.on{background:var(--g);border-color:var(--g)}
 #netp{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-90px);z-index:29;background:#4a3414;color:#ffd9a0;border:1px solid #8a5a14;padding:6px 12px;border-radius:16px;font-size:12px;max-width:90%;text-align:center;transition:transform .35s cubic-bezier(.22,1,.36,1)}
 #netp.in{transform:translate(-50%,0)}
 #geop{position:fixed;left:12px;bottom:calc(var(--tabh,64px) + 12px + env(safe-area-inset-bottom));z-index:21;background:rgba(23,64,42,.92);color:#7be3a0;border:1px solid #2f9a4e;padding:5px 10px;border-radius:14px;font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer}
@@ -4587,6 +4599,7 @@ function selfTest() {
     T(role + ': текстовое сообщение', () => { S.chatDraft = 'самопроверка'; sendChat(); });
     T(role + ': голосовое в чате', () => { sendTeamMsg('g', '', null, {md: {k: 'voice', f: 'a'.repeat(24) + '.weba', d: 3, p: '35798642'}}); render(); });
     T(role + ': фото в чате', () => { sendTeamMsg('g', '', null, {md: {k: 'photo', f: 'b'.repeat(24) + '.jpg', w: 800, h: 600}}); render(); });
+    T(role + ': выбор нескольких сообщений', () => { go({tab: 'chat', view: null, th: 'g', sheet: null}); const l = GCHAT.slice(-2); S.ma = {th: 'g', id: l[0].id}; selStart(); selToggle(l[1].id); go({sheet: 'selfwd'}); selForwardTo('g'); go({tab: 'chat', th: 'g', sheet: null, sel: {th: 'g', ids: [String(GCHAT[GCHAT.length - 1].id)]}}); selDeleteAsk(); go({sheet: null}); selCancel(); });
     T(role + ': список чатов', () => go({tab: 'chat', view: null, th: null}));
     if (role === 'cour') {
       T('курьер: быстрый визит', () => { startVisit(P[0].id, true); render(); });
@@ -4609,6 +4622,37 @@ function selfTest() {
   document.body.insertAdjacentHTML('beforeend', '<pre id="selftest">' + JSON.stringify(out) + '</pre>');
 }
 if (/[?&]selftest=1/.test(location.search) && !SRV) setTimeout(selfTest, 1500);
+
+/* ----- выбор нескольких сообщений: переслать (в другой чат или в этот же) и удалить пачкой (только свои) ----- */
+const thMe = th => th[0] === 'm' ? (S.role === 'mgr' ? 'mgr' : 'cour') : meKey();
+function selStart() { const f = S.ma; if (!f) return; haptic(10); go({sheet: null, ma: null, sel: {th: f.th, ids: [String(f.id)]}}); }
+function selToggle(id) { const sl = S.sel; if (!sl) return; id = String(id); const i = sl.ids.indexOf(id); if (i >= 0) sl.ids.splice(i, 1); else sl.ids.push(id); haptic(6); render(true); }
+function selCancel() { go({sel: null}); }
+function selMsgs() { const sl = S.sel; return sl ? thMsgs(sl.th).filter(m => !m.del && sl.ids.some(i => sameId(i, m.id))) : []; }   // в порядке переписки
+function selBarHTML(th, msgs, me, ids) {
+  const sel = msgs.filter(m => !m.del && ids.some(i => sameId(i, m.id))), n = sel.length, own = n > 0 && sel.every(m => String(m.from) === String(me));
+  return `<div id="composer" style="position:relative;z-index:7;background:#111a15;border-top:1px solid var(--line);padding:10px 12px 12px"><div class="row" style="gap:8px"><button class="btn" style="flex:1 1 0;width:auto;margin:0;${n ? '' : 'opacity:.45;pointer-events:none'}" onclick="selForward()">${ic('send', 16)} Переслать${n ? ' · ' + n : ''}</button>${own ? `<button class="btn sec" style="flex:1 1 0;width:auto;margin:0;color:#ffb0b0" onclick="selDeleteAsk()">${ic('trash', 16)} Удалить · ${n}</button>` : ''}<button class="btn sec" style="width:auto;margin:0;padding:0 16px" onclick="selCancel()">Отмена</button></div>${n && !own ? '<div class="tiny" style="margin-top:6px">Удалить можно, когда выбраны только ваши сообщения</div>' : ''}</div>`;
+}
+function selForward() { if (selMsgs().length) go({sheet: 'selfwd'}); }
+function lastOf(target) { return target === 'g' ? GCHAT[GCHAT.length - 1] : target[0] === 'd' ? (DMS[dmKey(S.me, +target.slice(2))] || []).slice(-1)[0] : (CHAT[target.slice(2)] || []).slice(-1)[0]; }
+function selForwardTo(target) {
+  const sl = S.sel, list = selMsgs(); if (!sl || !list.length) return go({sheet: null, sel: null});
+  const mgr = S.role === 'mgr', base = Date.now();
+  list.forEach((m, i) => {
+    const extra = {fw: m.fw || msgSender(sl.th, m)}; if (m.md) extra.md = m.md;
+    if (target[0] === 'm') sendMsg(+target.slice(2), mgr ? 'mgr' : 'cour', m.text, m.pid, extra); else sendTeamMsg(target, m.text, m.pid, extra);
+    const last = lastOf(target); if (last) last.ts = base + i;   // порядок сообщений сохраняется
+  });
+  go({sheet: null, sel: null, toast: 'Переслано сообщений: ' + list.length});
+}
+function selDeleteAsk() { const me = S.sel ? thMe(S.sel.th) : null; if (S.sel && selMsgs().length && selMsgs().every(m => String(m.from) === String(me))) go({sheet: 'seldel'}); }
+function selDelete() {
+  const sl = S.sel; if (!sl) return go({sheet: null}); const me = thMe(sl.th), list = selMsgs().filter(m => String(m.from) === String(me));
+  const baks = list.map(m => [m, JSON.parse(JSON.stringify(m))]);
+  list.forEach(m => { m.del = true; m.text = ''; delete m.md; delete m.fw; delete m.re; delete m.pid; delete m.ed; });
+  go({sheet: null, sel: null});
+  if (list.length) undoPush('Удалено сообщений: ' + list.length, () => { baks.forEach(([m, b]) => { Object.keys(m).forEach(k => { delete m[k]; }); Object.assign(m, b); }); render(true); });
+}
 
 /* ----- подсказка «включите уведомления» ----- */
 const PHINT_KEY = 'angara_pushhint';
@@ -4683,6 +4727,17 @@ function sheetNew() {
     const l = L(S.me, TODAY), n = l.length, d = l.filter(x => x.done).length, all = n > 0 && d === n;
     return `<h2>Завершить смену?</h2><div class="card"><div class="row"><div style="color:${all ? 'var(--g)' : 'var(--o)'}">${ic(all ? 'check' : 'flag', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${n ? (all ? 'Все точки сданы: ' + d + ' из ' + n : 'Сдано ' + d + ' из ' + n + ' точек') : 'Точек на сегодня нет'}</div><div class="t2">На смене: ${shiftDur()}. ${all ? '' : 'Не сданные точки останутся в маршруте. '}Если нажали случайно, вернуться на смену можно в течение 6 часов.</div></div></div></div>
       <button class="btn" style="margin-top:10px" onclick="go({sheet:null});shiftEnd()">Завершить смену</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Продолжить смену</button>`;
+  }
+  if (s === 'selfwd' && S.sel) {
+    const n = selMsgs().length;
+    return `<h2>Переслать сообщений: ${n}</h2><div class="t2" style="margin-bottom:8px">Выберите чат. Сообщения уйдут по порядку от вашего имени с подписью «Переслано от …». Можно отправить и в этот же чат, чтобы продублировать.</div>`
+      + thList().map(t => `<button class="btn sec" style="margin-bottom:6px;text-align:left" onclick="selForwardTo('${t}')">${t === 'g' ? ic('users', 16) : ic('chat', 16)} ${S.role !== 'mgr' && t === 'm:' + S.me ? 'Менеджер' : esc(thTitle(t))}${t === S.sel.th ? ' <span class="tiny">(этот чат, дублировать)</span>' : ''}</button>`).join('')
+      + '<button class="btn sec" style="margin-top:4px" onclick="go({sheet:null})">Отмена</button>';
+  }
+  if (s === 'seldel' && S.sel) {
+    const n = selMsgs().length;
+    return `<h2>Удалить сообщений: ${n}?</h2><div class="tiny" style="margin-top:6px">В чате останутся надписи «сообщение удалено», текст пропадёт у всех. Сразу после удаления его можно отменить.</div>
+      <button class="btn" style="margin:10px 0 6px;background:#4a1a1a;color:#ffb0b0" onclick="selDelete()">${ic('trash', 16)} Удалить</button><button class="btn sec" onclick="go({sheet:null})">Отмена</button>`;
   }
   if (s === 'mustpw') {
     const f = S.mp2 || (S.mp2 = {n1: '', n2: '', err: '', busy: false});
