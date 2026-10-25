@@ -1,9 +1,9 @@
 {
-    "content":  62,
+    "content":  63,
     "apk":  14,
-    "notes":  "Чат: автоматическая сверка переписки с сервером (пропавшее возвращается), подробный журнал запуска.",
+    "notes":  "Свайп назад: зона захвата у левого края шире.",
     "contentFile":  "index.html",
-    "contentSha256":  "b43ab29098a64e9777e267b557b110612d2afa3d7b63708dbe8589bbdcab2078",
+    "contentSha256":  "3d19816dcf96061840f5211b2d3fd34f21ac73b69eadd9c412f432a2492ca03c",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "5a3220d98395bbd932527f881ed2c8d972be22d6e1f0fca8e686949666bc6fa8"
 }

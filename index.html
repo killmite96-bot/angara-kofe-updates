@@ -128,7 +128,7 @@ a.mapbtn{display:block;text-decoration:none;color:var(--tx)}
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 62;
+const APP_VERSION = 63;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2270,7 +2270,7 @@ function bkEnd(st) {
     st = null;
     if (e.touches.length !== 1 || BK.on) return;
     const t = e.touches[0];
-    if (t.clientX > 30 || (e.target.closest && e.target.closest('input,textarea,select,#lvsvg,.bottles,#cropbox'))) return;
+    if (t.clientX > 64 || (e.target.closest && e.target.closest('input,textarea,select,#lvsvg,.bottles,#cropbox'))) return;
     const patch = backPatch(); if (!patch) return;
     st = {x0:t.clientX, y0:t.clientY, t0:Date.now(), patch, started:false, dx:0};
   }, {passive:true});
