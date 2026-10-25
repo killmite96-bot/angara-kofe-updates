@@ -1,9 +1,9 @@
 {
     "content":  123,
-    "apk":  20,
+    "apk":  21,
     "notes":  "Второй менеджер со своими чатами и уведомлениями; основной менеджер подписан как «Техническая поддержка приложения».",
     "contentFile":  "index.html",
     "contentSha256":  "d543b83fb07b30968644fa5c0e7de38c4467b6e98f164b4618fbb554bbf37699",
     "apkFile":  "AngaraKofe-beta.apk",
-    "apkSha256":  "88ea181b72f2f609ea32f1774eb143d1c26835478c2efd975f2ab6b2b5bea282"
+    "apkSha256":  "8edd30b4e60912cf494b35a7352719c21c33ae9cc877681a3c7649b6baae772d"
 }
