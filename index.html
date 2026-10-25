@@ -191,7 +191,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 74;
+const APP_VERSION = 75;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2269,15 +2269,22 @@ function screenHTML(patch) {
 // экран определяется вкладкой, открытой карточкой/визитом (и шагом визита) и беседой чата: пока он тот же, прокрутка сохраняется при любой перерисовке, сбрасывается только при переходе
 const renderKey = () => [S.role, S.view ? JSON.stringify(S.view) : S.tab, S.th || '', S.view && S.view.type === 'visit' && S.visit ? S.visit.step : ''].join('|');
 let NAVDIR = 0;
+const SCROLLMEM = {};   // где был прокручен каждый экран: при возврате назад список остаётся на том же месте
+const sigOf = () => Array.from($('app').querySelectorAll('.body .days button.on, .body .chips button.on')).map(b => b.textContent.trim()).join('|');
 function render(keep) {
   saveSoon();
-  const sameScreen = renderKey() === LASTKEY, body = document.querySelector('.body'), sc0 = (keep || sameScreen) && body ? body.scrollTop : 0;
+  const key0 = renderKey(), sameScreen = key0 === LASTKEY, body = document.querySelector('.body');
+  if (body && LASTKEY) SCROLLMEM[LASTKEY] = body.scrollTop;
+  const navD0 = navDepth(), navChanged = LASTDEPTH !== null && navD0 !== LASTDEPTH, isPop = navChanged && navD0 < LASTDEPTH;
+  const nearBottom = body ? body.scrollHeight - body.scrollTop - body.clientHeight < 90 : true;
+  const sc0 = (keep || sameScreen) && body ? body.scrollTop : (isPop ? (SCROLLMEM[key0] || 0) : 0);
   const shM = $('sheetmain'), shS = $('sheetshade'), scM = (keep || S.sheet === SHEETSEEN) && shM ? shM.scrollTop : 0, scS = (keep || S.shade === SHADESEEN) && shS ? shS.scrollTop : 0;   // прокрутка внутри окон тоже сохраняется
   const ae = document.activeElement, refocus = ae && ae.tagName === 'INPUT' ? ae.selectionStart : -1, refId = ae && ae.id ? ae.id : '';
   if (!S.role) { $('app').innerHTML = loginScreen(); return; }
-  const navD = navDepth(); let navDir = 0, navSnap = null;
-  if (LASTDEPTH !== null && navD !== LASTDEPTH && !NAV_SKIP && !FX_OFF && $('app').firstElementChild) { navDir = navD > LASTDEPTH ? 1 : -1; navSnap = navSnapshot(); }
-  LASTDEPTH = navD; NAV_SKIP = false; NAVDIR = navDir;
+  let navDir = 0, navSnap = null, ghost = null, preSig = '';
+  if (navChanged && !NAV_SKIP && !FX_OFF && $('app').firstElementChild) { navDir = isPop ? -1 : 1; navSnap = navSnapshot(); }
+  if (sameScreen && body && !FX_OFF && body.querySelector('.days, .chips')) { preSig = sigOf(); ghost = body.cloneNode(true); ghost._sc = body.scrollTop; }
+  LASTDEPTH = navD0; NAV_SKIP = false; NAVDIR = navChanged ? (isPop ? -1 : 1) : 0;
   BK.on = false;
   $('app').innerHTML = screenHTML({})
     + (S.sheet ? `<div class="overlay" onclick="if(event.target===this)go({sheet:null})"><div class="sheet" id="sheetmain"><div class="grab" id="grab"><i></i></div>${sheet()}</div></div>` : '')
@@ -2296,10 +2303,11 @@ function render(keep) {
   { const a = $('sheetmain'), b = $('sheetshade'); if (a) a.scrollTop = scM; if (b) b.scrollTop = scS; }
   bindSwipe($('sheetmain'), false, () => go({sheet:null}));
   bindSwipe($('sheetshade'), true, closeShade);
-  if (S.tab === 'chat' && !S.view) { if (nb) nb.scrollTop = nb.scrollHeight; if (S.focusChat) { const ci = $('chatin'); if (ci) ci.focus(); S.focusChat = false; } }
+  if (S.tab === 'chat' && !S.view) { if (S.th && nb && (!sameScreen || nearBottom || S.focusChat)) nb.scrollTop = nb.scrollHeight; if (S.focusChat) { const ci = $('chatin'); if (ci) ci.focus(); S.focusChat = false; } }
   if (refocus >= 0) { const inp = (refId && document.getElementById(refId)) || document.querySelector('input[type=text]'); if (inp) { inp.focus(); inp.setSelectionRange(refocus, refocus); } }
   uiAfterRender();
   if (navDir) navAnimate(navDir, navSnap);
+  if (ghost && sigOf() !== preSig) { $('app').classList.add('enterlist'); subGhost(ghost); }
   if (S.toast) { clearTimeout(window._t); window._t = setTimeout(() => { S.toast = ''; render(true); }, 2200); }
 }
 // кнопка «Назад» на телефоне (вызывается из Android-оболочки): закрывает окно, шторку, экран и т. д.
@@ -2321,6 +2329,7 @@ function backPatch() {
   if (S.tab === 'chat' && S.th) return {th:null};
   return null;
 }
+function keyFor(patch) { const ks = Object.keys(patch), sv = {}; ks.forEach(k => { sv[k] = S[k]; S[k] = patch[k]; }); try { return renderKey(); } finally { ks.forEach(k => { S[k] = sv[k]; }); } }
 function bkStart(st) {
   const app = $('app'), cur = document.createElement('div'), under = document.createElement('div'), ob = app.querySelector('.body');
   cur.id = 'bkcur'; under.id = 'bkunder';
@@ -2330,6 +2339,8 @@ function bkStart(st) {
   under.innerHTML = screenHTML(st.patch) + '<div id="bkdim" style="position:absolute;left:0;top:0;right:0;bottom:0;background:#000;opacity:.6;pointer-events:none"></div>';
   app.appendChild(under); app.appendChild(cur);
   const cb = cur.querySelector('.body'); if (cb && ob) cb.scrollTop = ob.scrollTop;
+  const ub = under.querySelector('.body'), ps = SCROLLMEM[keyFor(st.patch)] || 0;   // предыдущий экран под сдвигаемым стоит там же, где вы его оставили
+  if (ub) ub.scrollTop = ps; const utop = under.querySelector('.top'); if (utop && ps > 16) utop.classList.add('sc');
   Object.assign(st, {cur, under, W:app.clientWidth || 360, started:true}); BK.on = true;
 }
 function bkMove(st) {
@@ -3018,8 +3029,8 @@ function uiAfterRender() {
   const key = renderKey();
   const sub = S.tab === 'sched' && !S.view ? 'd' + S.day + (S.mc !== undefined && S.role === 'mgr' ? 'c' + S.mc : '') : S.tab === 'plan' && !S.view ? 'd' + S.day + 'c' + S.mc : '';   // день недели / курьер на экранах с выбором: список тоже «въезжает»
   app.classList.toggle('enter', key !== LASTKEY && !FX_OFF && !NAVDIR);   // при выезде/уезде экрана список не «проявляется» заново: иначе при возврате из остатков экран мигал
-  app.classList.toggle('enterlist', key === LASTKEY && sub !== LASTSUB && LASTSUB !== null && !FX_OFF);
-  LASTKEY = key; LASTSUB = sub;
+  app.classList.remove('enterlist');
+  LASTKEY = key;
   const tp = app.querySelector('.top'), bd = app.querySelector('.body');
   if (tp) tp.classList.add('nt');   // пока подгоняем заголовок и состояние шапки, анимации выключены: иначе надпись «прыгала» после каждой перерисовки
   const h1 = app.querySelector('.top h1');   // заголовок всегда в одну строку: при длинном названии шрифт уменьшается, чтобы не «прыгать» при сжатии шапки
@@ -3188,6 +3199,17 @@ function navAnimate(dir, snap) {
     old.animate([{transform: 'translateX(0)'}, {transform: 'translateX(100%)'}], {duration: T, easing: E, fill: 'forwards'});
   }
   setTimeout(() => { old.remove(); dim.remove(); saved.forEach(([p, a, b, c]) => { p.style.position = a; p.style.zIndex = b; p.style.background = c; }); }, T + 40);
+}
+
+// смена дня недели / фильтра: старый список плавно растворяется, пока новый «въезжает», без мигания пустого экрана
+function subGhost(ghost) {
+  const app = $('app'), bd = app.querySelector('.body'); if (!bd || !app.animate) return;
+  const r = bd.getBoundingClientRect(), a = app.getBoundingClientRect();
+  ghost.style.cssText = `position:absolute;left:${r.left - a.left}px;top:${r.top - a.top}px;width:${r.width}px;height:${r.height}px;overflow:hidden;pointer-events:none;z-index:5;margin:0;padding-bottom:0`;
+  ghost.querySelectorAll('.days, .chips, .seg').forEach(e => { e.style.visibility = 'hidden'; });
+  app.appendChild(ghost); ghost.scrollTop = ghost._sc || 0;
+  ghost.animate([{opacity: 1}, {opacity: 0}], {duration: 220, easing: 'ease-out', fill: 'forwards'});
+  setTimeout(() => ghost.remove(), 260);
 }
 
 // ----- кольца прогресса (как «Активность» в iPhone) -----
