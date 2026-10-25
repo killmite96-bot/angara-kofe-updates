@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 109;
+const APP_VERSION = 110;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -670,7 +670,7 @@ function dismissNotif(id) { const i = NOTIFS.findIndex(x => sameId(x.id, id)), n
 function replyNotif(id) {
   const n = NOTIFS.find(x => sameId(x.id, id)), text = (S.nr && sameId(S.nr.id, id) ? S.nr.text : '').trim(); if (!n || !text) return;
   const th = n.th || 'm:' + n.cid, mgr = S.role === 'mgr';
-  if (th[0] === 'm') sendMsg(+th.slice(2), mgr ? 'mgr' : 'cour', text, null); else sendTeamMsg(th, text, null);
+  if (th[0] === 'm') sendMsg(+th.slice(2), mgr ? 'mgr' : 'cour', text, n.pid || null); else sendTeamMsg(th, text, n.pid || null);
   const i = NOTIFS.indexOf(n); if (i >= 0) NOTIFS.splice(i, 1);   // на сообщение ответили: плашка больше не нужна
   S.nr = null; POP = null; go({toast:'Ответ отправлен'});
 }
@@ -1651,11 +1651,10 @@ function chatScreen() {
     const mine = String(m.from) === String(me), nx = msgs[mi + 1], isNew = !firstView && !CHAT_SEEN[th].has(String(m.id)); CHAT_SEEN[th].add(String(m.id));
     const tail = !nx || nx.del || String(nx.from) !== String(m.from) || (nx.ts - m.ts) > 180000;
     if (m.del) { h += `<div class="tiny" style="text-align:center;margin:8px 0;opacity:.75">${esc(msgSender(th, m))}: сообщение удалено</div>`; return; }
-    h += `<div class="msg ${mine ? 'me' : 'them'}${tail ? ' tail' : ''}${isNew ? ' msgin' : ''}" data-mid="${m.id}" style="cursor:pointer" onclick="openMsg('${m.id}')">${th === 'g' ? `<div class="tiny" style="margin-bottom:3px;color:var(--g);display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>${mine ? 'Вы' : esc(sender(m.from))}</b>${mine ? '' : prDotHTML(String(m.from))}</div>` : ''}${m.fw ? `<div class="tiny" style="margin-bottom:4px;opacity:.85">↪ Переслано от ${esc(m.fw)}</div>` : ''}${m.re ? `<div style="border-left:3px solid var(--g);padding:2px 8px;margin-bottom:5px;background:rgba(255,255,255,.06);border-radius:4px"><div class="tiny" style="color:var(--g);font-weight:700">${esc(m.re.name)}</div><div class="tiny">${esc(m.re.text)}</div></div>` : ''}${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="event.stopPropagation();openPoint(${m.pid})">${ic('pin', 13)} ${esc(pt(m.pid) ? pt(m.pid).name : 'точка')}</div>` : ''}${mdHTML(m)}${m.text ? `<div style="white-space:pre-wrap">${esc(m.text)}</div>` : ''}${rxChips(th, m)}<div class="mt">${m.ed ? `<span style="opacity:.85">${ic('edit', 11)} изменено</span> · ` : ''}${m.t}${mine ? ' ' + ticks(th, m) : ''}</div></div>`;
+    h += `<div class="msg ${mine ? 'me' : 'them'}${tail ? ' tail' : ''}${isNew ? ' msgin' : ''}" data-mid="${m.id}" style="cursor:pointer" onclick="openMsg('${m.id}')">${th === 'g' ? `<div class="tiny" style="margin-bottom:3px;color:var(--g);display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>${mine ? 'Вы' : esc(sender(m.from))}</b>${mine ? '' : prDotHTML(String(m.from))}</div>` : ''}${m.fw ? `<div class="tiny" style="margin-bottom:4px;opacity:.85">↪ Переслано от ${esc(m.fw)}</div>` : ''}${m.re ? `<div style="border-left:3px solid var(--g);padding:2px 8px;margin-bottom:5px;background:rgba(255,255,255,.06);border-radius:4px"><div class="tiny" style="color:var(--g);font-weight:700">${esc(m.re.name)}</div><div class="tiny">${esc(m.re.text)}</div>${m.re.pid && pt(m.re.pid) ? `<div class="tiny" style="color:#8cc4ff">${ic('pin', 12)} ${esc(pt(m.re.pid).name)}</div>` : ''}</div>` : ''}${m.pid ? `<div class="pill blue" style="margin-bottom:5px;cursor:pointer" onclick="event.stopPropagation();openPoint(${m.pid})">${ic('pin', 13)} ${esc(pt(m.pid) ? pt(m.pid).name : 'точка')}</div>` : ''}${mdHTML(m)}${m.text ? `<div style="white-space:pre-wrap">${esc(m.text)}</div>` : ''}${rxChips(th, m)}<div class="mt">${m.ed ? `<span style="opacity:.85">${ic('edit', 11)} изменено</span> · ` : ''}${m.t}${mine ? ' ' + ticks(th, m) : ''}</div></div>`;
   });
   const rt = S.reTo && S.reTo.th === th ? S.reTo : null, ed = S.edit && S.edit.th === th;
-  h += `</div><div id="composer" style="position:relative;z-index:7;background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${ed ? `<div class="row" style="margin-bottom:6px;border-left:3px solid var(--g);padding:3px 8px;background:rgba(255,255,255,.06);border-radius:4px"><div class="grow tiny" style="color:var(--g);font-weight:700">${ic('edit', 13)} Редактирование сообщения</div><span style="cursor:pointer;padding:4px 8px" onclick="go({edit:null,chatDraft:''})">✕</span></div>` : ''}${rt ? `<div style="border-left:3px solid var(--g);padding:3px 8px;margin-bottom:6px;background:rgba(255,255,255,.06);border-radius:4px" class="row"><div class="grow"><div class="tiny" style="color:var(--g);font-weight:700">Ответ: ${esc(rt.name)}</div><div class="tiny">${esc(rt.text)}</div></div><span style="cursor:pointer;padding:4px 8px" onclick="go({reTo:null})">✕</span></div>` : ''}${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">Ответ по точке: ${esc(pt(ctx) ? pt(ctx).name : '')} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true,chatPid:null})">✕</span></div>`
-    : `<div style="margin-bottom:6px"><button class="btn sec sm" onclick="go({sheet:'chatpt'})">${ic('pin', 15)} Привязать точку</button></div>`}
+  h += `</div><div id="composer" style="position:relative;z-index:7;background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${ed ? `<div class="row" style="margin-bottom:6px;border-left:3px solid var(--g);padding:3px 8px;background:rgba(255,255,255,.06);border-radius:4px"><div class="grow tiny" style="color:var(--g);font-weight:700">${ic('edit', 13)} Редактирование сообщения</div><span style="cursor:pointer;padding:4px 8px" onclick="go({edit:null,chatDraft:''})">✕</span></div>` : ''}${rt ? `<div style="border-left:3px solid var(--g);padding:3px 8px;margin-bottom:6px;background:rgba(255,255,255,.06);border-radius:4px" class="row"><div class="grow"><div class="tiny" style="color:var(--g);font-weight:700">Ответ: ${esc(rt.name)}</div><div class="tiny">${esc(rt.text)}</div>${rt.pid && pt(rt.pid) ? `<div class="tiny" style="color:#8cc4ff">${ic('pin', 12)} ${esc(pt(rt.pid).name)}</div>` : ''}</div><span style="cursor:pointer;padding:4px 8px" onclick="go({reTo:null})">✕</span></div>` : ''}${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">${ic('pin', 13)} Точка: ${esc(pt(ctx) ? pt(ctx).name : '')} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true,chatPid:null})">✕</span></div>` : ''}
     <div class="row" style="gap:8px">${ed ? '' : `<button class="clipb" onclick="go({sheet:'attach'})" aria-label="Прикрепить">${ic('clip', 22)}</button>`}<input type="text" id="chatin" placeholder="Сообщение" value="${esc(S.chatDraft)}" oninput="S.chatDraft=this.value;composerSync();typingPing()" onkeydown="if(event.key==='Enter')sendChat()" style="margin:0"><button class="sendb${S.chatDraft.trim() || ed ? '' : ' mic'}" id="sendb" onclick="composerAct()">${S.chatDraft.trim() || ed ? ic('send', 18) : ic('mic', 20)}</button></div></div>`;
   return h;
 }
@@ -1667,12 +1666,19 @@ function saveSyr() {
 }
 function chatPtFilter(q) { q = q.trim().toLowerCase(); document.querySelectorAll('#chatptlist .card').forEach(e => { e.style.display = !q || e.dataset.s.includes(q) ? '' : 'none'; }); }
 // точка, по которой идёт разговор: берётся из последнего чужого сообщения с точкой, но только пока вы на него не ответили (после вашего сообщения подсказка пропадает)
+let CTXSHOWN = null;
+const ctxDone = () => { try { return JSON.parse(localStorage.getItem('angara_ctxdone') || '[]'); } catch (e) { return []; } };
+function ctxMark(id) { const a = ctxDone(); if (!a.includes(String(id))) { a.push(String(id)); try { localStorage.setItem('angara_ctxdone', JSON.stringify(a.slice(-150))); } catch (e) {} } }
+function ctxLeave() { if (CTXSHOWN && !(S.tab === 'chat' && S.th === CTXSHOWN.th && !S.view)) { ctxMark(CTXSHOWN.id); CTXSHOWN = null; } }   // вышли из чата: подсказка по этому сообщению больше не показывается
 function chatCtxPid(th, me) {
   if (S.chatPid) return S.chatPid;
   if (S.ctxOff) return null;
+  if (S.reTo && S.reTo.th === th && S.reTo.pid) return S.reTo.pid;   // отвечаете на сообщение с точкой: точка остаётся в ответе
   const msgs = thMsgs(th).filter(m => !m.del), rev = msgs.slice().reverse();
   const mine = rev.find(m => String(m.from) === String(me)), inc = rev.find(m => String(m.from) !== String(me) && m.pid);
-  return inc && (!mine || inc.ts > mine.ts) ? inc.pid : null;
+  if (!inc || (mine && inc.ts <= mine.ts) || ctxDone().includes(String(inc.id))) return null;
+  CTXSHOWN = {th, id: inc.id};
+  return inc.pid;
 }
 function sendChat() {
   const t = S.chatDraft.trim(), th = S.th; if (!t || !th) return;
@@ -1680,7 +1686,7 @@ function sendChat() {
   const mgr = S.role === 'mgr', me = th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey();
   const inc = thMsgs(th).slice().reverse().find(m => String(m.from) !== String(me) && m.pid);
   const pid = chatCtxPid(th, me);
-  const extra = S.reTo && S.reTo.th === th ? {re:{id:S.reTo.id, name:S.reTo.name, text:S.reTo.text}} : null;
+  const extra = S.reTo && S.reTo.th === th ? {re:{id:S.reTo.id, name:S.reTo.name, text:S.reTo.text, pid:S.reTo.pid || null}} : null;
   if (th[0] === 'm') sendMsg(+th.slice(2), me, t, pid, extra); else sendTeamMsg(th, t, pid, extra);
   S.reTo = null; S.chatDraft = ''; S.ctxOff = false; S.chatPid = null; S.focusChat = true; render();
 }
@@ -1731,7 +1737,7 @@ function msgDelete() {
   if (m) undoPush('Сообщение удалено', () => { Object.keys(m).forEach(k => { delete m[k]; }); Object.assign(m, bak); render(true); });
 }
 function openMsg(id) { go({sheet:'msgact', ma:{th:S.th, id}}); }
-function msgReply() { const f = S.ma, m = findMsg(f.th, f.id); if (!m) return go({sheet:null}); go({sheet:null, ma:null, reTo:{th:f.th, id:m.id, name:msgSender(f.th, m), text:(m.md ? mdLabel(m.md) : String(m.text)).slice(0, 80)}, focusChat:true}); }
+function msgReply() { const f = S.ma, m = findMsg(f.th, f.id); if (!m) return go({sheet:null}); go({sheet:null, ma:null, reTo:{th:f.th, id:m.id, name:msgSender(f.th, m), text:(m.md ? mdLabel(m.md) : String(m.text)).slice(0, 80), pid:m.pid || null}, focusChat:true}); }
 function msgCopy() { const m = findMsg(S.ma.th, S.ma.id); if (m && m.text) copyText(m.text); go({sheet:null, ma:null, toast:'Сообщение скопировано'}); }
 // пересылка: сообщение уходит от вас, с подписью «переслано от» исходного автора (если оно само было пересланным, остаётся первый автор)
 function msgForward(target) {
@@ -2026,7 +2032,7 @@ function sheet() {
       ${pf.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${pf.err}</div>` : ''}
       <button class="btn sec" style="margin:8px 0" onclick="saveProfile()">Сохранить имя и логин</button>`;
     h += `<button class="btn sec" style="margin-top:10px" onclick="toggleAcc()">${isRemembered(login) ? 'Открепить аккаунт' : 'Запомнить аккаунт'}</button><div class="tiny" style="margin-top:6px">${isRemembered(login) ? 'Аккаунт сохранён на этом телефоне и предлагается на экране входа.' : 'Запомнить, чтобы он предлагался на экране входа этого телефона.'}</div>`;
-    if (SRV) h += `<h3>Синхронизация</h3><div class="card"><div class="kv"><span>Сервер</span><b style="font-size:12px">${esc(SRV)}</b></div><div class="tiny" style="margin-top:6px;color:${SY.net ? 'var(--g)' : 'var(--o)'}">${SY.net ? 'Онлайн: изменения видны всем сразу.' : 'Нет связи с сервером. Изменения сохранены на телефоне и уйдут, когда связь появится.'}</div></div>`;
+    if (SRV) h += `<h3>Синхронизация</h3><div class="card"><div class="kv"><span>Сервер</span><b style="font-size:12px">${esc(SRV)}</b></div><div class="tiny" style="margin-top:6px;color:${SY.net ? 'var(--g)' : 'var(--o)'}">${SY.net ? 'Онлайн: изменения видны всем сразу.' : 'Нет связи с сервером. Изменения сохранены на телефоне и уйдут, когда связь появится.'}</div><div style="height:12px"></div></div>`;
     if (mgr || SRV) h += `<h3>Смена пароля</h3>
       <input type="password" placeholder="Текущий пароль" autocomplete="off" value="${esc(f.old)}" oninput="S.pw.old=this.value">
       <input type="password" placeholder="Новый пароль (не короче 6 символов)" autocomplete="off" value="${esc(f.n1)}" oninput="S.pw.n1=this.value">
@@ -2650,7 +2656,7 @@ function updBlock() {
     else if (s.kind === 'content') { st = `Доступна версия ${s.version}${s.notes ? ': ' + esc(s.notes) : ''}`; btn = `<button class="btn" style="margin-top:8px" onclick="updApply()">Обновить сейчас</button>`; }
     else if (s.kind === 'apk') { st = `Доступна новая версия приложения ${s.version}${s.notes ? ': ' + esc(s.notes) : ''}`; btn = `<button class="btn" style="margin-top:8px" onclick="updApply()">Скачать и установить</button>`; }
   }
-  return `<h3>Обновления</h3><div class="card"><div class="kv"><span>Версия приложения</span><b>${APP_VERSION}</b></div><div class="tiny" style="margin-top:6px">${st}</div>${btn}</div>`;
+  return `<h3>Обновления</h3><div class="card"><div class="kv"><span>Версия приложения</span><b>${APP_VERSION}</b></div><div style="padding-bottom:14px"><div class="tiny" style="margin-top:2px">${st}</div>${btn}</div></div>`;
 }
 function updBanner() {
   const s = UPD.state;
@@ -3186,7 +3192,7 @@ function uiAfterRender() {
   SHEETSEEN = S.sheet || null;
   if (S.shade && !SHADESEEN) { const o = $('sheetshade'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
   SHADESEEN = !!S.shade;
-  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); geoSync(); kbCheck(); } catch (e) {}
+  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); geoSync(); kbCheck(); ctxLeave(); } catch (e) {}
 }
 // шапка сжимается, только если у экрана достаточно прокрутки: иначе после сжатия прокрутка «съедается», шапка снова растёт, и всё дёргается по кругу
 function hdrState(tp, bd) {
@@ -3246,7 +3252,7 @@ function rxPopup(el, id) {
 }
 function replyTo(id) {
   const m = findMsg(S.th, id); if (!m || m.del) return;
-  go({reTo: {th: S.th, id: m.id, name: msgSender(S.th, m), text: (m.md ? mdLabel(m.md) : String(m.text)).slice(0, 80)}, focusChat: true});
+  go({reTo: {th: S.th, id: m.id, name: msgSender(S.th, m), text: (m.md ? mdLabel(m.md) : String(m.text)).slice(0, 80), pid: m.pid || null}, focusChat: true});
 }
 (function () {
   const app = $('app'); let m = null, lp = 0;
@@ -3894,6 +3900,7 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 #app.kb .tabs{max-height:0;opacity:0;padding-top:0;padding-bottom:0;border-top-width:0;pointer-events:none}
 #app .body{transition:margin-bottom .24s cubic-bezier(.22,1,.36,1),padding-bottom .24s cubic-bezier(.22,1,.36,1)}
 #app.kb .body{margin-bottom:0;padding-bottom:16px}
+.sheet{overflow-x:hidden}
 #netp{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-90px);z-index:29;background:#4a3414;color:#ffd9a0;border:1px solid #8a5a14;padding:6px 12px;border-radius:16px;font-size:12px;max-width:90%;text-align:center;transition:transform .35s cubic-bezier(.22,1,.36,1)}
 #netp.in{transform:translate(-50%,0)}
 #geop{position:fixed;left:12px;bottom:calc(var(--tabh,64px) + 12px + env(safe-area-inset-bottom));z-index:21;background:rgba(23,64,42,.92);color:#7be3a0;border:1px solid #2f9a4e;padding:5px 10px;border-radius:14px;font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer}
@@ -3954,7 +3961,7 @@ function mediaSend(blob, type, md) {
 }
 function sendMediaMsg(th, md, q) {
   const mgr = S.role === 'mgr', me = th[0] === 'm' ? (mgr ? 'mgr' : 'cour') : meKey();
-  const extra = {md}; if (!q && S.reTo && S.reTo.th === th) extra.re = {id: S.reTo.id, name: S.reTo.name, text: S.reTo.text};
+  const extra = {md}; if (!q && S.reTo && S.reTo.th === th) extra.re = {id: S.reTo.id, name: S.reTo.name, text: S.reTo.text, pid: S.reTo.pid || null};
   const pid = q ? null : (S.chatPid || null);
   if (th[0] === 'm') sendMsg(+th.slice(2), me, '', pid, extra); else sendTeamMsg(th, '', pid, extra);
   if (!q) { S.reTo = null; S.ctxOff = false; S.chatPid = null; }
@@ -4695,6 +4702,7 @@ function sheetNew() {
     <div class="attrow" onclick="attachPick('photo')"><div class="ai">${ic('camera', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">Сделать фото</div><div class="t2">Откроется камера телефона</div></div></div>
     <div class="attrow" onclick="attachPick('video')"><div class="ai">${ic('video', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">Снять видео</div><div class="t2">Короткое, до 30 секунд</div></div></div>
     <div class="attrow" onclick="attachPick('gallery')"><div class="ai">${ic('clip', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">Из галереи</div><div class="t2">Фото или короткое видео</div></div></div>
+    <div class="attrow" onclick="go({sheet:'chatpt'})"><div class="ai">${ic('pin', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">Привязать точку</div><div class="t2">В сообщении появится метка точки</div></div></div>
     <div class="tiny" style="margin-top:10px">Вложения хранятся на сервере 30 дней, потом удаляются. Текст сообщений остаётся.</div>
     <button class="btn sec" style="margin-top:10px" onclick="go({sheet:null})">Отмена</button>`;
   if (s === 'micask') return `<h2>Доступ к микрофону</h2>
