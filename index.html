@@ -221,7 +221,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 105;
+const APP_VERSION = 106;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1744,7 +1744,8 @@ function shiftStatus(cid) {
   if (!n) return {t:'Выходной', cls:'', n, done, info:'нет назначенных точек'};
   if (done === n) return {t:'Смена закончена', cls:'ok', n, done, info:'все точки сданы'};
   if (done) return {t:'В пути', cls:'blue', n, done, info:'последняя сдача: ' + pt(l.filter(x => x.done).pop().pid).name};
-  return loaded ? {t:'Загрузился', cls:'warn', n, done, info:'забрал ингредиенты на базе'} : {t:'Ещё на базе', cls:'bad', n, done, info:'погрузка не подтверждена'};
+  const sh = (PR[String(cid)] || {}).sh, onShift = !!(sh && sh.s && !sh.e);   // «на базе» не пишем: где курьер, видно по геолокации, а погрузку он подтверждает сам
+  return loaded ? {t:'Загрузился', cls:'warn', n, done, info:'погрузка подтверждена'} : onShift ? {t:'На смене', cls:'blue', n, done, info:'погрузка не подтверждена'} : {t:'Смена не начата', cls:'bad', n, done, info:'ещё не вышел на смену'};
 }
 function shiftCard() {
   const act = COUR.filter(c => c.active), on = act.filter(c => L(c.id, TODAY).length), off = act.filter(c => !L(c.id, TODAY).length);
@@ -2286,6 +2287,7 @@ function confirmLoad() {
   L(c, TODAY).forEach(x => { if (!x.done) ING.forEach(g => tot[g.id] = (tot[g.id] || 0) + needBase(pt(x.pid), g)); });
   ING.forEach(g => WH[g.id] = Math.max(0, +(WH[g.id] - (tot[g.id] || 0)).toFixed(1)));
   LOADED[c + ':' + TODAY] = true;
+  try { if (shActive()) lcSet('base', 0, ''); } catch (e) {}   // погрузку подтверждают на базе
   if (passNeed(c).length && !PASS[c + ':' + TODAY]) go({toast:'Погрузка подтверждена. Не забудьте пропуск: ' + passNeed(c).map(p => p.name).join(', ')}); else render(true);
 }
 
@@ -4130,7 +4132,7 @@ function lcText(key) {
   const r = PR[key], l = r && r.lc; if (!l || new Date(l.ts).toDateString() !== new Date(sNow()).toDateString()) return '';
   const p = l.pid ? pt(l.pid) : null, nm = p ? '«' + p.name + '»' : '';
   const k = l.k === 'prep' && sNow() - l.ts >= 300000 ? 'way' : l.k;
-  return k === 'at' ? 'Сейчас на точке ' + nm + (l.src === 'geo' ? ' (по геолокации)' : '') : k === 'prep' ? 'Собирается на ' + nm : k === 'way' ? 'В пути на ' + nm : k === 'base' ? 'На базе' : k === 'done' ? 'Закончил(а) маршрут' : k === 'end' ? 'Смена завершена' : '';
+  return k === 'at' ? 'Сейчас на точке ' + nm + (l.src === 'geo' ? ' (по геолокации)' : '') : k === 'prep' ? 'Собирается на ' + nm : k === 'way' ? 'В пути на ' + nm : k === 'start' ? 'Вышел на смену' : k === 'base' ? 'На базе' + (l.src === 'geo' ? ' (по геолокации)' : '') : k === 'done' ? 'Закончил(а) маршрут' : k === 'end' ? 'Смена завершена' : '';
 }
 function prInner(key, withLoc) { let t = prInfo(key).txt; if (withLoc) { const l = lcText(key); if (l) t += ' · ' + l; } return '<i></i>' + esc(t); }
 const prHTML = (key, withLoc) => `<span class="pres ${prInfo(key).s}" data-prh="${key}" data-wl="${withLoc ? 1 : 0}">${prInner(key, withLoc)}</span>`;
@@ -4187,7 +4189,7 @@ function shiftBlock() {
   return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('flag', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Начало смены</div><div class="t2">Нажмите, когда приедете на склад: менеджер увидит, что вы вышли</div></div><button class="btn sm" onclick="shiftStart()">Выйти на смену</button></div></div>`;
 }
 function shiftStart() {
-  const r = prMine(), now = sNow(); r.sh = {s: now}; r.lc = {k: 'base', pid: 0, ts: now};
+  const r = prMine(), now = sNow(); r.sh = {s: now}; r.lc = {k: 'start', pid: 0, ts: now};
   notify('mgr', 'loc', cr(S.me).name + ' заступил(а) на смену', {sub: 'shift_start'}); uiSnd('done'); haptic([14, 30, 14]);
   PRLAST = 0; prBeat(); pushSoon(); go({toast: 'Смена началась. Хорошей работы!'});
 }
@@ -4207,7 +4209,7 @@ function shiftResume() {
   const r = prMine(), s = r.sh; if (!s || !s.e) return;
   r.sh = {s: s.s};
   const l = L(S.me, TODAY), rest = l.filter(x => !x.done), now = sNow();
-  r.lc = !rest.length && l.length ? {k: 'done', pid: 0, ts: now} : rest.length && l.length > rest.length ? {k: 'way', pid: rest[0].pid, ts: now} : {k: 'base', pid: 0, ts: now};
+  r.lc = !rest.length && l.length ? {k: 'done', pid: 0, ts: now} : rest.length && l.length > rest.length ? {k: 'way', pid: rest[0].pid, ts: now} : {k: 'start', pid: 0, ts: now};
   notify('mgr', 'loc', cr(S.me).name + ' вернулся(ась) на смену', {sub: 'shift_start'});
   haptic([14, 30, 14]); PRLAST = 0; prBeat(); pushSoon(); go({toast: 'Вы снова на смене'});
 }
@@ -4358,7 +4360,7 @@ function geoSync() {
     if (want && geoPermApp() === 0 && !GEO.asked) { GEO.asked = true; try { AndroidBridge.geoRequest(); } catch (e) {} }
     if (GEO.native !== key || (want && Date.now() - GEO.nt > 600000)) {
       GEO.native = key; GEO.nt = Date.now();
-      try { AndroidBridge.geoSet(want, JSON.stringify(P.filter(p => typeof p.lat === 'number').map(p => ({id: p.id, lat: p.lat, lon: p.lon})))); } catch (e) {}
+      try { AndroidBridge.geoSet(want, JSON.stringify(P.filter(p => typeof p.lat === 'number').map(p => ({id: p.id, lat: p.lat, lon: p.lon})).concat([{id: 0, lat: DEPOT.lat, lon: DEPOT.lon}]))); } catch (e) {}
     }
   } else if (want && GEO.w === null && !GEO.denied) geoWatchStart();
   else if (!want && GEO.w !== null) geoWatchStop();
@@ -4377,7 +4379,7 @@ function geoWatchStart() {
 function geoWatchStop() { if (GEO.w !== null) { try { navigator.geolocation.clearWatch(GEO.w); } catch (e) {} GEO.w = null; } }
 function geoFix(c) {
   const now = Date.now(); if (now - GEO.last < 45000 || !geoWanted()) return;
-  let near = false; for (const p of P) { if (typeof p.lat === 'number' && distM(c.latitude, c.longitude, p.lat, p.lon) <= 300) { near = true; break; } }
+  let near = distM(c.latitude, c.longitude, DEPOT.lat, DEPOT.lon) <= 300; for (const p of P) { if (near) break; if (typeof p.lat === 'number' && distM(c.latitude, c.longitude, p.lat, p.lon) <= 300) near = true; }
   if (!near) return;   // далеко от всех точек: на сервер ничего не отправляем
   GEO.last = now;
   api('/api/geo', {lat: c.latitude, lon: c.longitude, acc: c.accuracy}).catch(() => {});
