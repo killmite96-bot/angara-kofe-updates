@@ -1,9 +1,9 @@
 {
-    "content":  146,
+    "content":  147,
     "apk":  22,
-    "notes":  "Архив фото: поиск в фирменном стиле, свой календарь и выбор отправителя и точки.",
+    "notes":  "Окна: прокрутка вверх до начала больше не сворачивает окно.",
     "contentFile":  "index.html",
-    "contentSha256":  "e557cf63336b180c7f4a028809e70102d034d70ae2d523313f6db3d021612f1a",
+    "contentSha256":  "2ea8213648ed60569d343daca5c86c66fe1be30f3aac217acb31b866da679531",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
