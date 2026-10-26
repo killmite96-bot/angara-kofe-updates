@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 164;
+const APP_VERSION = 165;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1099,13 +1099,14 @@ function pointsScreen() {
   h += `<div class="body">`;
   if (S.role === 'mgr') h += `<div class="chips"><button class="${flt === 'all' ? 'on' : ''}" onclick="go({flt:'all'})">Остатки</button><button class="${flt === 't2' ? 'on' : ''}" onclick="go({flt:'t2'})">Пора на тип 2</button><button class="${flt === 'deep' ? 'on' : ''}" onclick="go({flt:'deep'})">Генеральная</button></div>`;
   if (flt !== 'deep') h += `<input type="text" placeholder="Поиск по точкам" value="${S.q}" oninput="S.q=this.value;render(true)">`;
+  if (S.role === 'mgr' && flt !== 'deep') h += `<button class="btn sec sm" style="margin:0 0 8px" onclick="ptNewOpen()">${ic('plus', 15)} Новая точка</button>`;
   if (flt === 'deep') return h + deepManage() + '</div>';
   P.filter(p => (!mine || mine.has(p.id)) && (p.name + p.addr).toLowerCase().includes(S.q.toLowerCase()))
     .filter(p => S.role !== 'mgr' || flt === 'all' || (flt === 't2' && needT2(p)))
     .forEach(p => {
       const low = []; p.units.forEach((u, i) => ING.forEach(g => { if (frac(u, g) < .4) low.push({g, u, i}); })); low.length = Math.min(low.length, 3);
       h += `<div class="card" onclick="openPoint(${p.id})"><div class="row"><span class="dot d${health(p)}"></span>
-        <div class="grow"><div class="t1">${esc(p.name)}${stB(p)}</div><div class="t2">${esc(p.addr)} · визит ${ago(p.last)}</div></div>${toolPill(p)}${needT2(p) ? '<span class="pill warn">тип 2</span>' : ''}</div>
+        <div class="grow"><div class="t1">${esc(p.name)}${stB(p)}</div><div class="t2">${esc(p.addr)} · ${lastTxt(p)}</div></div>${toolPill(p)}${needT2(p) ? '<span class="pill warn">тип 2</span>' : ''}</div>
         ${(low.length || arrPills(p)) ? `<div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">${arrPills(p)}${low.map(o => `<span class="pill bad">${gn(o.g, p)}${unitLabel(p, o.i)}: ${fmtCur(o.u, o.g)}</span>`).join('')}</div>` : ''}</div>`;
     });
   return h + '</div>';
@@ -1329,11 +1330,137 @@ function savePtName() {
   if (P.some(x => x.id !== p.id && x.name.toLowerCase() === name.toLowerCase())) { f.err = 'Точка с таким названием уже есть'; return render(); }
   p.name = name; p.addr = addr; go({sheet:null, pn:null, toast:'Сохранено: ' + name});
 }
+/* ===================== НОВАЯ ТОЧКА, СТАНЦИИ И КООРДИНАТЫ (менеджер) ===================== */
+// Менеджер создаёт точку (название, адрес, станции), вставляет координаты в отдельном окне с инструкцией, меняет станции и удаляет точку.
+const PT_MAX_UNITS = 4;
+const newUnit = (st, i) => { const cur = {}, rate = {}; ING.forEach(g => { cur[g.id] = 0; rate[g.id] = .14; }); return {name: 'Станция ' + (i + 1), st, cur, rate}; };   // новая станция пустая: курьер заполнит остатки на первом визите
+const lastTxt = p => p.nv ? 'визитов ещё не было' : 'визит ' + ago(p.last);
+const ptBusy = id => !!(S.visit && S.visit.pid === id);   // пока по точке идёт визит, менять станции и удалять её нельзя
+// координаты из текста или ссылки: «52.2926, 104.2940», ссылка Яндекс Карт (ll=долгота,широта), ссылка 2ГИС (m=долгота,широта), ссылка Google (@широта,долгота)
+function ptCoordParse(raw) {
+  const t = String(raw == null ? '' : raw).trim(); if (!t) return {empty: true};
+  let s = t; try { s = decodeURIComponent(t); } catch (e) {}
+  let lat, lon, m, via = '';
+  if ((m = /[?&#](?:ll|pt|whatshere\[point\])=(-?\d+(?:\.\d+)?)[,;](-?\d+(?:\.\d+)?)/i.exec(s))) { lon = +m[1]; lat = +m[2]; via = 'из ссылки Яндекс Карт'; }
+  else if ((m = /[?&]m=(-?\d+(?:\.\d+)?)[,;](-?\d+(?:\.\d+)?)/i.exec(s))) { lon = +m[1]; lat = +m[2]; via = 'из ссылки 2ГИС'; }
+  else if ((m = /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/.exec(s))) { lat = +m[1]; lon = +m[2]; via = 'из ссылки'; }
+  else {
+    let nums = s.match(/-?\d+\.\d+/g);
+    if (!nums || nums.length < 2) nums = (s.match(/-?\d+,\d+/g) || []).map(x => x.replace(',', '.'));
+    if (!nums || nums.length < 2) return {err: 'Не нашёл два числа. Вставьте широту и долготу, например 52.2926, 104.2940, или ссылку из Яндекс Карт или 2ГИС'};
+    lat = +nums[0]; lon = +nums[1];
+  }
+  let note = '';
+  if (isFinite(lat) && isFinite(lon) && Math.abs(lat) > 90 && Math.abs(lon) <= 90) { const x = lat; lat = lon; lon = x; note = 'Поменял широту и долготу местами: широта не бывает больше 90'; }
+  if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return {err: 'Числа не похожи на координаты: широта от −90 до 90, долгота от −180 до 180'};
+  const d0 = km({lat, lon}, DEPOT);
+  if (d0 > 500 && Math.abs(lon) <= 90 && Math.abs(lat) <= 180 && km({lat: lon, lon: lat}, DEPOT) < d0) { const x = lat; lat = lon; lon = x; note = 'Поменял широту и долготу местами: так точка ближе к базе'; }
+  const d = km({lat, lon}, DEPOT);
+  return {lat: +lat.toFixed(6), lon: +lon.toFixed(6), km: Math.round(d), via, note, far: d > 300};
+}
+function ptCdOpen(t, back) { go({sheet: 'ptcoord', cd: {t, back: back || null, text: '', res: {empty: true}}}); }
+function ptCdInput(v) {
+  const c = S.cd; c.text = v; c.res = ptCoordParse(v); const r = c.res, el = document.getElementById('cdres'), b = document.getElementById('cdsave');
+  if (el) el.innerHTML = ptCdResult(r); if (b) b.disabled = !(r.lat !== undefined);
+}
+const ptCdResult = r => r.empty ? '' : r.err ? `<div style="color:var(--r);font-size:13px">${esc(r.err)}</div>`
+  : `<div class="t1" style="font-size:14px;color:var(--g)">Широта ${r.lat}, долгота ${r.lon}</div><div class="tiny">${r.via ? esc(r.via) + ' · ' : ''}от базы примерно ${r.km} км</div>${r.note ? `<div class="tiny" style="color:var(--o)">${esc(r.note)}</div>` : ''}${r.far ? '<div class="tiny" style="color:var(--o)">Далеко от базы: проверьте, что координаты нужной точки</div>' : ''}`;
+function ptCdSave() {
+  const c = S.cd, r = c.res; if (!r || r.lat === undefined) return;
+  if (c.t === 'new') { S.nw.lat = r.lat; S.nw.lon = r.lon; return go({sheet: 'ptnew', cd: null}); }
+  const p = pt(c.t); if (!p) return go({sheet: null, cd: null});
+  p.lat = r.lat; p.lon = r.lon; p.cset = true; delete p.nocoord;   // cset: свои координаты точки важнее заложенных в приложение
+  go({sheet: null, cd: null, toast: 'Координаты сохранены: ' + p.name});
+}
+function ptCdSheet() {
+  const c = S.cd, p = c.t === 'new' ? null : pt(c.t), cur = c.t === 'new' ? (S.nw.lat != null ? S.nw : null) : (p && !p.nocoord ? p : null);
+  return `<h2>Координаты точки</h2>${cur ? `<div class="tiny" style="margin-bottom:6px">Сейчас: ${(+cur.lat).toFixed(5)}, ${(+cur.lon).toFixed(5)}</div>` : ''}
+    <div class="tiny" style="margin-bottom:6px">Вставьте координаты или ссылку на место из Яндекс Карт или 2ГИС.</div>
+    <textarea class="fbta" rows="3" placeholder="52.2926, 104.2940 или ссылка на карту" oninput="ptCdInput(this.value)">${esc(c.text)}</textarea>
+    <div id="cdres" style="margin:8px 0;min-height:20px">${ptCdResult(c.res)}</div>
+    <button class="btn" id="cdsave" ${c.res && c.res.lat !== undefined ? '' : 'disabled'} onclick="ptCdSave()">Сохранить координаты</button>
+    <h3 style="margin-top:14px">Как получить координаты</h3>
+    <div class="card"><div class="t1" style="font-size:14px">Яндекс Карты</div><div class="t2" style="line-height:1.45;margin-top:4px">Найдите нужное место и нажмите на него долгим нажатием (на компьютере правой кнопкой мыши). В карточке места появятся координаты: скопируйте их и вставьте сюда. Сначала идёт широта, потом долгота. Подойдёт и ссылка: нажмите «Поделиться» и вставьте её сюда.</div></div>
+    <div class="card"><div class="t1" style="font-size:14px">2ГИС</div><div class="t2" style="line-height:1.45;margin-top:4px">Откройте карточку места и нажмите «Поделиться», скопируйте ссылку и вставьте сюда: приложение возьмёт координаты из неё. Если ссылка короткая (go.2gis.com), откройте её в браузере и скопируйте полный адрес из адресной строки.</div></div>
+    <div class="tiny" style="margin:6px 0">Названия кнопок могут отличаться в разных версиях карт. Если приложение не понимает вставленное, проверьте, что там два числа (широта и долгота) или полная ссылка.</div>
+    <button class="btn sec" onclick="go({sheet:${c.back ? "'" + c.back + "'" : 'null'},cd:null})">Отмена</button>`;
+}
+// ----- новая точка -----
+function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, err: ''}}); }
+function nwUnits(d) { const u = S.nw.units, n = Math.max(1, Math.min(PT_MAX_UNITS, u.length + d)); while (u.length < n) u.push(u[u.length - 1] || 'B'); u.length = n; render(true); }
+function nwType(i, st) { S.nw.units[i] = st; render(true); }
+const stTiles = (cur, call) => `<div class="row" style="gap:6px;align-items:stretch">${['A', 'B', 'C', 'D'].map(st => `<div class="sttile${cur === st ? ' on' : ''}" onclick="${call.replace('@', st)}"><div class="photo" style="width:100%;height:74px">${exHTML(st)}</div><div class="tiny">${esc(STN[st])}</div></div>`).join('')}</div>`;
+function ptNewSheet() {
+  const f = S.nw, has = f.lat != null;
+  return `<h2>Новая точка</h2><div class="tiny" style="margin-bottom:6px">Курьеры увидят её в адресах, а вы сможете назначать её в график.</div>
+    <div class="fbl">НАЗВАНИЕ</div><input type="text" maxlength="60" placeholder="Например: ТЦ Центральный" value="${esc(f.name)}" oninput="S.nw.name=this.value" style="margin:4px 0">
+    <div class="fbl">АДРЕС</div><input type="text" maxlength="120" placeholder="Улица, дом" value="${esc(f.addr)}" oninput="S.nw.addr=this.value" style="margin:4px 0">
+    <div class="fbl">ОКНО ВИЗИТА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="60" placeholder="Например: 13:00–22:00" value="${esc(f.win)}" oninput="S.nw.win=this.value" style="margin:4px 0">
+    <div class="row" style="margin-top:8px"><div class="grow fbl" style="margin:0">СТАНЦИЙ НА ТОЧКЕ</div><div class="step"><button onclick="nwUnits(-1)">−</button><span>${f.units.length}</span><button onclick="nwUnits(1)">+</button></div></div>
+    ${f.units.map((st, i) => `<div class="tiny" style="margin:8px 0 4px">${f.units.length > 1 ? 'Станция ' + (i + 1) + ': ' : 'Вид станции: '}${esc(STN[st])}</div>${stTiles(st, `nwType(${i},'@')`)}`).join('')}
+    <div class="fbl" style="margin-top:10px">КООРДИНАТЫ</div><div class="fld${has ? ' on' : ''}" style="margin:4px 0 8px" onclick="ptCdOpen('new','ptnew')"><span style="color:${has ? 'var(--g)' : 'var(--mut)'}">${ic('pin', 18)}</span><div class="grow" style="min-width:0"><span class="fl">Широта, долгота</span><b>${has ? f.lat.toFixed(5) + ', ' + f.lon.toFixed(5) : '<span style="color:var(--mut);font-weight:500">не указаны: нажмите, чтобы вставить</span>'}</b></div></div>
+    ${has ? '' : '<div class="tiny" style="color:var(--o)">Без координат не работают расстояния в маршруте и отметка прибытия по геолокации. Их можно добавить позже в карточке точки.</div>'}
+    ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${esc(f.err)}</div>` : ''}
+    <button class="btn" style="margin:8px 0" onclick="ptNewSave()">Создать точку</button><button class="btn sec" onclick="go({sheet:null,nw:null})">Отмена</button>`;
+}
+function ptNewSave() {
+  const f = S.nw, name = f.name.trim().slice(0, 60), addr = f.addr.trim().slice(0, 120);
+  if (name.length < 2) { f.err = 'Введите название точки'; return render(true); }
+  if (P.some(x => x.name.toLowerCase() === name.toLowerCase())) { f.err = 'Точка с таким названием уже есть'; return render(true); }
+  if (addr.length < 3) { f.err = 'Введите адрес точки'; return render(true); }
+  const id = Math.max(0, ...P.map(x => x.id)) + 1, has = f.lat != null;
+  const p = {id, name, addr, win: f.win.trim().slice(0, 60), notes: [], lat: has ? f.lat : DEPOT.lat, lon: has ? f.lon : DEPOT.lon, cset: has, nocoord: !has, arr: {clean: 0, trash: 0}, last: 0, last2: 0, nv: true, back: {}, deep: 0, water: null, pass: ''};
+  ING.forEach(g => { p.back[g.id] = 0; });
+  p.units = f.units.map((st, k) => Object.assign(newUnit(st, k), {loc: p}));
+  P.push(p); P.sort((a, b) => a.id - b.id);
+  go({sheet: null, nw: null, tab: 'points', toast: 'Точка добавлена: ' + name}); openPoint(id);
+}
+// ----- станции и удаление существующей точки -----
+function ptManage(p) {
+  const nu = p.units.length;
+  return `<h3>Станции и расположение</h3><div class="card">${p.units.map((u, i) => `<div class="row" style="padding:6px 0"><div class="photo" style="width:34px;height:48px;flex:none">${exHTML(u.st)}</div><div class="grow"><div class="t1" style="font-size:14px">Станция ${i + 1}</div><div class="t2">${esc(STN[u.st])}</div></div><button class="btn sec sm" onclick="go({sheet:'ptunit',pu:{pid:${p.id},i:${i}}})">Сменить вид</button>${nu > 1 ? `<button class="btn sec sm" style="color:#ffb0b0" onclick="go({sheet:'ptunitdel',pu:{pid:${p.id},i:${i}}})">${ic('trash', 15)}</button>` : ''}</div>`).join('')}
+    ${nu < PT_MAX_UNITS ? `<button class="btn sec sm" style="margin-top:6px" onclick="ptAddUnit(${p.id})">${ic('plus', 15)} Добавить станцию</button>` : ''}
+    <div class="fld${p.nocoord ? '' : ' on'}" style="margin-top:10px" onclick="ptCdOpen(${p.id})"><span style="color:${p.nocoord ? 'var(--o)' : 'var(--g)'}">${ic('pin', 18)}</span><div class="grow" style="min-width:0"><span class="fl">Координаты</span><b>${p.nocoord ? '<span style="color:var(--o);font-weight:600">не указаны: нажмите, чтобы добавить</span>' : (+p.lat).toFixed(5) + ', ' + (+p.lon).toFixed(5)}</b></div></div>
+    <button class="btn sec sm" style="margin-top:10px;color:#ffb0b0" onclick="go({sheet:'ptdel',pd:${p.id}})">${ic('trash', 15)} Удалить точку</button></div>`;
+}
+function ptAddUnit(pid) {
+  const p = pt(pid); if (!p) return; if (ptBusy(pid)) return go({toast: 'Идёт визит на этой точке: изменить станции можно после него'});
+  if (p.units.length >= PT_MAX_UNITS) return; p.units.push(Object.assign(newUnit(p.units[p.units.length - 1].st, p.units.length), {loc: p}));
+  go({toast: 'Станция добавлена: заполните остатки на первом визите'});
+}
+function ptUnitSheet() {
+  const f = S.pu, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return `<h2>Станция не найдена</h2><button class="btn sec" onclick="go({sheet:null,pu:null})">Закрыть</button>`;
+  return `<h2>Вид станции ${f.i + 1}</h2><div class="tiny" style="margin-bottom:8px">${esc(p.name)}. Остатки на станции не меняются.</div>${stTiles(u.st, `ptUnitSet('@')`)}<button class="btn sec" style="margin-top:10px" onclick="go({sheet:null,pu:null})">Отмена</button>`;
+}
+function ptUnitSet(st) { const f = S.pu, p = pt(f.pid); if (!p || !p.units[f.i]) return go({sheet: null, pu: null}); if (ptBusy(f.pid)) return go({sheet: null, pu: null, toast: 'Идёт визит на этой точке'}); p.units[f.i].st = st; go({sheet: null, pu: null, toast: 'Вид станции изменён'}); }
+function ptUnitDelSheet() {
+  const f = S.pu, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return `<h2>Станция не найдена</h2><button class="btn sec" onclick="go({sheet:null,pu:null})">Закрыть</button>`;
+  return `<h2>Убрать станцию ${f.i + 1}?</h2><div class="card"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(STN[u.st])}</div></div><div class="tiny" style="margin:8px 0">Остатки этой станции исчезнут из приложения. Фото прошлых визитов в архиве останутся.</div>
+    <button class="btn" style="background:#4a1a1a;color:#ffb0b0" onclick="ptUnitDel()">Убрать станцию</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null,pu:null})">Отмена</button>`;
+}
+function ptUnitDel() { const f = S.pu, p = pt(f.pid); if (!p || p.units.length < 2 || !p.units[f.i]) return go({sheet: null, pu: null}); if (ptBusy(f.pid)) return go({sheet: null, pu: null, toast: 'Идёт визит на этой точке'}); p.units.splice(f.i, 1); p.units.forEach((u, k) => { u.name = 'Станция ' + (k + 1); }); go({sheet: null, pu: null, toast: 'Станция убрана'}); }
+function ptDelSheet() {
+  const p = pt(S.pd); if (!p) return `<h2>Точка не найдена</h2><button class="btn sec" onclick="go({sheet:null,pd:null})">Закрыть</button>`;
+  const n = Object.keys(sched).reduce((a, c) => a + [0, 1, 2, 3, 4, 5, 6].reduce((b, d) => b + ((sched[c] && sched[c][d]) || []).filter(x => x.pid === p.id).length, 0), 0);
+  return `<h2>Удалить точку?</h2><div class="card"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(p.addr)}</div></div>
+    <div class="tiny" style="margin:8px 0">Точка исчезнет из приложения у всех${n ? ', а из графиков курьеров на этой неделе уберутся её визиты (' + n + ')' : ''}. Фото прошлых визитов в архиве останутся. Вернуть точку можно только создав её заново.</div>
+    <button class="btn" style="background:#4a1a1a;color:#ffb0b0" onclick="ptDel()">Удалить точку</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null,pd:null})">Отмена</button>`;
+}
+function ptDel() {
+  const id = S.pd, p = pt(id); if (!p) return go({sheet: null, pd: null});
+  if (P.length <= 1) return go({sheet: null, pd: null, toast: 'Нельзя удалить последнюю точку'});
+  if (ptBusy(id)) return go({sheet: null, pd: null, toast: 'Идёт визит на этой точке: удалить можно после него'});
+  [sched, TEMPLATE].forEach(T => Object.keys(T).forEach(c => { for (let d = 0; d < 7; d++) if (T[c] && T[c][d]) T[c][d] = T[c][d].filter(x => x.pid !== id); }));
+  replaceArr(MV, MV.filter(m => m.pid !== id)); if (WATER.by) delete WATER.by[id];
+  P.splice(P.findIndex(x => x.id === id), 1);
+  go({sheet: null, pd: null, view: null, toast: 'Точка удалена: ' + p.name});
+}
+
 function pointCard(id) {
   const p = pt(id), item = S.role === 'cour' ? L(S.me, TODAY).find(x => x.pid === id) : null;
   let h = `<div class="top"><button class="back" onclick="go({view:null})">‹ Назад</button><button class="shbtn" onclick="sharePoint(${p.id})">${ic('share', 19)}</button><h1>${esc(p.name)}${stB(p)}${S.role === 'mgr' ? `<span class="pen" style="margin-left:8px" onclick="openPtName(${p.id})" title="Изменить название и адрес">${ic('edit', 18)}</span>` : ''}</h1><div class="sub">${esc(p.addr)}</div></div><div class="body">`;
   h += `<div class="card"><div class="row">${p.units.map(u => `<div style="width:56px;height:80px" class="photo">${exHTML(u.st)}</div>`).join('')}
-    <div class="grow"><div class="t1" style="font-size:14px">${p.units.length > 1 ? p.units.length + ' станции' : 'Станция'}</div>${p.units.map((u, i) => `<div class="t2">${p.units.length > 1 ? (i + 1) + '. ' : ''}${STN[u.st]}</div>`).join('')}<div class="t2">Визит: ${ago(p.last)} · мойка (тип 2): ${ago(p.last2)}</div>
+    <div class="grow"><div class="t1" style="font-size:14px">${p.units.length > 1 ? p.units.length + ' станции' : 'Станция'}</div>${p.units.map((u, i) => `<div class="t2">${p.units.length > 1 ? (i + 1) + '. ' : ''}${STN[u.st]}</div>`).join('')}<div class="t2">${p.nv ? 'Визитов ещё не было' : 'Визит: ' + ago(p.last) + ' · мойка (тип 2): ' + ago(p.last2)}</div>
     ${needT2(p) ? '<div style="margin-top:6px"><span class="pill warn">рекомендуем тип 2</span></div>' : ''}</div></div></div>`;
   if (p.water) h += waterPanel(p, S.role === 'cour');
   if (p.win || p.notes.length) h += `<div class="card"><div class="t1" style="font-size:14px">Особенности точки</div>${p.win ? winLine(p, 'margin-top:6px') : ''}${p.notes.map(n => `<div class="t2" style="margin-top:4px">• ${n}</div>`).join('')}</div>`;
@@ -1355,6 +1482,7 @@ function pointCard(id) {
         <div style="text-align:right">${mg ? stp(`mgCur(${p.id},${i},'${g.id}'`, fmtCur(u, g), `PC:${p.id}|${i}|${g.id}`) : `<div class="t1" style="font-size:13px">${fmtCur(u, g)}</div>`}<div class="t2" style="color:var(--o)">${r > 0 ? 'взять ' + r + ' ' + g.u : '—'}</div></div></div></div>`;
     });
   });
+  if (S.role === 'mgr') h += ptManage(p);
   if (S.role === 'cour') {
     if (item && !item.done) h += `<button class="btn" style="margin-top:10px" onclick="go({sheet:'take',tk:${id}})">Начать визит · ${item.type === 3 ? 'генеральная уборка' : 'тип ' + item.type}</button>`;
     h += `<button class="btn sec" style="margin-top:8px" onclick="startVisit(${id},true)">Обновить остатки без визита</button>`;
@@ -1484,7 +1612,7 @@ function applyStock(v) {
 function saveQuick() { if (!S.visit) return; applyStock(S.visit); S.visit = null; go({view:null, toast:S.role === 'mgr' ? 'Остатки исправлены' : 'Остатки обновлены, менеджер их видит'}); }
 function finishVisit() {
   const v = S.visit, p = pt(v.pid), item = L(S.me, TODAY).find(x => x.pid === v.pid);
-  applyStock(v); p.last = 0; if (v.type >= 2) p.last2 = 0; if (v.type === 3) { p.deep = 0; p.deepAt = sNow(); }
+  applyStock(v); p.last = 0; delete p.nv; if (v.type >= 2) p.last2 = 0; if (v.type === 3) { p.deep = 0; p.deepAt = sNow(); }
   p.arr = {clean:v.arrive.clean, trash:v.arrive.trash};
   item.done = true; item.review = 'pending'; item.redo = false;
   const rvObj = {id:Date.now(), cid:S.me, cname:cr(S.me).name, pid:v.pid, when:'только что', type:v.type, status:'pending', day:TODAY, arrive:v.arrive, photos:v.SP.slice(), nozzles:v.NP.slice()};
@@ -2806,6 +2934,11 @@ function sheet() {
   if (S.sheet === 'diag') return diagSheet();
   if (S.sheet === 'fb' && S.fb) return fbSheet();
   if (S.sheet === 'fblist') return fbListSheet();
+  if (S.sheet === 'ptnew' && S.nw) return ptNewSheet();
+  if (S.sheet === 'ptcoord' && S.cd) return ptCdSheet();
+  if (S.sheet === 'ptunit' && S.pu) return ptUnitSheet();
+  if (S.sheet === 'ptunitdel' && S.pu) return ptUnitDelSheet();
+  if (S.sheet === 'ptdel' && S.pd) return ptDelSheet();
   if (S.sheet === 'supin' && S.si) return supInSheet();
   if (S.sheet === 'supx' && S.sx) return supXSheet();
   if (S.sheet === 'suphist') return supHistSheet();
@@ -3482,7 +3615,7 @@ function snapshotData() {
 function restoreData(txt) {
   const d = JSON.parse(txt);
   if (d.v !== DATA_VER) return false;
-  replaceArr(P, d.P); P.forEach(p => { p.units.forEach(u => { u.loc = p; }); const s = PTS_SRC[p.id - 1]; if (s && s[0] === p.name) { p.lat = s[5]; p.lon = s[6]; } });
+  replaceArr(P, d.P); P.forEach(p => { p.units.forEach(u => { u.loc = p; }); const s = PTS_SRC[p.id - 1]; if (s && s[0] === p.name && !p.cset) { p.lat = s[5]; p.lon = s[6]; } });
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(FB, d.FB || []); replaceArr(SUP, d.SUP || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
@@ -3714,7 +3847,7 @@ function applyDoc(k, v, dele) {
     const id = +p[1], i = P.findIndex(x => x.id === id);
     if (dele) { if (i >= 0) P.splice(i, 1); return; }
     v.units.forEach(u => { u.loc = v; });
-    const src = PTS_SRC[id - 1]; if (src && src[0] === v.name) { v.lat = src[5]; v.lon = src[6]; }   // координаты точек берём из приложения, а не из старых данных сервера
+    const src = PTS_SRC[id - 1]; if (src && src[0] === v.name && !v.cset) { v.lat = src[5]; v.lon = src[6]; }   // координаты точек берём из приложения, а не из старых данных сервера
     if (i >= 0) P[i] = v; else { P.push(v); P.sort((a, b) => a.id - b.id); }
   } else if (h === 'sched' || h === 'tpl') {
     const T = h === 'sched' ? sched : TEMPLATE, c = +p[1]; ensureCour(c); T[c][+p[2]] = dele ? [] : v;
@@ -4907,7 +5040,8 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:8px 0}
 .cal i{font-style:normal;font-size:11px;color:var(--mut);text-align:center;padding:2px 0}
 .cal button{height:34px;border-radius:11px;border:1px solid transparent;background:var(--card2,#16221b);color:var(--tx);font-size:14px;cursor:pointer;padding:0}
-.cal button.on{background:var(--g);color:#06210f;font-weight:800}.cal button.td{border-color:rgba(93,255,160,.6)}.cal .e{visibility:hidden}.cal button:disabled{opacity:.28;cursor:default}
+.cal button.on{background:var(--g);color:#06210f;font-weight:800}.cal button.td{border-color:rgba(93,255,160,.6)}.cal .e{visibility:hidden}
+.sttile{flex:1 1 0;min-width:0;border:1px solid var(--line);border-radius:12px;padding:6px;background:var(--card2,#16221b);cursor:pointer;text-align:center}.sttile.on{border-color:rgba(93,255,160,.7);background:rgba(93,255,160,.08)}.sttile .tiny{font-size:10.5px;line-height:1.15;margin-top:4px}.cal button:disabled{opacity:.28;cursor:default}
 .supr{padding:9px 0;border-bottom:1px solid var(--line)}.supr:last-child{border-bottom:0}
 .supq{width:96px !important;margin:0 !important;text-align:right;font-size:15px;font-weight:600;padding:8px 10px !important}.supq:focus{border-color:rgba(93,255,160,.55)}.supu{width:34px;margin-left:8px}
 #netp{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-90px);z-index:29;background:#4a3414;color:#ffd9a0;border:1px solid #8a5a14;padding:6px 12px;border-radius:16px;font-size:12px;max-width:90%;text-align:center;transition:transform .35s cubic-bezier(.22,1,.36,1)}
@@ -5409,7 +5543,7 @@ function geoSync() {
     if (want && geoPermApp() === 0 && !GEO.asked) { GEO.asked = true; try { AndroidBridge.geoRequest(); } catch (e) {} }
     if (GEO.native !== key || (want && Date.now() - GEO.nt > 600000)) {
       GEO.native = key; GEO.nt = Date.now();
-      try { AndroidBridge.geoSet(want, JSON.stringify(P.filter(p => typeof p.lat === 'number').map(p => ({id: p.id, lat: p.lat, lon: p.lon})).concat([{id: 0, lat: DEPOT.lat, lon: DEPOT.lon}]))); } catch (e) {}
+      try { AndroidBridge.geoSet(want, JSON.stringify(P.filter(p => typeof p.lat === 'number' && !p.nocoord).map(p => ({id: p.id, lat: p.lat, lon: p.lon})).concat([{id: 0, lat: DEPOT.lat, lon: DEPOT.lon}]))); } catch (e) {}
     }
   } else if (want && GEO.w === null && !GEO.denied) geoWatchStart();
   else if (!want && GEO.w !== null) geoWatchStop();
@@ -5428,7 +5562,7 @@ function geoWatchStart() {
 function geoWatchStop() { if (GEO.w !== null) { try { navigator.geolocation.clearWatch(GEO.w); } catch (e) {} GEO.w = null; } }
 function geoFix(c) {
   const now = Date.now(); if (now - GEO.last < 45000 || !geoWanted()) return;
-  let near = distM(c.latitude, c.longitude, DEPOT.lat, DEPOT.lon) <= 300; for (const p of P) { if (near) break; if (typeof p.lat === 'number' && distM(c.latitude, c.longitude, p.lat, p.lon) <= 300) near = true; }
+  let near = distM(c.latitude, c.longitude, DEPOT.lat, DEPOT.lon) <= 300; for (const p of P) { if (near) break; if (typeof p.lat === 'number' && !p.nocoord && distM(c.latitude, c.longitude, p.lat, p.lon) <= 300) near = true; }
   if (!near) return;   // далеко от всех точек: на сервер ничего не отправляем
   GEO.last = now;
   api('/api/geo', {lat: c.latitude, lon: c.longitude, acc: c.accuracy}).catch(() => {});
@@ -5612,6 +5746,21 @@ function selfTest() {
         supUndo(rec.id); eq(+(WH[id] - before).toFixed(2), 0, 'остаток вернулся'); eq(!!SUP.find(r => r.id === rec.id).undone, true, 'пометка «отменена»');
         SUP.splice(SUP.findIndex(r => r.id === rec.id), 1); eq(SUP.length, n, 'тестовая запись убрана'); WH[id] = before; go({sheet: null});
       });
+      T('точки: разбор координат', () => {
+        eq(ptCoordParse('52.2926, 104.2940').lat, 52.2926, 'широта'); eq(ptCoordParse('52,2926 104,2940').lon, 104.294, 'запятая как десятичный знак');
+        eq(ptCoordParse('https://yandex.ru/maps/63/irkutsk/?ll=104.2940%2C52.2926&z=16').lat, 52.2926, 'ссылка Яндекса');
+        eq(ptCoordParse('https://2gis.ru/irkutsk?m=104.294%2C52.2926%2F16').lon, 104.294, 'ссылка 2ГИС');
+        const sw = ptCoordParse('104.2940, 52.2926'); eq(sw.lat, 52.2926, 'порядок исправлен'); eq(!!sw.note, true, 'есть пометка о замене');
+        eq(!!ptCoordParse('abc').err, true, 'текст без чисел'); eq(!!ptCoordParse('95.1, 10.2').err || ptCoordParse('95.1, 10.2').lat !== undefined, true, 'неверные пределы'); eq(!!ptCoordParse('').empty, true, 'пусто');
+      });
+      T('точки: создание, станции и удаление', () => {
+        const n = P.length; S.nw = {name: 'Тест-точка', addr: 'Тестовая 1', win: '', units: ['A', 'C'], lat: 52.29, lon: 104.29, err: ''}; ptNewSave();
+        eq(P.length, n + 1, 'точка создана'); const p = P[P.length - 1]; eq(p.units.length, 2, 'две станции'); eq(p.nocoord, false, 'координаты есть'); eq(p.units[0].cur.cup, 0, 'станция пустая');
+        ptAddUnit(p.id); eq(p.units.length, 3, 'станция добавлена'); S.pu = {pid: p.id, i: 2}; ptUnitDel(); eq(p.units.length, 2, 'станция убрана');
+        S.nw = {name: 'тест-точка', addr: 'Ещё', win: '', units: ['B'], lat: null, lon: null, err: ''}; ptNewSave(); eq(P.length, n + 1, 'повтор названия отклонён'); eq(!!S.nw.err, true, 'есть сообщение об ошибке');
+        sched[1][0].push({pid: p.id, type: 1, done: false, review: null}); S.pd = p.id; ptDel(); eq(P.length, n, 'точка удалена'); eq(sched[1][0].some(x => x.pid === p.id), false, 'убрана из графика'); go({view: null, sheet: null, nw: null});
+      });
+      [{sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B', 'D'], lat: null, lon: null, err: ''}}, {sheet: 'ptcoord', cd: {t: 'new', back: 'ptnew', text: '', res: {empty: true}}, nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, err: ''}}].forEach(sp => T('точки: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'points'}, sp))));
       [{sheet: 'supin', si: {date: supToday(), note: '', q: {}, err: ''}}, {sheet: 'supx', sx: {stage: 'start', err: ''}}, {sheet: 'suphist'}, {sheet: 'dpick', si: {date: supToday(), note: '', q: {}, err: ''}, dp: {k: 'si', y: new Date().getFullYear(), m: new Date().getMonth(), back: 'supin'}}].forEach(sp => T('поставки: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'wh'}, sp))));
     }
     T(role + ': окно обращений', () => { FB.push({id: 'selftest', ts: Date.now(), kind: 'bug', status: 'new', from: {name: 'Тест', role: 'cour'}, text: 'проверка', files: [], areas: ['Кнопка'], ctx: {ver: '1'}}); go(Object.assign(home(), {sheet: 'fblist', fbf: 'new'})); FB.length = 0; go(home()); });
