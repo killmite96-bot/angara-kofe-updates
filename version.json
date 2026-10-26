@@ -1,9 +1,9 @@
 {
-    "content":  138,
+    "content":  139,
     "apk":  22,
-    "notes":  "Курьеры: кнопка «Удалить» с подтверждением.",
+    "notes":  "План: круги считаются по выбранному курьеру.",
     "contentFile":  "index.html",
-    "contentSha256":  "e50973ed06f230dbbf2e22dd424af7fcbc27853ce1bc0a88b882b4c456d9280f",
+    "contentSha256":  "8207f026767b8d5d87f4971a185bb448a0e5edb0644c81fd6a0844a9d9f898ac",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

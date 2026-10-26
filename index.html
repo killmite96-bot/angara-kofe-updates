@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 138;
+const APP_VERSION = 139;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -3582,11 +3582,14 @@ function courRings(c) {
   let wp = 0, wd = 0; for (let d = 0; d < 7; d++) { const l = L(c, d); wp += l.length; wd += l.filter(x => x.done).length; }
   return ringsHTML([{k: 'today', label: 'Сегодня', val: done.length, max: list.length, col: '#35c26a', txt: done.length + '/' + list.length}, {k: 'ok', label: 'Принято', val: ok, max: done.length, col: '#4aa3ff', txt: ok + '/' + done.length}, {k: 'week', label: 'Неделя', val: wd, max: wp, col: '#ffb02e', txt: wd + '/' + wp}]);
 }
+// круги на «Плане» считаются по выбранному курьеру (его вкладка под кругами): сдано сегодня, принятые фото, неделя
+const rgCour = () => cr(S.mc) ? S.mc : (COUR[0] || {}).id;
 function mgrRings() {
-  const act = COUR.filter(c => c.active); let tp = 0, td = 0, on = 0;
-  act.forEach(c => { const l = L(c.id, TODAY); tp += l.length; td += l.filter(x => x.done).length; if (l.length) on++; });
-  const rv = reviews.filter(r => r.day === TODAY || r.day === undefined), okc = rv.filter(r => r.status === 'ok').length, pend = reviews.filter(r => r.status === 'pending').length;
-  return ringsHTML([{k: 'done', label: 'Сдано', val: td, max: tp, col: '#35c26a', txt: td + '/' + tp}, {k: 'photo', label: 'Фото принято', val: okc, max: okc + pend, col: '#4aa3ff', txt: okc + '/' + (okc + pend)}, {k: 'shift', label: 'На смене', val: on, max: act.length, col: '#ffb02e', txt: on + '/' + act.length}]);
+  const c = rgCour(); if (!c) return '';
+  const list = L(c, TODAY), td = list.filter(x => x.done).length;
+  const rv = reviews.filter(r => r.cid === c), okc = rv.filter(r => r.status === 'ok' && (r.day === TODAY || r.day === undefined)).length, pend = rv.filter(r => r.status === 'pending').length;
+  let wp = 0, wd = 0; for (let d = 0; d < 7; d++) { const l = L(c, d); wp += l.length; wd += l.filter(x => x.done).length; }
+  return ringsHTML([{k: 'done', label: 'Сдано', val: td, max: list.length, col: '#35c26a', txt: td + '/' + list.length}, {k: 'photo', label: 'Фото принято', val: okc, max: okc + pend, col: '#4aa3ff', txt: okc + '/' + (okc + pend)}, {k: 'week', label: 'Неделя', val: wd, max: wp, col: '#ffb02e', txt: wd + '/' + wp}]);
 }
 
 // ----- числа «накручиваются»: суммы в рублях плавно пробегают от прежнего значения к новому -----
@@ -4892,15 +4895,17 @@ function ringSheet(k) {
     }
     return h + close;
   }
-  const act = COUR.filter(c => c.active);
+  const c = rgCour(), cn = (cr(c) || {name: '?'}).name, list = L(c, TODAY), done = list.filter(x => x.done);
   if (k === 'done') {
-    h = '<h2>Сдано сегодня</h2>' + act.map(c => { const l = L(c.id, TODAY), n = l.filter(x => x.done).length, rest = l.filter(x => !x.done).map(x => pt(x.pid).name); return rgRow(c.name, l.length ? (rest.length ? 'Осталось: ' + esc(rest.join(', ')) : 'Все точки сданы') : 'Выходной', `<span class="pill ${l.length && n === l.length ? 'ok' : ''}">${n}/${l.length}</span>`); }).join('');
+    h = `<h2>Сдано сегодня · ${esc(cn)}</h2><div class="t2" style="margin-bottom:8px">Сдано ${done.length} из ${list.length}</div>` + (list.length ? list.map(x => rgRow(pt(x.pid).name, tl(x.type) ? 'тип ' + tl(x.type) : '', x.done ? '<span class="pill ok">сдана</span>' : '<span class="pill warn">осталась</span>')).join('') : '<div class="card t2">На сегодня точек нет.</div>');
   } else if (k === 'photo') {
-    const rv = reviews.filter(r => r.day === TODAY || r.day === undefined || r.status === 'pending');
-    h = '<h2>Фото на проверке и принятые</h2>' + (rv.length ? rv.slice(0, 30).map(r => rgRow((cr(r.cid) || {name: '?'}).name + ' · ' + (pt(r.pid) ? pt(r.pid).name : 'точка'), r.when || '', r.status === 'ok' ? '<span class="pill ok">принято</span>' : r.status === 'pending' ? '<span class="pill blue">ждёт</span>' : '<span class="pill bad">переснять</span>')).join('') : '<div class="card t2">Фото пока нет.</div>')
+    const rv = reviews.filter(r => r.cid === c && (r.day === TODAY || r.day === undefined || r.status === 'pending'));
+    h = `<h2>Фото · ${esc(cn)}</h2>` + (rv.length ? rv.slice(0, 30).map(r => rgRow(pt(r.pid) ? pt(r.pid).name : 'точка', r.when || '', r.status === 'ok' ? '<span class="pill ok">принято</span>' : r.status === 'pending' ? '<span class="pill blue">ждёт</span>' : '<span class="pill bad">переснять</span>')).join('') : '<div class="card t2">Фото пока нет.</div>')
       + '<button class="btn" style="margin-top:10px" onclick="rgOpenPhotos()">Открыть проверку фото</button>';
   } else {
-    h = '<h2>Кто на смене</h2>' + act.map(c => { const l = L(c.id, TODAY); return `<div class="card" style="padding:10px 12px"><div class="row">${avatar(c.id, c.name, 32)}<div class="grow"><div class="t1" style="font-size:14px">${esc(c.name)}</div><div class="t2">${l.length ? l.length + ' точек сегодня' : 'Выходной'}</div><div data-mgl="${c.id}">${mglInner(c.id)}</div></div></div></div>`; }).join('');
+    let wp = 0, wd = 0; const rows = [];
+    for (let d = 0; d < 7; d++) { const l = L(c, d), n = l.filter(x => x.done).length; wp += l.length; wd += n; if (l.length) rows.push(rgRow(WD[d] + (d === TODAY ? ' · сегодня' : ''), l.map(x => esc(pt(x.pid).name)).join(', '), `<span class="pill ${n === l.length ? 'ok' : d === TODAY ? 'warn' : ''}">${n}/${l.length}</span>`)); }
+    h = `<h2>Неделя · ${esc(cn)}</h2><div class="t2" style="margin-bottom:8px">Сдано ${wd} из ${wp} точек</div>` + (rows.join('') || '<div class="card t2">На неделю точек нет.</div>');
   }
   return h + close;
 }
