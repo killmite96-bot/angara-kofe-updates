@@ -1,9 +1,9 @@
 {
-    "content":  144,
+    "content":  145,
     "apk":  22,
-    "notes":  "Зарплата: счётчик «накручивается» при переходе между всеми подвкладками.",
+    "notes":  "Фото: архив подтверждённых по папкам (месяц, курьер, день, точка) с поиском и фильтрами; подписи под фото.",
     "contentFile":  "index.html",
-    "contentSha256":  "f207e68468bd051edda87ea9587a9805dcc9c4bd278cfaa23c1fe6fdccfbd303",
+    "contentSha256":  "1b7dd3f6c3a027a090f66bf5fc417077929cabf6fa248efc36b4c1ecc8ba3ae4",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

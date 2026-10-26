@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 144;
+const APP_VERSION = 145;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1480,7 +1480,7 @@ function finishVisit() {
   applyStock(v); p.last = 0; if (v.type >= 2) p.last2 = 0; if (v.type === 3) { p.deep = 0; p.deepAt = sNow(); }
   p.arr = {clean:v.arrive.clean, trash:v.arrive.trash};
   item.done = true; item.review = 'pending'; item.redo = false;
-  const rvObj = {id:Date.now(), cid:S.me, pid:v.pid, when:'только что', type:v.type, status:'pending', day:TODAY, arrive:v.arrive, photos:v.SP.slice(), nozzles:v.NP.slice()};
+  const rvObj = {id:Date.now(), cid:S.me, cname:cr(S.me).name, pid:v.pid, when:'только что', type:v.type, status:'pending', day:TODAY, arrive:v.arrive, photos:v.SP.slice(), nozzles:v.NP.slice()};
   reviews.unshift(rvObj);
   notify('mgr', 'photo', cr(S.me).name + ' сдал(а) точку «' + p.name + '»: подтвердите фото', {rvId:rvObj.id});
   const dayDone = L(S.me, TODAY).length > 0 && L(S.me, TODAY).every(x => x.done);
@@ -2147,7 +2147,7 @@ function purgeCour(id) {
   const k = String(id), mine = x => String(x.cid) === k;
   delete sched[id]; delete TEMPLATE[id]; delete CHAT[id]; delete CHATN[id]; delete OFF[id]; delete PR[k]; delete AV[k]; delete GCS.all[k]; delete PROG[k];
   [LOADED, PASS].forEach(o => Object.keys(o).forEach(x => { if (x.split(':')[0] === k) delete o[x]; }));
-  replaceArr(MV, MV.filter(m => !mine(m))); replaceArr(reviews, reviews.filter(r => !mine(r)));
+  replaceArr(MV, MV.filter(m => !mine(m))); replaceArr(reviews, reviews.filter(r => !mine(r) || r.status === 'ok'));   // подтверждённые фото остаются в архиве
   replaceArr(NOTIFS, NOTIFS.filter(n => String(n.to) !== k));
   Object.keys(DMS).forEach(x => { if (x.split('-').includes(k)) delete DMS[x]; });
   [RD, RX, TP].forEach(o => Object.keys(o).forEach(x => { if (x.split('-').includes(k) || x === 'm' + k || x === 'n' + k) delete o[x]; else if (o[x] && typeof o[x] === 'object') delete o[x][k]; }));
@@ -2186,22 +2186,113 @@ const rvEmpty = () => `<div style="display:flex;flex-direction:column;align-item
     <circle cx="106" cy="52" r="3" fill="#5dffa0"/>
     <path d="M22 24l3 6 6 3-6 3-3 6-3-6-6-3 6-3zM128 18l2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill="#5dffa0" opacity=".7"/></svg>
   <div class="t1" style="margin-top:12px;font-size:15px">Новых фото для проверки пока нет</div></div>`;
+const phSeg = () => `<div class="seg" style="margin:8px 0"><button class="${S.ph === 'arch' ? '' : 'on'}" onclick="go({ph:'feed'})">Лента${pendCount() ? ' · ' + pendCount() : ''}</button><button class="${S.ph === 'arch' ? 'on' : ''}" onclick="go({ph:'arch'})">Архив</button></div>`;
+// подпись под фото: кто отправил, какая точка, во сколько
+const rvSender = r => (cr(r.cid) && cr(r.cid).name) || r.cname || 'Курьер';
+const rvCap = (r, w) => `<div class="tiny" style="width:${w || 92}px;line-height:1.25;margin-top:3px"><b style="color:var(--tx)">${esc(rvSender(r))}</b><br>${esc(pt(r.pid) ? pt(r.pid).name : 'Точка')}${r.id > 1e12 ? ' · ' + hm(r.id) : ''}</div>`;
 function mgrScreen() {
-  let h = topbar('Проверка фото', pendCount() ? 'Ждут подтверждения: ' + pendCount() : 'Всё проверено'); h += '<div class="body">';
+  if (S.ph === 'arch') return archScreen();
+  let h = topbar('Проверка фото', pendCount() ? 'Ждут подтверждения: ' + pendCount() : 'Всё проверено'); h += '<div class="body">' + phSeg();
   if (!pendCount()) h += rvEmpty();
-  reviews.forEach((r, i) => {
+  reviews.filter(r => r.status !== 'ok').forEach((r, i) => {
     const p = pt(r.pid);
     h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${esc(p.name)}</div><div class="t2">${esc(cr(r.cid).name)} · ${r.when} · ${r.type === 3 ? 'генеральная уборка' : 'тип ' + r.type}</div></div>
       <span class="pill ${r.status === 'ok' ? 'ok' : r.status === 'redo' ? 'bad' : 'warn'}">${r.status === 'ok' ? 'принято' : r.status === 'redo' ? 'переснять' : 'ждёт'}</span></div>
       ${r.arrive ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${CCOL[r.arrive.clean]}">По прибытии: ${CLEAN[r.arrive.clean]}</span><span class="pill ${r.arrive.trash >= .75 ? 'warn' : ''}">Урна ${Math.round(r.arrive.trash * 100)}%</span></div>` : ''}
       <div class="row" style="margin-top:10px;align-items:flex-start;flex-wrap:wrap"><div><div class="tiny">Пример</div><div class="photo" style="width:92px;height:146px">${exHTML(pst(p))}</div><button class="btn sec sm" style="margin-top:4px;padding:3px 8px;font-size:11px" onclick="exReplace('${pst(p)}')">Заменить</button></div>
-      ${(r.photos && r.photos.length ? r.photos : [r.photo]).map((ph, k) => `<div><div class="tiny">Сейчас${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:146px">${ph ? ph.svg : exHTML(p.units[Math.min(k, p.units.length - 1)].st)}</div></div>`).join('')}
-      ${r.type >= 2 ? (r.nozzles && r.nozzles.length ? r.nozzles : [r.nozzle]).map((ph, k) => `<div><div class="tiny">Носики${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:122px">${ph ? ph.svg : nozzleSVG(false)}</div></div>`).join('') : ''}</div>
+      ${(r.photos && r.photos.length ? r.photos : [r.photo]).map((ph, k) => `<div><div class="tiny">Сейчас${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:146px">${ph ? ph.svg : exHTML(p.units[Math.min(k, p.units.length - 1)].st)}</div>${rvCap(r)}</div>`).join('')}
+      ${r.type >= 2 ? (r.nozzles && r.nozzles.length ? r.nozzles : [r.nozzle]).map((ph, k) => `<div><div class="tiny">Носики${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:122px">${ph ? ph.svg : nozzleSVG(false)}</div>${rvCap(r)}</div>`).join('') : ''}</div>
       ${r.status === 'pending' ? `<div class="btns"><button class="btn sm" onclick="rv(${r.id},'ok')">Принять</button><button class="btn sec sm" onclick="askRedo(${r.id})">Переснять</button><button class="btn sec sm" onclick="askComment(${r.id})">${ic('chat', 15)} Комментарий</button></div>` : ''}
       ${r.status === 'redo' && r.reason ? `<div class="t2" style="color:#ff8f8f;margin-top:6px">Причина: ${esc(r.reason)}</div>` : ''}</div>`;
   });
   return h + '</div>';
 }
+/* ===================== ФОТО: АРХИВ ПОДТВЕРЖДЁННЫХ ===================== */
+// папки создаются сами: месяц → курьер → день отправки → точка; внутри подтверждённые фото. Файлы лежат на сервере полгода (у удалённого курьера — 31 день)
+const MNOM = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+const pad2 = n => String(n).padStart(2, '0');
+const dKey = ts => { const d = new Date(ts); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); };
+const dLabel = k => { const a = k.split('-'); return +a[2] + ' ' + MN[+a[1] - 1]; };
+const mLabel = k => { const a = k.split('-'); return MNOM[+a[1] - 1] + (+a[0] !== new Date().getFullYear() ? ' ' + a[0] : ''); };
+const folderIc = z => `<svg width="${z}" height="${z}" viewBox="0 0 48 48" fill="none" aria-hidden="true" style="flex:none"><path d="M5 14a4 4 0 0 1 4-4h10l4 5h16a4 4 0 0 1 4 4v18a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z" fill="#16362a" stroke="#5dffa0" stroke-width="2.2" stroke-linejoin="round"/><path d="M5 20h38" stroke="#5dffa0" stroke-opacity=".35" stroke-width="2"/><path d="M19 26h10l-1 7.5q-.2 1-1.2 1h-5.6q-1 0-1.2-1z" fill="#5dffa0"/><path d="M29 27.5q4 0 3.4 3-.5 2.2-4 2.2" stroke="#5dffa0" stroke-width="1.8" stroke-linecap="round"/><path d="M21.5 23q-1-1.5 0-3M25 23q-1-1.5 0-3" stroke="#5dffa0" stroke-width="1.6" stroke-linecap="round" opacity=".8"/></svg>`;
+function arItems() {
+  const out = [];
+  reviews.forEach(r => {
+    if (r.status !== 'ok' || !(r.id > 1e12)) return;
+    const st = r.photos && r.photos.length ? r.photos : (r.photo ? [r.photo] : []), nz = r.nozzles && r.nozzles.length ? r.nozzles : (r.nozzle ? [r.nozzle] : []);
+    st.concat(nz).forEach((ph, i) => { if (ph && ph.svg) out.push({r, ph, noz: i >= st.length, ts: r.id, cid: r.cid, pid: r.pid, dk: dKey(r.id), mk: dKey(r.id).slice(0, 7)}); });
+  });
+  return out.sort((a, b) => b.ts - a.ts);
+}
+const arCap = it => { const d = new Date(it.ts); return `<div class="tiny" style="margin-top:3px;line-height:1.3"><b style="color:var(--tx)">${esc(rvSender(it.r))}</b><br>${esc(pt(it.pid) ? pt(it.pid).name : 'Точка')}${it.noz ? ' · носики' : ''}<br>${d.getDate()} ${MN[d.getMonth()]}, ${hm(it.ts)}</div>`; };
+const arGrid = list => '<div style="display:flex;flex-wrap:wrap;gap:10px">' + list.map(it => `<div style="width:calc(50% - 5px)"><div class="photo" style="width:100%;height:200px;cursor:zoom-in" onclick="arView(this)">${it.ph.svg}</div>${arCap(it)}</div>`).join('') + '</div>';
+function arGo(k, v) { const o = ['m', 'c', 'd', 'p'], a = Object.assign({}, S.ar || {}), i = o.indexOf(k); o.forEach((x, j) => { if (j > i) delete a[x]; }); if (v === null) delete a[k]; else a[k] = v; go({ar: a}); }
+function arView(el) {
+  const im = el.querySelector('img'), d = document.createElement('div'); d.id = 'mview';
+  d.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:98;background:rgba(0,0,0,.95);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .25s';
+  d.innerHTML = (im && im.src ? `<img src="${im.src}" alt="" style="max-width:100%;max-height:100%">` : `<div style="width:min(92vw,420px);height:70vh">${el.innerHTML}</div>`) + `<button class="mvx" aria-label="Закрыть">${ic('x', 20)}</button>`;
+  const close = () => { d.style.opacity = '0'; setTimeout(() => d.remove(), 260); };
+  d.addEventListener('click', e => { if (e.target === d || e.target.closest('.mvx')) close(); });
+  document.body.appendChild(d); requestAnimationFrame(() => { d.style.opacity = '1'; });
+}
+// фото из архива подгружаются с сервера по запросу (в документе визита только ссылка)
+const ARCH_BLOB = {};
+function archHydrate() {
+  document.querySelectorAll('img[data-arch]').forEach(el => {
+    if (el.getAttribute('src') || el.dataset.busy) return;
+    const f = el.dataset.arch; if (!/^[0-9a-z]{1,20}-\d{1,3}\.(jpg|png|webp)$/.test(f) || !SRV || !SY.token) return;
+    el.dataset.busy = '1';
+    (ARCH_BLOB[f] ? Promise.resolve(ARCH_BLOB[f]) : fetch(SRV + '/api/arch/' + f, {headers: {Authorization: 'Bearer ' + SY.token}}).then(r => { if (!r.ok) throw new Error('arch'); return r.blob(); }).then(b => (ARCH_BLOB[f] = URL.createObjectURL(b))))
+      .then(u => { if (el.isConnected) el.src = u; }).catch(() => { el.alt = 'Фото удалено'; });
+  });
+}
+function archScreen() {
+  const items = arItems(), f = S.af || (S.af = {from: '', to: '', cid: '', pid: ''}), a = S.ar || {};
+  let h = topbar('Фото', 'Архив подтверждённых фото'); h += '<div class="body">' + phSeg();
+  const senders = {}; COUR.filter(c => c.active).forEach(c => { senders[c.id] = c.name; }); items.forEach(it => { senders[it.cid] = rvSender(it.r); });
+  const filtering = !!(f.from || f.to || f.cid || f.pid);
+  h += `<div class="card"><div class="t1" style="font-size:14px">Поиск по архиву</div>
+    <div class="row" style="gap:8px;margin-top:8px"><div class="grow"><div class="tiny">С даты</div><input type="date" value="${f.from}" onchange="S.af.from=this.value;render(true)" style="margin:3px 0 0;width:100%"></div><div class="grow"><div class="tiny">По дату</div><input type="date" value="${f.to}" onchange="S.af.to=this.value;render(true)" style="margin:3px 0 0;width:100%"></div></div>
+    <div class="tiny" style="margin-top:8px">Отправитель</div><select onchange="S.af.cid=this.value;render(true)" style="margin:3px 0 0;width:100%"><option value="">Все курьеры</option>${Object.keys(senders).sort((x, y) => senders[x].localeCompare(senders[y], 'ru')).map(id => `<option value="${id}" ${String(f.cid) === String(id) ? 'selected' : ''}>${esc(senders[id])}</option>`).join('')}</select>
+    <div class="tiny" style="margin-top:8px">Точка</div><select onchange="S.af.pid=this.value;render(true)" style="margin:3px 0 0;width:100%"><option value="">Все точки</option>${P.slice().sort((x, y) => x.name.localeCompare(y.name, 'ru')).map(p => `<option value="${p.id}" ${String(f.pid) === String(p.id) ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
+    ${filtering ? '<button class="btn sec sm" style="margin-top:10px" onclick="S.af={from:\'\',to:\'\',cid:\'\',pid:\'\'};render(true)">Сбросить фильтры</button>' : ''}</div>`;
+  if (filtering) {
+    const res = items.filter(it => (!f.from || it.dk >= f.from) && (!f.to || it.dk <= f.to) && (!f.cid || String(it.cid) === String(f.cid)) && (!f.pid || String(it.pid) === String(f.pid)));
+    h += `<h3>Найдено фото: ${res.length}</h3>` + (res.length ? arGrid(res.slice(0, 120)) + (res.length > 120 ? '<div class="tiny" style="margin-top:8px">Показаны первые 120: уточните фильтры</div>' : '') : '<div class="card t2">По этим фильтрам ничего нет.</div>');
+    return h + '</div>';
+  }
+  // путь по папкам
+  const names = {a: 'Архив'};
+  const crumbs = [`<span style="cursor:pointer;color:var(--g)" onclick="arGo('m',null)">Архив</span>`];
+  if (a.m) crumbs.push(`<span style="cursor:pointer;color:var(--g)" onclick="arGo('c',null)">${mLabel(a.m)}</span>`);
+  if (a.c) crumbs.push(`<span style="cursor:pointer;color:var(--g)" onclick="arGo('d',null)">${esc(senders[a.c] || 'Курьер')}</span>`);
+  if (a.d) crumbs.push(`<span style="cursor:pointer;color:var(--g)" onclick="arGo('p',null)">${dLabel(a.d)}</span>`);
+  if (a.p) crumbs.push(esc(pt(+a.p) ? pt(+a.p).name : 'Точка'));
+  h += `<div class="tiny" style="margin:6px 2px 8px;line-height:1.7">${crumbs.join(' › ')}</div>`;
+  const row = (title, sub, click) => `<div class="card" style="cursor:pointer" onclick="${click}"><div class="row">${folderIc(40)}<div class="grow"><div class="t1">${title}</div><div class="t2">${sub}</div></div><span style="color:var(--mut);font-size:20px">›</span></div></div>`;
+  const cnt = n => n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? 'фото' : 'фото');
+  if (!a.m) {
+    const nowM = dKey(Date.now()).slice(0, 7), ms = new Set(items.map(it => it.mk)); ms.add(nowM);
+    Array.from(ms).sort().reverse().forEach(m => { h += row(mLabel(m), cnt(items.filter(it => it.mk === m).length), `arGo('m','${m}')`); });
+  } else if (!a.c) {
+    const inM = items.filter(it => it.mk === a.m), ids = new Set(COUR.filter(c => c.active).map(c => String(c.id))); inM.forEach(it => ids.add(String(it.cid)));
+    Array.from(ids).sort((x, y) => (senders[x] || '').localeCompare(senders[y] || '', 'ru')).forEach(id => {
+      const n = inM.filter(it => String(it.cid) === id).length, gone = !cr(+id);
+      h += row(esc(senders[id] || 'Курьер'), cnt(n) + (gone ? ' · курьер удалён, папка хранится 31 день' : ''), `arGo('c','${id}')`);
+    });
+  } else if (!a.d) {
+    const inC = items.filter(it => it.mk === a.m && String(it.cid) === String(a.c)), ds = Array.from(new Set(inC.map(it => it.dk))).sort().reverse();
+    h += ds.length ? ds.map(d => row(dLabel(d), cnt(inC.filter(it => it.dk === d).length), `arGo('d','${d}')`)).join('') : '<div class="card t2">В этой папке пока нет фото. Папка с датой появится, когда курьер отправит фото и вы их подтвердите.</div>';
+  } else if (!a.p) {
+    const inD = items.filter(it => it.dk === a.d && String(it.cid) === String(a.c)), ps = Array.from(new Set(inD.map(it => it.pid)));
+    h += ps.map(pid => row(esc(pt(pid) ? pt(pid).name : 'Точка'), cnt(inD.filter(it => it.pid === pid).length), `arGo('p','${pid}')`)).join('');
+  } else {
+    const list = items.filter(it => it.dk === a.d && String(it.cid) === String(a.c) && String(it.pid) === String(a.p));
+    h += list.length ? arGrid(list) : '<div class="card t2">Здесь пока нет фото.</div>';
+  }
+  return h + '</div>';
+}
+
 function rv(id, s, reason) {
   const r = reviews.find(x => x.id === id); r.status = s; r.reason = reason || '';
   const it = (L(r.cid, r.day === undefined ? TODAY : r.day) || []).find(x => x.pid === r.pid);   // визит в графике курьера
@@ -3542,7 +3633,7 @@ function uiAfterRender() {
   SHEETSEEN = S.sheet || null;
   if (S.shade && !SHADESEEN) { const o = $('sheetshade'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
   SHADESEEN = !!S.shade;
-  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); geoSync(); kbCheck(); ctxLeave(); lgTick(); if (S.sel && !(S.tab === 'chat' && S.th === S.sel.th && !S.view)) S.sel = null; } catch (e) {}
+  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); archHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); geoSync(); kbCheck(); ctxLeave(); lgTick(); if (S.sel && !(S.tab === 'chat' && S.th === S.sel.th && !S.view)) S.sel = null; } catch (e) {}
 }
 // шапка сжимается, только если у экрана достаточно прокрутки: иначе после сжатия прокрутка «съедается», шапка снова растёт, и всё дёргается по кругу
 function hdrState(tp, bd) {
