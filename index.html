@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 145;
+const APP_VERSION = 146;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2246,16 +2246,21 @@ function archHydrate() {
       .then(u => { if (el.isConnected) el.src = u; }).catch(() => { el.alt = 'Фото удалено'; });
   });
 }
+// выбор даты для поиска по архиву: календарь в стиле приложения (вместо системного окошка)
+function dpOpen(k) { const v = (S.af || {})[k] || dKey(Date.now()), a = v.split('-'); go({sheet: 'dpick', dp: {k, y: +a[0], m: +a[1] - 1}}); }
+function dpMove(d) { const f = S.dp; let m = f.m + d, y = f.y; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } f.m = m; f.y = y; render(true); }
+function dpSet(v) { (S.af || (S.af = {from: '', to: '', cid: '', pid: ''}))[S.dp.k] = v; go({sheet: null, dp: null}); }
+function afSet(k, v) { (S.af || (S.af = {from: '', to: '', cid: '', pid: ''}))[k] = v; go({sheet: null, ap: null}); }
 function archScreen() {
   const items = arItems(), f = S.af || (S.af = {from: '', to: '', cid: '', pid: ''}), a = S.ar || {};
   let h = topbar('Фото', 'Архив подтверждённых фото'); h += '<div class="body">' + phSeg();
   const senders = {}; COUR.filter(c => c.active).forEach(c => { senders[c.id] = c.name; }); items.forEach(it => { senders[it.cid] = rvSender(it.r); });
   const filtering = !!(f.from || f.to || f.cid || f.pid);
-  h += `<div class="card"><div class="t1" style="font-size:14px">Поиск по архиву</div>
-    <div class="row" style="gap:8px;margin-top:8px"><div class="grow"><div class="tiny">С даты</div><input type="date" value="${f.from}" onchange="S.af.from=this.value;render(true)" style="margin:3px 0 0;width:100%"></div><div class="grow"><div class="tiny">По дату</div><input type="date" value="${f.to}" onchange="S.af.to=this.value;render(true)" style="margin:3px 0 0;width:100%"></div></div>
-    <div class="tiny" style="margin-top:8px">Отправитель</div><select onchange="S.af.cid=this.value;render(true)" style="margin:3px 0 0;width:100%"><option value="">Все курьеры</option>${Object.keys(senders).sort((x, y) => senders[x].localeCompare(senders[y], 'ru')).map(id => `<option value="${id}" ${String(f.cid) === String(id) ? 'selected' : ''}>${esc(senders[id])}</option>`).join('')}</select>
-    <div class="tiny" style="margin-top:8px">Точка</div><select onchange="S.af.pid=this.value;render(true)" style="margin:3px 0 0;width:100%"><option value="">Все точки</option>${P.slice().sort((x, y) => x.name.localeCompare(y.name, 'ru')).map(p => `<option value="${p.id}" ${String(f.pid) === String(p.id) ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
-    ${filtering ? '<button class="btn sec sm" style="margin-top:10px" onclick="S.af={from:\'\',to:\'\',cid:\'\',pid:\'\'};render(true)">Сбросить фильтры</button>' : ''}</div>`;
+  const fdate = k => k ? dLabel(k) + (+k.slice(0, 4) !== new Date().getFullYear() ? ' ' + k.slice(0, 4) : '') : '';
+  const fld = (ico, label, val, ph, click) => `<div class="fld${val ? ' on' : ''}" onclick="${click}"><span style="color:${val ? 'var(--g)' : 'var(--mut)'}">${ic(ico, 18)}</span><div class="grow" style="min-width:0"><span class="fl">${label}</span><b>${val ? esc(val) : '<span style="color:var(--mut);font-weight:500">' + ph + '</span>'}</b></div></div>`;
+  h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Поиск по архиву</div>${filtering ? '<button class="btn sec sm" style="padding:4px 10px" onclick="S.af={from:\'\',to:\'\',cid:\'\',pid:\'\'};render(true)">Сбросить</button>' : ''}</div>
+    <div class="fgrid">${fld('calendar', 'С даты', fdate(f.from), 'любая', "dpOpen('from')")}${fld('calendar', 'По дату', fdate(f.to), 'любая', "dpOpen('to')")}</div>
+    <div class="fgrid" style="margin-top:8px">${fld('users', 'Отправитель', f.cid ? senders[f.cid] || 'Курьер' : '', 'все курьеры', "go({sheet:'afpick',ap:'cid'})")}${fld('pin', 'Точка', f.pid ? (pt(+f.pid) ? pt(+f.pid).name : 'Точка') : '', 'все точки', "go({sheet:'afpick',ap:'pid'})")}</div></div>`;
   if (filtering) {
     const res = items.filter(it => (!f.from || it.dk >= f.from) && (!f.to || it.dk <= f.to) && (!f.cid || String(it.cid) === String(f.cid)) && (!f.pid || String(it.pid) === String(f.pid)));
     h += `<h3>Найдено фото: ${res.length}</h3>` + (res.length ? arGrid(res.slice(0, 120)) + (res.length > 120 ? '<div class="tiny" style="margin-top:8px">Показаны первые 120: уточните фильтры</div>' : '') : '<div class="card t2">По этим фильтрам ничего нет.</div>');
@@ -2362,6 +2367,23 @@ function sheet() {
       ${f.err ? `<div style="color:var(--r);font-size:13px;margin:0 0 8px">${f.err}</div>` : ''}
       <button class="btn" style="margin-bottom:8px" onclick="savePtName()">Сохранить</button>
       <button class="btn sec" onclick="go({sheet:null,pn:null})">Отмена</button>`;
+  }
+  if (S.sheet === 'dpick' && S.dp) {
+    const f = S.dp, cur = (S.af || {})[f.k] || '', first = (new Date(f.y, f.m, 1).getDay() + 6) % 7, dim = new Date(f.y, f.m + 1, 0).getDate(), tk = dKey(Date.now());
+    let cells = ''; for (let i = 0; i < first; i++) cells += '<button class="e" disabled></button>';
+    for (let d = 1; d <= dim; d++) { const k = f.y + '-' + pad2(f.m + 1) + '-' + pad2(d); cells += `<button class="${k === cur ? 'on' : k === tk ? 'td' : ''}" onclick="dpSet('${k}')">${d}</button>`; }
+    return `<h2>${f.k === 'from' ? 'С даты' : 'По дату'}</h2>
+      <div class="row" style="margin-top:6px"><button class="btn sec sm" style="padding:6px 14px" onclick="dpMove(-1)">‹</button><div class="grow t1" style="text-align:center;font-size:15px">${MNOM[f.m]} ${f.y}</div><button class="btn sec sm" style="padding:6px 14px" onclick="dpMove(1)">›</button></div>
+      <div class="cal">${WD.map(x => `<i>${x}</i>`).join('')}${cells}</div>
+      ${cur ? `<button class="btn sec" style="margin-bottom:8px" onclick="dpSet('')">Очистить дату</button>` : ''}<button class="btn sec" onclick="go({sheet:null,dp:null})">Отмена</button>`;
+  }
+  if (S.sheet === 'afpick' && S.ap) {
+    const k = S.ap, cur = (S.af || {})[k] || '';
+    const opts = k === 'cid' ? (() => { const m = {}; COUR.filter(c => c.active).forEach(c => { m[c.id] = c.name; }); arItems().forEach(it => { m[it.cid] = rvSender(it.r); }); return Object.keys(m).sort((x, y) => m[x].localeCompare(m[y], 'ru')).map(id => [id, m[id]]); })() : P.slice().sort((x, y) => x.name.localeCompare(y.name, 'ru')).map(p => [String(p.id), p.name]);
+    return `<h2>${k === 'cid' ? 'Отправитель' : 'Точка'}</h2><div style="max-height:52vh;overflow-y:auto;margin-top:6px">
+      <button class="btn sec" style="margin-bottom:6px;text-align:left;${cur ? '' : 'border-color:var(--g);color:var(--g)'}" onclick="afSet('${k}','')">${k === 'cid' ? 'Все курьеры' : 'Все точки'}</button>
+      ${opts.map(([id, n]) => `<button class="btn sec" style="margin-bottom:6px;text-align:left;${String(cur) === String(id) ? 'border-color:var(--g);color:var(--g)' : ''}" onclick="afSet('${k}','${id}')">${esc(n)}</button>`).join('')}</div>
+      <button class="btn sec" style="margin-top:6px" onclick="go({sheet:null,ap:null})">Отмена</button>`;
   }
   if (S.sheet === 'ingadd' && S.ia) {
     const f = S.ia;
@@ -4362,6 +4384,14 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 #chatin:focus,#chatin:focus-visible{outline:none;box-shadow:none}
 .logout span{max-width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pen{display:inline-flex;vertical-align:-2px;margin-left:6px;color:var(--g);opacity:.85;cursor:pointer;padding:2px}.pen:active{opacity:.5}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.fld{display:flex;align-items:center;gap:8px;min-width:0;background:var(--card2,#16221b);border:1px solid var(--line);border-radius:12px;padding:9px 11px;cursor:pointer;transition:border-color .2s,background .2s}
+.fld:active{background:rgba(93,255,160,.08)}.fld.on{border-color:rgba(93,255,160,.55)}
+.fld .fl{display:block;font-size:10.5px;color:var(--mut);margin-bottom:1px}.fld b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:8px 0}
+.cal i{font-style:normal;font-size:11px;color:var(--mut);text-align:center;padding:2px 0}
+.cal button{height:34px;border-radius:11px;border:1px solid transparent;background:var(--card2,#16221b);color:var(--tx);font-size:14px;cursor:pointer;padding:0}
+.cal button.on{background:var(--g);color:#06210f;font-weight:800}.cal button.td{border-color:rgba(93,255,160,.6)}.cal .e{visibility:hidden}
 #netp{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-90px);z-index:29;background:#4a3414;color:#ffd9a0;border:1px solid #8a5a14;padding:6px 12px;border-radius:16px;font-size:12px;max-width:90%;text-align:center;transition:transform .35s cubic-bezier(.22,1,.36,1)}
 #netp.in{transform:translate(-50%,0)}
 #geop{position:fixed;left:12px;bottom:calc(var(--tabh,64px) + 12px + env(safe-area-inset-bottom));z-index:21;background:rgba(23,64,42,.92);color:#7be3a0;border:1px solid #2f9a4e;padding:5px 10px;border-radius:14px;font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer}
