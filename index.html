@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 166;
+const APP_VERSION = 168;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1095,9 +1095,10 @@ function myPointIds() { const s = new Set(); for (let d = 0; d < 7; d++) L(S.me,
 function pointsScreen() {
   const mine = S.role === 'cour' ? myPointIds() : null;
   let h = topbar(S.role === 'mgr' ? 'Остатки по точкам' : 'Мои адреса', S.role === 'mgr' ? P.length + ' точек' : 'Адреса из вашего расписания');
-  const flt = S.role === 'mgr' && (S.flt === 't2' || S.flt === 'deep') ? S.flt : 'all';   // вкладки менеджера: «Остатки» (все точки), «Пора на тип 2», «Генеральная»
+  const flt = S.role === 'mgr' && (S.flt === 't2' || S.flt === 'deep' || S.flt === 'cl') ? S.flt : 'all';   // вкладки менеджера: «Остатки» (все точки), «Пора на тип 2», «Генеральная»
   h += `<div class="body">`;
-  if (S.role === 'mgr') h += `<div class="chips"><button class="${flt === 'all' ? 'on' : ''}" onclick="go({flt:'all'})">Остатки</button><button class="${flt === 't2' ? 'on' : ''}" onclick="go({flt:'t2'})">Пора на тип 2</button><button class="${flt === 'deep' ? 'on' : ''}" onclick="go({flt:'deep'})">Генеральная</button></div>`;
+  if (S.role === 'mgr') h += `<div class="chips"><button class="${flt === 'all' ? 'on' : ''}" onclick="go({flt:'all'})">Остатки</button><button class="${flt === 't2' ? 'on' : ''}" onclick="go({flt:'t2'})">Пора на тип 2</button><button class="${flt === 'deep' ? 'on' : ''}" onclick="go({flt:'deep'})">Генеральная</button><button class="${flt === 'cl' ? 'on' : ''}" onclick="go({flt:'cl'})">Чек-листы</button></div>`;
+  if (flt === 'cl') return h + clManage() + '</div>';
   if (flt !== 'deep') h += `<input type="text" placeholder="Поиск по точкам" value="${S.q}" oninput="S.q=this.value;render(true)">`;
   if (S.role === 'mgr' && flt !== 'deep') h += `<button class="btn sec sm" style="margin:0 0 8px" onclick="ptNewOpen()">${ic('plus', 15)} Новая точка</button>`;
   if (flt === 'deep') return h + deepManage() + '</div>';
@@ -1395,20 +1396,87 @@ const noteRows = (arr, kind) => arr.map((t, i) => `<div class="row" style="margi
 function ptNoteAdd(kind) { if (S[kind].notes.length >= 12) return go({toast: 'Не больше 12 особенностей'}); S[kind].notes.push(''); render(true); }
 function ptNoteDel(kind, i) { S[kind].notes.splice(i, 1); render(true); }
 const ptNotesClean = a => a.map(x => String(x).trim().slice(0, 120)).filter(Boolean).slice(0, 12);
-function ptNotesOpen(pid) { const p = pt(pid); if (!p || S.role !== 'mgr') return; go({sheet: 'ptnotes', pe: {pid, win: p.win || '', notes: (p.notes || []).slice(), err: ''}}); }
+function ptNotesOpen(pid) { const p = pt(pid); if (!p || S.role !== 'mgr') return; go({sheet: 'ptnotes', pe: {pid, feat: p.feat || '', win: p.win || '', err: ''}}); }
 function ptNotesSheet() {
   const f = S.pe, p = pt(f.pid); if (!p) return `<h2>Точка не найдена</h2><button class="btn sec" onclick="go({sheet:null,pe:null})">Закрыть</button>`;
   return `<h2>Особенности точки</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)} · ${esc(p.addr)}</div>
-    <div class="fbl">ЛУЧШЕЕ ВРЕМЯ ЗАЕЗДА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="60" placeholder="Например: 13:00–22:00" value="${esc(f.win)}" oninput="S.pe.win=this.value" style="margin:4px 0 8px">
-    <div class="fbl">ОСОБЫЕ ЗАДАЧИ</div><div class="tiny">Курьер отметит каждую галочкой на визите.</div>${noteRows(f.notes, 'pe')}
+    <div class="fbl">ОСОБЕННОСТИ ТОЧКИ (КОММЕНТАРИЙ)</div><div class="tiny">Всё, что нужно знать курьеру о точке: свободный текст.</div><textarea class="fbta" rows="4" maxlength="1000" placeholder="Например: вход со двора, охранник просит оставлять паспорт, станция у лифта" oninput="S.pe.feat=this.value">${esc(f.feat || '')}</textarea>
+    <div class="fbl" style="margin-top:8px">ЛУЧШЕЕ ВРЕМЯ ЗАЕЗДА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="60" placeholder="Например: 13:00–22:00" value="${esc(f.win)}" oninput="S.pe.win=this.value" style="margin:4px 0 8px">
     <button class="btn" style="margin:10px 0 8px" onclick="ptNotesSave()">Сохранить</button><button class="btn sec" onclick="go({sheet:null,pe:null})">Отмена</button>`;
 }
 function ptNotesSave() {
   const f = S.pe, p = pt(f.pid); if (!p) return go({sheet: null, pe: null});
   if (ptBusy(f.pid)) return go({sheet: null, pe: null, toast: 'Идёт визит на этой точке: изменить особенности можно после него'});
-  p.win = f.win.trim().slice(0, 60); p.notes = ptNotesClean(f.notes); go({sheet: null, pe: null, toast: 'Особенности сохранены'});
+  p.feat = String(f.feat || '').trim().slice(0, 1000); p.win = f.win.trim().slice(0, 60); go({sheet: null, pe: null, toast: 'Особенности сохранены'});
 }
-function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, notes: [], info: {}, err: ''}}); }
+/* ===================== ДОПОЛНИТЕЛЬНЫЕ ЧЕК-ЛИСТЫ (для всех точек или для выбранных) ===================== */
+// Основной чек-лист визита неизменен. Менеджер добавляет свои: название, пункты и где показывать. Курьер видит их на визите после основного списка.
+const CL = [];   // {id, name, items:[текст], all:true|false, pids:[id точек]}
+const CL_MAX = 20, CL_ITEMS = 30;
+const clOk = c => !!c && typeof c.id === 'string' && typeof c.name === 'string' && Array.isArray(c.items) && c.items.every(x => typeof x === 'string');
+const clFor = p => CL.filter(c => c.items.length && (c.all || (c.pids || []).includes(p.id)));
+const clPlural = n => n + (n % 10 === 1 && n % 100 !== 11 ? ' пункт' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? ' пункта' : ' пунктов');
+const clScope = c => c.all ? 'для всех точек' : 'для точек: ' + ((c.pids || []).map(id => pt(id) ? pt(id).name : '').filter(Boolean).join(', ') || 'не выбраны');
+function clManage() {
+  let h = `<div class="tiny" style="margin:2px 2px 8px">Дополнительные чек-листы появляются у курьера на визите после основного чек-листа. Показывать их можно на всех точках или только на выбранных.</div>`;
+  if (!CL.length) h += `<div class="card t2">Чек-листов пока нет. Создайте первый, например «Проверка перед закрытием».</div>`;
+  CL.forEach(c => { h += `<div class="card" onclick="clOpen('${c.id}')"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${esc(c.name)}</div><div class="t2">${clPlural(c.items.length)} · ${esc(clScope(c))}</div></div><span class="pen">${ic('edit', 18)}</span></div></div>`; });
+  return h + (CL.length < CL_MAX ? `<button class="btn sec" style="margin-top:6px" onclick="clOpen(null)">${ic('plus', 16)} Новый чек-лист</button>` : '');
+}
+function clOpen(id) {
+  const c = id ? CL.find(x => x.id === id) : null;
+  go({sheet: 'cledit', ce: {id: c ? c.id : null, name: c ? c.name : '', items: c ? c.items.slice() : [''], all: c ? !!c.all : true, pids: c ? (c.pids || []).slice() : [], err: ''}});
+}
+function clItemAdd() { if (S.ce.items.length >= CL_ITEMS) return go({toast: 'Не больше ' + CL_ITEMS + ' пунктов'}); S.ce.items.push(''); render(true); }
+function clItemDel(i) { S.ce.items.splice(i, 1); render(true); }
+function clScopeSet(all) { S.ce.all = all; render(true); }
+function clPt(id) { const a = S.ce.pids, i = a.indexOf(id); if (i >= 0) a.splice(i, 1); else a.push(id); render(true); }
+function clPtAll(on) { S.ce.pids = on ? P.map(p => p.id) : []; render(true); }
+function clEditSheet() {
+  const f = S.ce;
+  return `<h2>${f.id ? 'Чек-лист' : 'Новый чек-лист'}</h2>
+    <div class="fbl">НАЗВАНИЕ</div><input type="text" maxlength="40" placeholder="Например: Проверка перед закрытием" value="${esc(f.name)}" oninput="S.ce.name=this.value" style="margin:4px 0">
+    <div class="fbl">ПУНКТЫ</div><div class="tiny">Курьер отметит каждый галочкой.</div>
+    ${f.items.map((t, i) => `<div class="row" style="margin:6px 0;gap:6px"><input type="text" class="grow" maxlength="120" style="margin:0" placeholder="Например: протереть стойку" value="${esc(t)}" oninput="S.ce.items[${i}]=this.value"><button class="btn sec sm" style="padding:8px 12px" onclick="clItemDel(${i})">✕</button></div>`).join('')}
+    <button class="btn sec sm" style="margin-top:4px" onclick="clItemAdd()">${ic('plus', 15)} Добавить пункт</button>
+    <div class="fbl" style="margin-top:12px">ГДЕ ПОКАЗЫВАТЬ</div>
+    <div class="seg" style="margin:4px 0 8px"><button class="${f.all ? 'on' : ''}" onclick="clScopeSet(true)">Все точки</button><button class="${f.all ? '' : 'on'}" onclick="clScopeSet(false)">Выбранные точки</button></div>
+    ${f.all ? '<div class="tiny">Чек-лист появится на всех точках, включая те, что вы добавите позже.</div>' : `<div class="row" style="margin:4px 0"><div class="tiny grow">Отмечено: ${f.pids.length} из ${P.length}</div><button class="btn sec sm" onclick="clPtAll(${f.pids.length < P.length})">${f.pids.length < P.length ? 'Выбрать все' : 'Снять все'}</button></div>
+      ${P.map(p => { const on = f.pids.includes(p.id); return `<div class="chk" onclick="clPt(${p.id})"><div class="box ${on ? 'on' : ''}">${on ? '✓' : ''}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(p.addr)}</div></div></div>`; }).join('')}`}
+    ${f.err ? `<div style="color:var(--r);font-size:13px;margin:8px 0">${esc(f.err)}</div>` : ''}
+    <button class="btn" style="margin:10px 0 8px" onclick="clSave()">Сохранить чек-лист</button>${f.id ? `<button class="btn sec" style="margin-bottom:8px;color:#ffb0b0" onclick="go({sheet:'cldel'})">${ic('trash', 15)} Удалить чек-лист</button>` : ''}<button class="btn sec" onclick="go({sheet:null,ce:null})">Отмена</button>`;
+}
+function clSave() {
+  const f = S.ce, name = f.name.trim().slice(0, 40), items = f.items.map(x => String(x).trim().slice(0, 120)).filter(Boolean).slice(0, CL_ITEMS);
+  if (name.length < 2) { f.err = 'Введите название чек-листа'; return render(true); }
+  if (CL.some(c => c.id !== f.id && c.name.toLowerCase() === name.toLowerCase())) { f.err = 'Чек-лист с таким названием уже есть'; return render(true); }
+  if (!items.length) { f.err = 'Добавьте хотя бы один пункт'; return render(true); }
+  if (!f.all && !f.pids.length) { f.err = 'Выберите хотя бы одну точку или включите «Все точки»'; return render(true); }
+  if (!f.id && CL.length >= CL_MAX) { f.err = 'Можно создать не больше ' + CL_MAX + ' чек-листов'; return render(true); }
+  const rec = {id: f.id || 'c' + Date.now().toString(36).slice(-7), name, items, all: f.all, pids: f.all ? [] : f.pids.filter(id => pt(id))};
+  const i = CL.findIndex(c => c.id === rec.id); if (i >= 0) CL[i] = rec; else CL.push(rec);
+  go({sheet: null, ce: null, toast: 'Чек-лист сохранён: ' + name});
+}
+function clDelSheet() {
+  const c = CL.find(x => x.id === (S.ce || {}).id); if (!c) return `<h2>Чек-лист не найден</h2><button class="btn sec" onclick="go({sheet:null,ce:null})">Закрыть</button>`;
+  return `<h2>Удалить чек-лист?</h2><div class="card"><div class="t1" style="font-size:14px">${esc(c.name)}</div><div class="t2">${clPlural(c.items.length)} · ${esc(clScope(c))}</div></div><div class="tiny" style="margin:8px 0">Он перестанет показываться курьерам на визитах. Вернуть можно только создав заново.</div>
+    <button class="btn" style="background:#4a1a1a;color:#ffb0b0" onclick="clDel()">Удалить чек-лист</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:'cledit'})">Назад</button>`;
+}
+function clDel() { const i = CL.findIndex(x => x.id === (S.ce || {}).id); if (i >= 0) CL.splice(i, 1); go({sheet: null, ce: null, toast: 'Чек-лист удалён'}); }
+// ----- особые задачи точки: добавляются к основному чек-листу только на этой точке -----
+function ptTasksOpen(pid) { const p = pt(pid); if (!p || S.role !== 'mgr') return; go({sheet: 'pttasks', pk: {pid, notes: (p.notes || []).slice()}}); }
+function ptTasksSheet() {
+  const f = S.pk, p = pt(f.pid); if (!p) return `<h2>Точка не найдена</h2><button class="btn sec" onclick="go({sheet:null,pk:null})">Закрыть</button>`;
+  return `<h2>Особые задачи</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)} · ${esc(p.addr)}</div>
+    <div class="tiny">Эти пункты добавляются к основному чек-листу только на этой точке: курьер отметит каждый галочкой на визите.</div>${noteRows(f.notes, 'pk')}
+    <button class="btn" style="margin:10px 0 8px" onclick="ptTasksSave()">Сохранить</button><button class="btn sec" onclick="go({sheet:null,pk:null})">Отмена</button>`;
+}
+function ptTasksSave() {
+  const f = S.pk, p = pt(f.pid); if (!p) return go({sheet: null, pk: null});
+  if (ptBusy(f.pid)) return go({sheet: null, pk: null, toast: 'Идёт визит на этой точке: изменить задачи можно после него'});
+  p.notes = ptNotesClean(f.notes); go({sheet: null, pk: null, toast: 'Особые задачи сохранены'});
+}
+function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, feat: '', notes: [], info: {}, err: ''}}); }
 function nwUnits(d) { const u = S.nw.units, n = Math.max(1, Math.min(PT_MAX_UNITS, u.length + d)); while (u.length < n) u.push(u[u.length - 1] || 'B'); u.length = n; render(true); }
 function nwType(i, st) { S.nw.units[i] = st; render(true); }
 const stTiles = (cur, call) => `<div class="row" style="gap:6px;align-items:stretch">${['A', 'B', 'C', 'D'].map(st => `<div class="sttile${cur === st ? ' on' : ''}" onclick="${call.replace('@', st)}"><div class="photo" style="width:100%;height:74px">${exHTML(st)}</div><div class="tiny">${esc(STN[st])}</div></div>`).join('')}</div>`;
@@ -1417,7 +1485,8 @@ function ptNewSheet() {
   return `<h2>Новая точка</h2><div class="tiny" style="margin-bottom:6px">Курьеры увидят её в адресах, а вы сможете назначать её в график.</div>
     <div class="fbl">НАЗВАНИЕ</div><input type="text" maxlength="60" placeholder="Например: ТЦ Центральный" value="${esc(f.name)}" oninput="S.nw.name=this.value" style="margin:4px 0">
     <div class="fbl">АДРЕС</div><input type="text" maxlength="120" placeholder="Улица, дом" value="${esc(f.addr)}" oninput="S.nw.addr=this.value" style="margin:4px 0">
-    <div class="fbl">ОКНО ВИЗИТА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="60" placeholder="Например: 13:00–22:00" value="${esc(f.win)}" oninput="S.nw.win=this.value" style="margin:4px 0">
+    <div class="fbl">ОСОБЕННОСТИ ТОЧКИ (НЕОБЯЗАТЕЛЬНО)</div><textarea class="fbta" rows="4" maxlength="1000" placeholder="Например: вход со двора, охранник просит оставлять паспорт, станция у лифта" oninput="S.nw.feat=this.value">${esc(f.feat || '')}</textarea>
+    <div class="fbl" style="margin-top:8px">ОКНО ВИЗИТА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="60" placeholder="Например: 13:00–22:00" value="${esc(f.win)}" oninput="S.nw.win=this.value" style="margin:4px 0">
     <div class="fbl" style="margin-top:8px">ОСОБЫЕ ЗАДАЧИ (НЕОБЯЗАТЕЛЬНО)</div><div class="tiny">Курьер отметит каждую галочкой на визите.</div>${noteRows(f.notes, 'nw')}
     <div class="fbl" style="margin-top:12px">ПОДСКАЗКИ КУРЬЕРУ (НЕОБЯЗАТЕЛЬНО)</div>
     <div class="fgrid" style="margin-top:4px">${[['wet', 'drop', 'Мокрая точка'], ['park', 'pin', 'Парковка']].map(([k, ico, t]) => { const o = infoOf('new', k), has = o.imgs.length || (o.steps || []).length || o.text; return `<div class="fld${has ? ' on' : ''}" onclick="infoNew('${k}')"><span style="color:${has ? 'var(--g)' : 'var(--mut)'}">${ic(ico, 18)}</span><div class="grow" style="min-width:0"><span class="fl">${t}</span><b>${has ? 'заполнено' : '<span style="color:var(--mut);font-weight:500">добавить</span>'}</b></div></div>`; }).join('')}</div>
@@ -1434,7 +1503,7 @@ function ptNewSave() {
   if (P.some(x => x.name.toLowerCase() === name.toLowerCase())) { f.err = 'Точка с таким названием уже есть'; return render(true); }
   if (addr.length < 3) { f.err = 'Введите адрес точки'; return render(true); }
   const id = Math.max(0, ...P.map(x => x.id)) + 1, has = f.lat != null;
-  const p = {id, name, addr, win: f.win.trim().slice(0, 60), notes: ptNotesClean(f.notes || []), lat: has ? f.lat : DEPOT.lat, lon: has ? f.lon : DEPOT.lon, cset: has, nocoord: !has, arr: {clean: 0, trash: 0}, last: 0, last2: 0, nv: true, back: {}, deep: 0, water: null, pass: ''};
+  const p = {id, name, addr, win: f.win.trim().slice(0, 60), feat: String(f.feat || '').trim().slice(0, 1000), notes: ptNotesClean(f.notes || []), lat: has ? f.lat : DEPOT.lat, lon: has ? f.lon : DEPOT.lon, cset: has, nocoord: !has, arr: {clean: 0, trash: 0}, last: 0, last2: 0, nv: true, back: {}, deep: 0, water: null, pass: ''};
   ING.forEach(g => { p.back[g.id] = 0; });
   p.units = f.units.map((st, k) => Object.assign(newUnit(st, k), {loc: p}));
   P.push(p); P.sort((a, b) => a.id - b.id);
@@ -1478,7 +1547,7 @@ function ptDel() {
   if (P.length <= 1) return go({sheet: null, pd: null, toast: 'Нельзя удалить последнюю точку'});
   if (ptBusy(id)) return go({sheet: null, pd: null, toast: 'Идёт визит на этой точке: удалить можно после него'});
   [sched, TEMPLATE].forEach(T => Object.keys(T).forEach(c => { for (let d = 0; d < 7; d++) if (T[c] && T[c][d]) T[c][d] = T[c][d].filter(x => x.pid !== id); }));
-  replaceArr(MV, MV.filter(m => m.pid !== id)); if (WATER.by) delete WATER.by[id]; delete INFO[id];
+  replaceArr(MV, MV.filter(m => m.pid !== id)); if (WATER.by) delete WATER.by[id]; delete INFO[id]; CL.forEach(c => { c.pids = (c.pids || []).filter(x => x !== id); });
   P.splice(P.findIndex(x => x.id === id), 1);
   go({sheet: null, pd: null, view: null, toast: 'Точка удалена: ' + p.name});
 }
@@ -1490,7 +1559,8 @@ function pointCard(id) {
     <div class="grow"><div class="t1" style="font-size:14px">${p.units.length > 1 ? p.units.length + ' станции' : 'Станция'}</div>${p.units.map((u, i) => `<div class="t2">${p.units.length > 1 ? (i + 1) + '. ' : ''}${STN[u.st]}</div>`).join('')}<div class="t2">${p.nv ? 'Визитов ещё не было' : 'Визит: ' + ago(p.last) + ' · мойка (тип 2): ' + ago(p.last2)}</div>
     ${needT2(p) ? '<div style="margin-top:6px"><span class="pill warn">рекомендуем тип 2</span></div>' : ''}</div></div></div>`;
   if (p.water) h += waterPanel(p, S.role === 'cour');
-  if (p.win || p.notes.length || S.role === 'mgr') h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особенности точки</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptNotesOpen(${p.id})" title="Изменить особенности">${ic('edit', 18)}</span>` : ''}</div>${p.win ? winLine(p, 'margin-top:6px') : ''}${p.notes.map(n => `<div class="t2" style="margin-top:4px">• ${esc(n)}</div>`).join('')}${!p.win && !p.notes.length ? '<div class="t2" style="margin-top:4px">Пока ничего не добавлено. Нажмите на карандаш.</div>' : ''}</div>`;
+  if (p.win || p.feat || S.role === 'mgr') h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особенности точки</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptNotesOpen(${p.id})" title="Изменить особенности">${ic('edit', 18)}</span>` : ''}</div>${p.feat ? `<div class="t2" style="margin-top:6px;white-space:pre-wrap;color:var(--tx)">${esc(p.feat)}</div>` : ''}${p.win ? winLine(p, 'margin-top:6px') : ''}${!p.feat && !p.win ? '<div class="t2" style="margin-top:4px">Пока ничего не добавлено. Нажмите на карандаш.</div>' : ''}</div>`;
+  if (p.notes.length || clFor(p).length || S.role === 'mgr') h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особые задачи на визите</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptTasksOpen(${p.id})" title="Изменить особые задачи">${ic('edit', 18)}</span>` : ''}</div><div class="tiny" style="margin-top:2px">Добавляются к основному чек-листу на этой точке</div>${p.notes.map(n => `<div class="t2" style="margin-top:4px">• ${esc(n)}</div>`).join('')}${clFor(p).length ? `<div class="tiny" style="margin-top:8px">Дополнительные чек-листы: ${clFor(p).map(c => esc(c.name)).join(', ')}</div>` : ''}${!p.notes.length && !clFor(p).length ? '<div class="t2" style="margin-top:4px">Пока нет. Нажмите на карандаш, чтобы добавить.</div>' : ''}</div>`;
   h += toolBlock(p) + camBlock(p);
   h += `<div class="card"><div class="t1" style="font-size:14px">При прибытии на последнем визите</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
     <span class="pill ${CCOL[p.arr.clean]}">Чистота: ${CLEAN[p.arr.clean]}</span><span class="pill ${p.arr.trash >= .75 ? 'warn' : ''}">Урна: ${Math.round(p.arr.trash * 100)}% · ${trashStatus(p.arr.trash)}</span></div></div>`;
@@ -1588,6 +1658,7 @@ function visitScreen() {
   if (v.step === 3) {
     h += '<h3>Шаг 3 · Чек-лист</h3><div class="card">' + CHK1.map((c, i) => chkRow('a' + i, c)).join('') + '</div>';
     if (p.notes.length) h += '<h3>Особые задачи этой точки</h3><div class="card">' + p.notes.map((c, i) => chkRow('n' + i, c)).join('') + '</div>';
+    clFor(p).forEach(cl => { h += `<h3>${esc(cl.name)}</h3><div class="card">` + cl.items.map((c, i) => chkRow('c' + cl.id + '_' + i, c)).join('') + '</div>'; });
     if (v.type === 3) h += '<h3>Генеральная уборка</h3><div class="card">' + CHK3.map((c, i) => chkRow('g' + i, c)).join('') + '</div>';
     if (v.type >= 2) {
       h += `<h3>Промывка миксеров с разбором${v.type === 3 ? '' : ' (тип 2)'}</h3><div class="card">` + CHK2.map((c, i) => chkRow('b' + i, c)).join('');
@@ -1619,7 +1690,7 @@ function visitScreen() {
   return h + '</div>';
 }
 const chkRow = (k, t) => { const on = S.visit.checks[k]; return `<div class="chk" onclick="ck('${k}')"><div class="box ${on ? 'on' : ''}">${on ? '✓' : ''}</div><div class="grow" style="font-size:14px">${esc(t)}</div></div>`; };
-const checksDone = () => { const v = S.visit, p = pt(v.pid); return CHK1.every((_, i) => v.checks['a' + i]) && p.notes.every((_, i) => v.checks['n' + i]) && (v.type === 1 || (CHK2.every((_, i) => v.checks['b' + i]) && p.units.every((_, i) => v.NP[i]) && (v.type < 3 || CHK3.every((_, i) => v.checks['g' + i])))); };
+const checksDone = () => { const v = S.visit, p = pt(v.pid); return CHK1.every((_, i) => v.checks['a' + i]) && p.notes.every((_, i) => v.checks['n' + i]) && clFor(p).every(cl => cl.items.every((_, j) => v.checks['c' + cl.id + '_' + j])) && (v.type === 1 || (CHK2.every((_, i) => v.checks['b' + i]) && p.units.every((_, i) => v.NP[i]) && (v.type < 3 || CHK3.every((_, i) => v.checks['g' + i])))); };
 function dv(id, d) { if (!S.visit) return; const g = ING.find(x => x.id === id), st = g.t === 'count' ? 10 : (g.u === 'бут' || g.u === 'уп' ? 1 : .5); S.visit.deliv[id] = Math.max(0, +(S.visit.deliv[id] + d * st).toFixed(1)); render(true); }
 const sl = (id, i) => { if (!S.visit) return; S.visit.after[id] = i / 4; render(true); };
 // одна полоса из 4 делений: нажатие на деление выставляет уровень (1 — красное … 4 — зелёное); повторное нажатие на первое деление ставит «пусто»
@@ -2964,6 +3035,9 @@ function sheet() {
   if (S.sheet === 'ptnew' && S.nw) return ptNewSheet();
   if (S.sheet === 'ptcoord' && S.cd) return ptCdSheet();
   if (S.sheet === 'ptnotes' && S.pe) return ptNotesSheet();
+  if (S.sheet === 'pttasks' && S.pk) return ptTasksSheet();
+  if (S.sheet === 'cledit' && S.ce) return clEditSheet();
+  if (S.sheet === 'cldel' && S.ce) return clDelSheet();
   if (S.sheet === 'ptunit' && S.pu) return ptUnitSheet();
   if (S.sheet === 'ptunitdel' && S.pu) return ptUnitDelSheet();
   if (S.sheet === 'ptdel' && S.pd) return ptDelSheet();
@@ -3636,7 +3710,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, FB, SUP, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, AMORT, POL, ex2: 1,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, FB, SUP, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, AMORT, POL, CL, ex2: 1,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -3648,7 +3722,7 @@ function restoreData(txt) {
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(FB, d.FB || []); replaceArr(SUP, d.SUP || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
-  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP); if (d.GSM) Object.assign(GSM, d.GSM); replaceArr(AMORT, d.AMORT || []); if (d.POL) Object.assign(POL, d.POL);
+  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP); if (d.GSM) Object.assign(GSM, d.GSM); replaceArr(AMORT, d.AMORT || []); replaceArr(CL, (d.CL || []).filter(clOk)); if (d.POL) Object.assign(POL, d.POL);
   if (d.NS) { Object.assign(NS, d.NS); } if (d.NST) Object.assign(NST, d.NST);
   replaceObj(GSD, d.GSD || {}); replaceObj(OFF, d.OFF || {}); replaceObj(PR, d.PR || {});
   if (d.GCS) { GCS.me = d.GCS.me || null; GCS.all = d.GCS.all || {}; GCS.log = d.GCS.log || []; }
@@ -3775,7 +3849,7 @@ function api(path, body) {
   }), () => { throw new Error('Нет связи с сервером'); });
 }
 function docsFromState() {
-  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX, DEEP, GSM, AMORT, POL}}, ld = {};
+  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX, DEEP, GSM, AMORT, POL, CL}}, ld = {};
   Object.keys(AV).forEach(k => { d['av/' + k] = AV[k]; });
   Object.keys(EX).forEach(k => { d['ex/' + k] = EX[k]; });
   Object.keys(INFO).forEach(k => { d['info/' + k] = INFO[k]; });
@@ -3854,7 +3928,7 @@ function applyDoc(k, v, dele) {
     COUR.forEach(c => ensureCour(c.id));
     if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
   } else if (h === 'core') {
-    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); if (v.DEEP && typeof v.DEEP === 'object') { DEEP.on = v.DEEP.on !== false; DEEP.mo = Math.max(1, Math.min(12, +v.DEEP.mo || 3)); } if (v.GSM && typeof v.GSM === 'object') { GSM.price = Math.max(0, +v.GSM.price || 0); GSM.formula = String(v.GSM.formula || GSM_DEF).slice(0, 200); GSM.back = v.GSM.back !== false; } if (Array.isArray(v.AMORT)) replaceArr(AMORT, v.AMORT.filter(a => a && typeof a.n === 'string' && a.m > 0).slice(0, 60)); if (v.POL && typeof v.POL === 'object') { POL.op = String(v.POL.op || '').slice(0, 120); POL.contact = String(v.POL.contact || '').slice(0, 120); } }
+    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); if (v.DEEP && typeof v.DEEP === 'object') { DEEP.on = v.DEEP.on !== false; DEEP.mo = Math.max(1, Math.min(12, +v.DEEP.mo || 3)); } if (v.GSM && typeof v.GSM === 'object') { GSM.price = Math.max(0, +v.GSM.price || 0); GSM.formula = String(v.GSM.formula || GSM_DEF).slice(0, 200); GSM.back = v.GSM.back !== false; } if (Array.isArray(v.AMORT)) replaceArr(AMORT, v.AMORT.filter(a => a && typeof a.n === 'string' && a.m > 0).slice(0, 60)); if (Array.isArray(v.CL)) replaceArr(CL, v.CL.filter(clOk).slice(0, CL_MAX)); if (v.POL && typeof v.POL === 'object') { POL.op = String(v.POL.op || '').slice(0, 120); POL.contact = String(v.POL.contact || '').slice(0, 120); } }
   } else if (h === 'av') {
     if (dele || !v) delete AV[p[1]]; else AV[p[1]] = v;
   } else if (h === 'ex') {
@@ -3927,7 +4001,7 @@ function applyDoc(k, v, dele) {
 function resetFromDocs(docs) { TP_LOADING = true; try { resetFromDocs0(docs); } finally { TP_LOADING = false; } }
 function resetFromDocs0(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
-  [CHAT, CHATN, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(MM, []); replaceArr(FB, []); replaceArr(SUP, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
+  [CHAT, CHATN, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(MM, []); replaceArr(FB, []); replaceArr(SUP, []); replaceArr(CL, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
   NS.off = []; NS.q = {on: false, from: 22, to: 8}; NS.ld = false; GCS.me = null; GCS.all = {}; GCS.log = []; NST.s = {}; Object.keys(GSD).forEach(k => delete GSD[k]); Object.keys(OFF).forEach(k => delete OFF[k]);
   SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
@@ -5789,13 +5863,26 @@ function selfTest() {
         sched[1][0].push({pid: p.id, type: 1, done: false, review: null}); S.pd = p.id; ptDel(); eq(P.length, n, 'точка удалена'); eq(sched[1][0].some(x => x.pid === p.id), false, 'убрана из графика'); go({view: null, sheet: null, nw: null});
       });
       T('точки: особенности, мокрая точка и парковка', () => {
-        const n = P.length; S.nw = {name: 'Тест с подсказками', addr: 'Тестовая 2', win: '10:00–12:00', units: ['B'], lat: null, lon: null, notes: ['Контроль стаканов', '  ', 'Проверить воду'], info: {wet: {imgs: [], steps: ['Налево', 'К лестнице'], text: ''}, park: {imgs: [], steps: [], text: 'Во дворе слева'}}, err: ''};
-        ptNewSave(); const p = P[P.length - 1]; eq(P.length, n + 1, 'точка создана'); eq(p.notes.length, 2, 'пустая особенность отброшена'); eq(p.win, '10:00–12:00', 'окно визита'); eq(p.nocoord, true, 'без координат');
+        const n = P.length; S.nw = {name: 'Тест с подсказками', addr: 'Тестовая 2', win: '10:00–12:00', units: ['B'], lat: null, lon: null, feat: '  Вход со двора.\nОхранник просит паспорт  ', notes: ['Контроль стаканов', '  ', 'Проверить воду'], info: {wet: {imgs: [], steps: ['Налево', 'К лестнице'], text: ''}, park: {imgs: [], steps: [], text: 'Во дворе слева'}}, err: ''};
+        ptNewSave(); const p = P[P.length - 1]; eq(P.length, n + 1, 'точка создана'); eq(p.notes.length, 2, 'пустая особенность отброшена'); eq(p.win, '10:00–12:00', 'окно визита'); eq(p.feat, 'Вход со двора.\nОхранник просит паспорт', 'комментарий с переносом строки'); eq(p.nocoord, true, 'без координат');
         eq(infoOf(p.id, 'wet').steps.length, 2, 'мокрая точка сохранена'); eq(infoOf(p.id, 'park').text, 'Во дворе слева', 'парковка сохранена');
-        ptNotesOpen(p.id); S.pe.notes.push('Новая задача'); S.pe.win = ''; ptNotesSave(); eq(p.notes.length, 3, 'особенности изменены'); eq(p.win, '', 'окно очищено');
+        ptNotesOpen(p.id); S.pe.win = ''; S.pe.feat = 'Новый комментарий'; ptNotesSave(); eq(p.win, '', 'окно очищено'); eq(p.feat, 'Новый комментарий', 'комментарий изменён'); eq(p.notes.length, 2, 'задачи не затронуты');
+        ptTasksOpen(p.id); S.pk.notes.push('Новая задача'); ptTasksSave(); eq(p.notes.length, 3, 'особые задачи изменены');
         S.pd = p.id; ptDel(); delete INFO[p.id]; eq(P.length, n, 'тестовая точка удалена'); go({view: null, sheet: null, nw: null, pe: null});
       });
-      [{sheet: 'ptnotes', pe: {pid: P[0].id, win: '', notes: ['Контроль'], err: ''}}, {sheet: 'info', nw: {name: 'Тест', addr: 'Адрес', win: '', units: ['B'], lat: null, lon: null, notes: [], info: {}, err: ''}, inf: {pid: 'new', k: 'wet', edit: true, d: {imgs: [], steps: ['Шаг'], text: ''}}}].forEach(sp => T('точки: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'points'}, sp))));
+      T('чек-листы: создание, показ по точкам и удаление', () => {
+        const n = CL.length, a = P[0], b = P[1];
+        clOpen(null); S.ce.name = 'Проверка перед закрытием'; S.ce.items = ['Протереть стойку', '  ', 'Выключить свет']; S.ce.all = true; clSave();
+        eq(CL.length, n + 1, 'чек-лист создан'); const c = CL[CL.length - 1]; eq(c.items.length, 2, 'пустой пункт отброшен'); eq(clFor(a).includes(c), true, 'виден на точке 1'); eq(clFor(b).includes(c), true, 'виден на точке 2');
+        clOpen(c.id); S.ce.all = false; S.ce.pids = [a.id]; clSave(); const cur = CL.find(x => x.id === c.id); eq(clFor(a).includes(cur), true, 'выбранная точка'); eq(clFor(b).includes(cur), false, 'другая точка без чек-листа');
+        clOpen(null); S.ce.name = 'проверка перед закрытием'; S.ce.items = ['х']; clSave(); eq(!!S.ce.err, true, 'повтор названия отклонён'); eq(CL.length, n + 1, 'дубль не создан');
+        clOpen(null); S.ce.name = 'Пустой'; S.ce.items = ['']; clSave(); eq(!!S.ce.err, true, 'без пунктов отклонён');
+        clOpen(c.id); S.ce.all = false; S.ce.pids = []; clSave(); eq(!!S.ce.err, true, 'без точек отклонён');
+        clOpen(c.id); clDel(); eq(CL.length, n, 'чек-лист удалён'); go({sheet: null, ce: null});
+      });
+      [{sheet: 'cledit', ce: {id: null, name: '', items: [''], all: false, pids: [], err: ''}}, {sheet: 'pttasks', pk: {pid: P[0].id, notes: ['Контроль']}}].forEach(sp => T('чек-листы: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'points'}, sp))));
+      T('чек-листы: вкладка на «Точки»', () => go(Object.assign(home(), {tab: 'points', flt: 'cl'})));
+      [{sheet: 'ptnotes', pe: {pid: P[0].id, feat: 'Комментарий', win: '', err: ''}}, {sheet: 'info', nw: {name: 'Тест', addr: 'Адрес', win: '', units: ['B'], lat: null, lon: null, notes: [], info: {}, err: ''}, inf: {pid: 'new', k: 'wet', edit: true, d: {imgs: [], steps: ['Шаг'], text: ''}}}].forEach(sp => T('точки: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'points'}, sp))));
       [{sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B', 'D'], lat: null, lon: null, notes: ['Контроль'], info: {}, err: ''}}, {sheet: 'ptcoord', cd: {t: 'new', back: 'ptnew', text: '', res: {empty: true}}, nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, err: ''}}].forEach(sp => T('точки: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'points'}, sp))));
       [{sheet: 'supin', si: {date: supToday(), note: '', q: {}, err: ''}}, {sheet: 'supx', sx: {stage: 'start', err: ''}}, {sheet: 'suphist'}, {sheet: 'dpick', si: {date: supToday(), note: '', q: {}, err: ''}, dp: {k: 'si', y: new Date().getFullYear(), m: new Date().getMonth(), back: 'supin'}}].forEach(sp => T('поставки: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'wh'}, sp))));
     }
