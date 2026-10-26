@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 172;
+const APP_VERSION = 173;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1521,8 +1521,8 @@ function stdReset() { replaceArr(CHKARR[S.sd.k], CHK_DEF[S.sd.k]); go({sheet: nu
 const uFeatHTML = p => p.units.map((u, i) => u.feat ? `<div class="t2" style="margin-top:6px;white-space:pre-wrap;color:var(--tx)"><b>Станция ${i + 1}:</b> ${esc(u.feat)}</div>` : '').join('');
 const uNotesHTML = p => p.units.map((u, i) => (u.notes || []).length ? `<div class="tiny" style="margin-top:8px">Станция ${i + 1}:</div>` + u.notes.map(n => `<div class="t2" style="margin-top:4px">• ${esc(n)}</div>`).join('') : '').join('');
 const nwUnitExtra = i => { const u = S.nw.uex || (S.nw.uex = []), x = u[i] || (u[i] = {feat: '', notes: []});
-  return `<div class="fbl" style="margin-top:10px">ОСОБЕННОСТИ СТАНЦИИ (НЕОБЯЗАТЕЛЬНО)</div><textarea class="fbta" rows="3" maxlength="1000" placeholder="Что нужно знать о этой станции" oninput="S.nw.uex[${i}].feat=this.value">${esc(x.feat)}</textarea>
-    <div class="fbl" style="margin-top:6px">ОСОБЫЕ ЗАДАЧИ СТАНЦИИ (НЕОБЯЗАТЕЛЬНО)</div>${noteRows(x.notes, 'nw.uex[' + i + ']')}`; };
+  return `<div class="fbl" style="margin-top:10px">ОСОБЕННОСТИ ТОЧКИ (НЕОБЯЗАТЕЛЬНО)</div><textarea class="fbta" rows="3" maxlength="1000" placeholder="Например: вход со двора, охранник просит оставлять паспорт, станция у лифта" oninput="S.nw.uex[${i}].feat=this.value">${esc(x.feat)}</textarea>
+    <div class="fbl" style="margin-top:6px">ОСОБЫЕ ЗАДАЧИ ТОЧКИ (НЕОБЯЗАТЕЛЬНО)</div><div class="tiny">Курьер отметит каждую галочкой на визите.</div>${noteRows(x.notes, 'nw.uex[' + i + ']')}`; };
 function ptUOpen(pid, i) { const p = pt(pid), u = p && p.units[i]; if (!u || S.role !== 'mgr') return; go({sheet: 'ptunotes', pu2: {pid, i, feat: u.feat || '', notes: (u.notes || []).slice()}}); }
 function ptUSheet() {
   const f = S.pu2, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return `<h2>Станция не найдена</h2><button class="btn sec" onclick="go({sheet:null,pu2:null})">Закрыть</button>`;
@@ -1542,16 +1542,14 @@ function nwType(i, st) { S.nw.units[i] = st; render(true); }
 const stTiles = (cur, call) => `<div class="row" style="gap:6px;align-items:stretch">${['A', 'B', 'C', 'D'].map(st => `<div class="sttile${cur === st ? ' on' : ''}" onclick="${call.replace('@', st)}"><div class="photo" style="width:100%;height:74px">${exHTML(st)}</div><div class="tiny">${esc(STN[st])}</div></div>`).join('')}</div>`;
 function ptNewSheet() {
   const f = S.nw, has = f.lat != null, many = f.units.length > 1;
-  const unitBlock = (st, i) => `<div class="card" style="margin-top:10px"><div class="t1" style="font-size:14px;color:var(--g)">${many ? 'Станция ' + (i + 1) : 'Вид станции'}</div><div class="tiny" style="margin:2px 0 6px">${esc(STN[st])}</div>${stTiles(st, `nwType(${i},'@')`)}${many ? nwUnitExtra(i) : ''}</div>`;
-  return `<h2>Новая точка</h2><div class="tiny" style="margin-bottom:6px">Курьеры увидят её в адресах, а вы сможете назначать её в график. Сначала станции, потом общие данные точки.</div>
+  const unitBlock = (st, i) => `<div class="card" style="margin-top:10px"><div class="t1" style="font-size:14px;color:var(--g)">${many ? 'Станция ' + (i + 1) : 'Вид станции'}</div><div class="tiny" style="margin:2px 0 6px">${esc(STN[st])}</div>${stTiles(st, `nwType(${i},'@')`)}${nwUnitExtra(i)}</div>`;
+  return `<h2>Новая точка</h2><div class="tiny" style="margin-bottom:6px">Курьеры увидят её в адресах, а вы сможете назначать её в график. У каждой станции свои особенности и особые задачи, ниже общие данные точки.</div>
     <div class="row" style="margin-top:4px"><div class="grow fbl" style="margin:0">СТАНЦИЙ НА ТОЧКЕ</div><div class="step"><button onclick="nwUnits(-1)">−</button><span>${f.units.length}</span><button onclick="nwUnits(1)">+</button></div></div>
     ${f.units.map(unitBlock).join('')}
     <div class="t1" style="font-size:15px;margin:16px 0 2px">Общее для точки</div>
     <div class="fbl">НАЗВАНИЕ</div><input type="text" maxlength="60" placeholder="Например: ТЦ Центральный" value="${esc(f.name)}" oninput="S.nw.name=this.value" style="margin:4px 0">
     <div class="fbl">АДРЕС</div><input type="text" maxlength="120" placeholder="Улица, дом" value="${esc(f.addr)}" oninput="S.nw.addr=this.value" style="margin:4px 0">
-    <div class="fbl">ОСОБЕННОСТИ ТОЧКИ (НЕОБЯЗАТЕЛЬНО)</div><textarea class="fbta" rows="4" maxlength="1000" placeholder="Например: вход со двора, охранник просит оставлять паспорт, станция у лифта" oninput="S.nw.feat=this.value">${esc(f.feat || '')}</textarea>
-    <div class="fbl" style="margin-top:8px">ОКНО ВИЗИТА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="60" placeholder="Например: 13:00–22:00" value="${esc(f.win)}" oninput="S.nw.win=this.value" style="margin:4px 0">
-    <div class="fbl" style="margin-top:8px">ОСОБЫЕ ЗАДАЧИ ТОЧКИ (НЕОБЯЗАТЕЛЬНО)</div><div class="tiny">Курьер отметит каждую галочкой на визите.</div>${noteRows(f.notes, 'nw')}
+    <div class="fbl">ОКНО ВИЗИТА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="60" placeholder="Например: 13:00–22:00" value="${esc(f.win)}" oninput="S.nw.win=this.value" style="margin:4px 0">
     <div class="fbl" style="margin-top:12px">ПОДСКАЗКИ КУРЬЕРУ (НЕОБЯЗАТЕЛЬНО)</div>
     <div class="fgrid" style="margin-top:4px">${[['wet', 'drop', 'Мокрая точка'], ['park', 'pin', 'Парковка']].map(([k, ico, t]) => { const o = infoOf('new', k), has = o.imgs.length || (o.steps || []).length || o.text; return `<div class="fld${has ? ' on' : ''}" onclick="infoNew('${k}')"><span style="color:${has ? 'var(--g)' : 'var(--mut)'}">${ic(ico, 18)}</span><div class="grow" style="min-width:0"><span class="fl">${t}</span><b>${has ? 'заполнено' : '<span style="color:var(--mut);font-weight:500">добавить</span>'}</b></div></div>`; }).join('')}</div>
     <div class="fbl" style="margin-top:10px">КООРДИНАТЫ</div><div class="fld${has ? ' on' : ''}" style="margin:4px 0 8px" onclick="ptCdOpen('new','ptnew')"><span style="color:${has ? 'var(--g)' : 'var(--mut)'}">${ic('pin', 18)}</span><div class="grow" style="min-width:0"><span class="fl">Широта, долгота</span><b>${has ? f.lat.toFixed(5) + ', ' + f.lon.toFixed(5) : '<span style="color:var(--mut);font-weight:500">не указаны: нажмите, чтобы вставить</span>'}</b></div></div>
@@ -1565,7 +1563,7 @@ function ptNewSave() {
   if (P.some(x => x.name.toLowerCase() === name.toLowerCase())) { f.err = 'Точка с таким названием уже есть'; return render(true); }
   if (addr.length < 3) { f.err = 'Введите адрес точки'; return render(true); }
   const id = Math.max(0, ...P.map(x => x.id)) + 1, has = f.lat != null;
-  const p = {id, name, addr, win: f.win.trim().slice(0, 60), feat: String(f.feat || '').trim().slice(0, 1000), notes: ptNotesClean(f.notes || []), lat: has ? f.lat : DEPOT.lat, lon: has ? f.lon : DEPOT.lon, cset: has, nocoord: !has, arr: {clean: 0, trash: 0}, last: 0, last2: 0, nv: true, back: {}, deep: 0, water: null, pass: ''};
+  const p = {id, name, addr, win: f.win.trim().slice(0, 60), feat: f.units.length > 1 ? '' : String(((f.uex || [])[0] || {}).feat || '').trim().slice(0, 1000), notes: f.units.length > 1 ? [] : ptNotesClean(((f.uex || [])[0] || {}).notes || []), lat: has ? f.lat : DEPOT.lat, lon: has ? f.lon : DEPOT.lon, cset: has, nocoord: !has, arr: {clean: 0, trash: 0}, last: 0, last2: 0, nv: true, back: {}, deep: 0, water: null, pass: ''};
   ING.forEach(g => { p.back[g.id] = 0; });
   p.units = f.units.map((st, k) => Object.assign(newUnit(st, k), {loc: p}, f.units.length > 1 ? {feat: String(((f.uex || [])[k] || {}).feat || '').trim().slice(0, 1000), notes: ptNotesClean(((f.uex || [])[k] || {}).notes || [])} : {}));
   P.push(p); P.sort((a, b) => a.id - b.id);
@@ -5930,7 +5928,7 @@ function selfTest() {
         sched[1][0].push({pid: p.id, type: 1, done: false, review: null}); S.pd = p.id; ptDel(); eq(P.length, n, 'точка удалена'); eq(sched[1][0].some(x => x.pid === p.id), false, 'убрана из графика'); go({view: null, sheet: null, nw: null});
       });
       T('точки: особенности, мокрая точка и парковка', () => {
-        const n = P.length; S.nw = {name: 'Тест с подсказками', addr: 'Тестовая 2', win: '10:00–12:00', units: ['B'], lat: null, lon: null, feat: '  Вход со двора.\nОхранник просит паспорт  ', notes: ['Контроль стаканов', '  ', 'Проверить воду'], info: {wet: {imgs: [], steps: ['Налево', 'К лестнице'], text: ''}, park: {imgs: [], steps: [], text: 'Во дворе слева'}}, err: ''};
+        const n = P.length; S.nw = {name: 'Тест с подсказками', addr: 'Тестовая 2', win: '10:00–12:00', units: ['B'], lat: null, lon: null, uex: [{feat: '  Вход со двора.\nОхранник просит паспорт  ', notes: ['Контроль стаканов', '  ', 'Проверить воду']}], info: {wet: {imgs: [], steps: ['Налево', 'К лестнице'], text: ''}, park: {imgs: [], steps: [], text: 'Во дворе слева'}}, err: ''};
         ptNewSave(); const p = P[P.length - 1]; eq(P.length, n + 1, 'точка создана'); eq(p.notes.length, 2, 'пустая особенность отброшена'); eq(p.win, '10:00–12:00', 'окно визита'); eq(p.feat, 'Вход со двора.\nОхранник просит паспорт', 'комментарий с переносом строки'); eq(p.nocoord, true, 'без координат');
         eq(infoOf(p.id, 'wet').steps.length, 2, 'мокрая точка сохранена'); eq(infoOf(p.id, 'park').text, 'Во дворе слева', 'парковка сохранена');
         ptNotesOpen(p.id); S.pe.win = ''; S.pe.feat = 'Новый комментарий'; ptNotesSave(); eq(p.win, '', 'окно очищено'); eq(p.feat, 'Новый комментарий', 'комментарий изменён'); eq(p.notes.length, 2, 'задачи не затронуты');

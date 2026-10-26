@@ -1,9 +1,9 @@
 {
-    "content":  172,
+    "content":  173,
     "apk":  22,
-    "notes":  "Новая точка: форма идёт по станциям, у каждой свой блок, затем общие данные точки.",
+    "notes":  "Новая точка: особенности и особые задачи у каждой станции, подписи как раньше.",
     "contentFile":  "index.html",
-    "contentSha256":  "3c618b90ac648484fab67a6b7fae393df9bae6ed6979e34d7eb0218efd53dddf",
+    "contentSha256":  "dc3af4e538afabb52d3e727afac7a63e8f7617b51f0bbd0f6adc78ef324b69f9",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
