@@ -1,9 +1,9 @@
 {
-    "content":  127,
+    "content":  128,
     "apk":  21,
-    "notes":  "С экрана входа убраны демо-доступы и поле адреса сервера.",
+    "notes":  "На экране входа у выбранных полей «Логин» и «Пароль» нет подсветки.",
     "contentFile":  "index.html",
-    "contentSha256":  "d98ce6ac9311ce94188d6119311c1ac7981e62d03b0f66a320c25a41a8953231",
+    "contentSha256":  "e4e4d7d4bafeb3634819d1e25cdfe7143386ca016611ab9c308f51ed8348d1f6",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "8edd30b4e60912cf494b35a7352719c21c33ae9cc877681a3c7649b6baae772d"
 }
