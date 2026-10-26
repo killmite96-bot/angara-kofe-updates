@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 136;
+const APP_VERSION = 137;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1088,11 +1088,13 @@ function myPointIds() { const s = new Set(); for (let d = 0; d < 7; d++) L(S.me,
 function pointsScreen() {
   const mine = S.role === 'cour' ? myPointIds() : null;
   let h = topbar(S.role === 'mgr' ? 'Остатки по точкам' : 'Мои адреса', S.role === 'mgr' ? P.length + ' точек' : 'Адреса из вашего расписания');
-  h += `<div class="body"><input type="text" placeholder="Поиск по адресу" value="${S.q}" oninput="S.q=this.value;render(true)">`;
-  if (S.role === 'mgr') h += `<div class="chips"><button class="${S.flt === 'all' ? 'on' : ''}" onclick="go({flt:'all'})">Все</button><button class="${S.flt === 'bad' ? 'on' : ''}" onclick="go({flt:'bad'})">Проблемные</button><button class="${S.flt === 't2' ? 'on' : ''}" onclick="go({flt:'t2'})">Пора на тип 2</button><button class="${S.flt === 'deep' ? 'on' : ''}" onclick="go({flt:'deep'})">Генеральная уборка</button></div>`;
-  if (S.role === 'mgr' && S.flt === 'deep') return h + deepManage() + '</div>';
+  const flt = S.role === 'mgr' && (S.flt === 't2' || S.flt === 'deep') ? S.flt : 'all';   // вкладки менеджера: «Остатки» (все точки), «Пора на тип 2», «Генеральная»
+  h += `<div class="body">`;
+  if (S.role === 'mgr') h += `<div class="chips"><button class="${flt === 'all' ? 'on' : ''}" onclick="go({flt:'all'})">Остатки</button><button class="${flt === 't2' ? 'on' : ''}" onclick="go({flt:'t2'})">Пора на тип 2</button><button class="${flt === 'deep' ? 'on' : ''}" onclick="go({flt:'deep'})">Генеральная</button></div>`;
+  if (flt !== 'deep') h += `<input type="text" placeholder="Поиск по точкам" value="${S.q}" oninput="S.q=this.value;render(true)">`;
+  if (flt === 'deep') return h + deepManage() + '</div>';
   P.filter(p => (!mine || mine.has(p.id)) && (p.name + p.addr).toLowerCase().includes(S.q.toLowerCase()))
-    .filter(p => S.role !== 'mgr' || S.flt === 'all' || (S.flt === 'bad' && health(p) !== 'g') || (S.flt === 't2' && needT2(p)))
+    .filter(p => S.role !== 'mgr' || flt === 'all' || (flt === 't2' && needT2(p)))
     .forEach(p => {
       const low = []; p.units.forEach((u, i) => ING.forEach(g => { if (frac(u, g) < .4) low.push({g, u, i}); })); low.length = Math.min(low.length, 3);
       h += `<div class="card" onclick="openPoint(${p.id})"><div class="row"><span class="dot d${health(p)}"></span>
