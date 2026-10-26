@@ -1,9 +1,9 @@
 {
-    "content":  163,
+    "content":  164,
     "apk":  22,
-    "notes":  "Склад: «Принять поставку», история поставок с отменой и загрузка поставки из файла Excel с предпросмотром.",
+    "notes":  "Приёмка поставки: выбор даты в стиле приложения и аккуратный список позиций.",
     "contentFile":  "index.html",
-    "contentSha256":  "b03204e61faaf3059d9a87a9e7968a3e2b65337b0d1bb257f73cd80935c81427",
+    "contentSha256":  "70c231048faee93acdfbe3a43a5b9e2444035642bc2b4cb4932398e0c6ebacf1",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

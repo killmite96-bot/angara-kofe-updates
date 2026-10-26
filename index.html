@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 163;
+const APP_VERSION = 164;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2041,13 +2041,14 @@ function supUndo(id) {
 }
 const supCard = () => S.role !== 'mgr' ? '' : `<div class="card"><div class="row"><div style="color:var(--g)">${ic('box', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Поставки на склад</div><div class="t2">${supLastActive() ? 'Последняя: ' + supDMY(supLastActive().date) + ', ' + esc(supLastActive().byName || '') : 'Принятые поставки сохраняются в истории'}</div></div></div>
   <div class="btns" style="margin:10px 0 0"><button class="btn sm" onclick="supOpen()">${ic('plus', 15)} Принять поставку</button><button class="btn sec sm" onclick="sxOpen()">${ic('clip', 15)} Из Excel</button><button class="btn sec sm" onclick="go({sheet:'suphist'})">История${SUP.length ? ' · ' + SUP.length : ''}</button></div></div>`;
+const supDateTile = (t, label) => { const d = S[t].date; return `<div class="fld on" style="margin:4px 0 8px" onclick="dpFor('${t}')"><span style="color:var(--g)">${ic('calendar', 18)}</span><div class="grow" style="min-width:0"><span class="fl">${label}</span><b>${d === supToday() ? 'Сегодня, ' : ''}${esc(dLabel(d))} ${esc(d.slice(0, 4))}</b></div></div>`; };
 // ----- ручная приёмка -----
 function supOpen() { go({sheet: 'supin', si: {date: supToday(), note: '', q: {}, err: ''}}); }
 function supInSheet() {
   const f = S.si;
   return `<h2>Принять поставку</h2><div class="tiny" style="margin-bottom:8px">Впишите, сколько привезли. Пустые поля пропускаются, количество прибавится к остатку на складе.</div>
-    <div class="fbl">ДАТА ПОСТАВКИ</div><input type="date" value="${esc(f.date)}" max="${supToday()}" onchange="S.si.date=this.value" style="margin:4px 0 8px">
-    ${ING.map(g => `<div class="row" style="padding:5px 0"><div class="grow t1" style="font-size:14px">${esc(g.n)}<div class="tiny">на складе ${+(WH[g.id] || 0).toFixed(1)} ${g.u}</div></div><input type="text" inputmode="decimal" placeholder="0" value="${esc(f.q[g.id] || '')}" oninput="S.si.q['${g.id}']=this.value" style="width:84px;margin:0;text-align:right"><span class="t2" style="width:30px;margin-left:6px">${g.u}</span></div>`).join('')}
+    ${supDateTile('si', 'Дата поставки')}
+    <div class="fbl">СКОЛЬКО ПРИВЕЗЛИ</div><div class="card" style="padding:2px 12px">${ING.map(g => `<div class="row supr"><div class="grow t1" style="font-size:14px">${esc(g.n)}<div class="tiny">на складе ${+(WH[g.id] || 0).toFixed(1)} ${g.u}</div></div><input class="supq" type="text" inputmode="decimal" placeholder="0" value="${esc(f.q[g.id] || '')}" oninput="S.si.q['${g.id}']=this.value"><span class="t2 supu">${g.u}</span></div>`).join('')}</div>
     <div class="fbl">ПРИМЕЧАНИЕ (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="120" placeholder="Например: накладная №15" value="${esc(f.note)}" oninput="S.si.note=this.value" style="margin:4px 0">
     ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${esc(f.err)}</div>` : ''}
     <button class="btn" style="margin:8px 0" onclick="supSave()">Принять поставку</button><button class="btn sec" onclick="go({sheet:null,si:null})">Отмена</button>`;
@@ -2215,7 +2216,7 @@ function supXSheet() {
   const opts = sel => `<option value="">— пропустить —</option>` + ING.map(g => `<option value="${g.id}"${g.id === sel ? ' selected' : ''}>${esc(g.n)} (${g.u})</option>`).join('');
   return `<h2>Предпросмотр поставки</h2><div class="t2" style="margin-bottom:8px">${esc(x.file)} · строк: ${x.rows.length}${x.empty ? ' · пустых пропущено: ' + x.empty : ''}</div>
     ${x.dup ? `<div class="card" style="border-color:var(--o)"><div class="t1" style="font-size:14px;color:var(--o)">Этот файл уже загружался ${supDMY(x.dup.date)}</div><div class="row" style="margin-top:6px;cursor:pointer" onclick="S.sx.okdup=!S.sx.okdup;render(true)"><div class="box${x.okdup ? ' on' : ''}" style="flex:none">${x.okdup ? ic('check', 16) : ''}</div><div class="grow t2" style="margin-left:8px">Всё равно загрузить ещё раз</div></div></div>` : ''}
-    <div class="fbl">ДАТА ПОСТАВКИ${x.dateFile ? ' (ИЗ ФАЙЛА)' : ''}</div><input type="date" value="${esc(x.date)}" max="${supToday()}" onchange="S.sx.date=this.value" style="margin:4px 0 6px">${x.dateMixed ? '<div class="tiny" style="color:var(--o);margin-bottom:6px">В файле несколько дат, поставка запишется одной датой: проверьте её</div>' : ''}
+    ${supDateTile('sx', x.dateFile ? 'Дата поставки (из файла)' : 'Дата поставки')}${x.dateMixed ? '<div class="tiny" style="color:var(--o);margin-bottom:6px">В файле несколько дат, поставка запишется одной датой: проверьте её</div>' : ''}
     <div class="tiny" style="margin:6px 0">К приёму: ${n}${warn ? ' (проверить: ' + warn + ')' : ''}${bad ? ' · с ошибкой: ' + bad : ''}</div>
     ${x.rows.map((r, i) => `<div class="card" style="padding:9px 12px${r.skip ? ';opacity:.5' : ''}"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${esc(r.name || '—')}</div><div class="t2">${esc(String(r.q))} ${esc(r.unit)}${r.qc !== null && r.pick ? ' → +' + +r.qc.toFixed(2) + ' ' + (ING.find(g => g.id === r.pick) || {}).u : ''}</div></div><span class="pill ${r.st === 'ok' ? 'ok' : r.st === 'warn' ? 'warn' : r.st === 'err' ? 'bad' : ''}">${r.st === 'ok' ? 'готово' : r.st === 'warn' ? 'проверьте' : r.st === 'err' ? 'ошибка' : 'пропуск'}</span></div>
       ${r.msg ? `<div class="tiny" style="color:${r.st === 'err' ? 'var(--r)' : 'var(--o)'}">${esc(r.msg)}</div>` : ''}
@@ -2673,7 +2674,11 @@ function archHydrate() {
 // выбор даты для поиска по архиву: календарь в стиле приложения (вместо системного окошка)
 function dpOpen(k) { const v = (S.af || {})[k] || dKey(Date.now()), a = v.split('-'); go({sheet: 'dpick', dp: {k, y: +a[0], m: +a[1] - 1}}); }
 function dpMove(d) { const f = S.dp; let m = f.m + d, y = f.y; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } f.m = m; f.y = y; render(true); }
-function dpSet(v) { (S.af || (S.af = {from: '', to: '', cid: '', pid: ''}))[S.dp.k] = v; go({sheet: null, dp: null}); }
+function dpSet(v) {
+  if (S.dp.back) { S[S.dp.k].date = v; return go({sheet: S.dp.back, dp: null}); }   // дата поставки: возвращаемся в форму
+  (S.af || (S.af = {from: '', to: '', cid: '', pid: ''}))[S.dp.k] = v; go({sheet: null, dp: null});
+}
+function dpFor(t) { const v = S[t].date || dKey(Date.now()), a = v.split('-'); go({sheet: 'dpick', dp: {k: t, y: +a[0], m: +a[1] - 1, back: t === 'si' ? 'supin' : 'supx'}}); }
 function afSet(k, v) { (S.af || (S.af = {from: '', to: '', cid: '', pid: ''}))[k] = v; go({sheet: null, ap: null}); }
 function archScreen() {
   const items = arItems(), f = S.af || (S.af = {from: '', to: '', cid: '', pid: ''}), a = S.ar || {};
@@ -2806,13 +2811,13 @@ function sheet() {
   if (S.sheet === 'suphist') return supHistSheet();
   if (S.sheet === 'supundo' && S.su) return supUndoSheet();
   if (S.sheet === 'dpick' && S.dp) {
-    const f = S.dp, cur = (S.af || {})[f.k] || '', first = (new Date(f.y, f.m, 1).getDay() + 6) % 7, dim = new Date(f.y, f.m + 1, 0).getDate(), tk = dKey(Date.now());
+    const f = S.dp, cur = (f.back ? (S[f.k] || {}).date : (S.af || {})[f.k]) || '', first = (new Date(f.y, f.m, 1).getDay() + 6) % 7, dim = new Date(f.y, f.m + 1, 0).getDate(), tk = dKey(Date.now());
     let cells = ''; for (let i = 0; i < first; i++) cells += '<button class="e" disabled></button>';
-    for (let d = 1; d <= dim; d++) { const k = f.y + '-' + pad2(f.m + 1) + '-' + pad2(d); cells += `<button class="${k === cur ? 'on' : k === tk ? 'td' : ''}" onclick="dpSet('${k}')">${d}</button>`; }
-    return `<h2>${f.k === 'from' ? 'С даты' : 'По дату'}</h2>
+    for (let d = 1; d <= dim; d++) { const k = f.y + '-' + pad2(f.m + 1) + '-' + pad2(d); cells += `<button class="${k === cur ? 'on' : k === tk ? 'td' : ''}"${f.back && k > tk ? ' disabled' : ''} onclick="dpSet('${k}')">${d}</button>`; }
+    return `<h2>${f.back ? 'Дата поставки' : f.k === 'from' ? 'С даты' : 'По дату'}</h2>
       <div class="row" style="margin-top:6px"><button class="btn sec sm" style="padding:6px 14px" onclick="dpMove(-1)">‹</button><div class="grow t1" style="text-align:center;font-size:15px">${MNOM[f.m]} ${f.y}</div><button class="btn sec sm" style="padding:6px 14px" onclick="dpMove(1)">›</button></div>
       <div class="cal">${WD.map(x => `<i>${x}</i>`).join('')}${cells}</div>
-      ${cur ? `<button class="btn sec" style="margin-bottom:8px" onclick="dpSet('')">Очистить дату</button>` : ''}<button class="btn sec" onclick="go({sheet:null,dp:null})">Отмена</button>`;
+      ${cur && !f.back ? `<button class="btn sec" style="margin-bottom:8px" onclick="dpSet('')">Очистить дату</button>` : ''}<button class="btn sec" onclick="go({sheet:${f.back ? "'" + f.back + "'" : 'null'},dp:null})">Отмена</button>`;
   }
   if (S.sheet === 'afpick' && S.ap) {
     const k = S.ap, cur = (S.af || {})[k] || '';
@@ -4902,7 +4907,9 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:8px 0}
 .cal i{font-style:normal;font-size:11px;color:var(--mut);text-align:center;padding:2px 0}
 .cal button{height:34px;border-radius:11px;border:1px solid transparent;background:var(--card2,#16221b);color:var(--tx);font-size:14px;cursor:pointer;padding:0}
-.cal button.on{background:var(--g);color:#06210f;font-weight:800}.cal button.td{border-color:rgba(93,255,160,.6)}.cal .e{visibility:hidden}
+.cal button.on{background:var(--g);color:#06210f;font-weight:800}.cal button.td{border-color:rgba(93,255,160,.6)}.cal .e{visibility:hidden}.cal button:disabled{opacity:.28;cursor:default}
+.supr{padding:9px 0;border-bottom:1px solid var(--line)}.supr:last-child{border-bottom:0}
+.supq{width:96px !important;margin:0 !important;text-align:right;font-size:15px;font-weight:600;padding:8px 10px !important}.supq:focus{border-color:rgba(93,255,160,.55)}.supu{width:34px;margin-left:8px}
 #netp{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-90px);z-index:29;background:#4a3414;color:#ffd9a0;border:1px solid #8a5a14;padding:6px 12px;border-radius:16px;font-size:12px;max-width:90%;text-align:center;transition:transform .35s cubic-bezier(.22,1,.36,1)}
 #netp.in{transform:translate(-50%,0)}
 #geop{position:fixed;left:12px;bottom:calc(var(--tabh,64px) + 12px + env(safe-area-inset-bottom));z-index:21;background:rgba(23,64,42,.92);color:#7be3a0;border:1px solid #2f9a4e;padding:5px 10px;border-radius:14px;font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer}
@@ -5605,7 +5612,7 @@ function selfTest() {
         supUndo(rec.id); eq(+(WH[id] - before).toFixed(2), 0, 'остаток вернулся'); eq(!!SUP.find(r => r.id === rec.id).undone, true, 'пометка «отменена»');
         SUP.splice(SUP.findIndex(r => r.id === rec.id), 1); eq(SUP.length, n, 'тестовая запись убрана'); WH[id] = before; go({sheet: null});
       });
-      [{sheet: 'supin', si: {date: supToday(), note: '', q: {}, err: ''}}, {sheet: 'supx', sx: {stage: 'start', err: ''}}, {sheet: 'suphist'}].forEach(sp => T('поставки: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'wh'}, sp))));
+      [{sheet: 'supin', si: {date: supToday(), note: '', q: {}, err: ''}}, {sheet: 'supx', sx: {stage: 'start', err: ''}}, {sheet: 'suphist'}, {sheet: 'dpick', si: {date: supToday(), note: '', q: {}, err: ''}, dp: {k: 'si', y: new Date().getFullYear(), m: new Date().getMonth(), back: 'supin'}}].forEach(sp => T('поставки: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'wh'}, sp))));
     }
     T(role + ': окно обращений', () => { FB.push({id: 'selftest', ts: Date.now(), kind: 'bug', status: 'new', from: {name: 'Тест', role: 'cour'}, text: 'проверка', files: [], areas: ['Кнопка'], ctx: {ver: '1'}}); go(Object.assign(home(), {sheet: 'fblist', fbf: 'new'})); FB.length = 0; go(home()); });
     T(role + ': политика, согласие, диагностика, оператор, «нужно обновить»', () => { go(Object.assign(home(), {sheet: 'privacy'})); go(Object.assign(home(), {sheet: 'consent'})); go(Object.assign(home(), {sheet: 'polset', ps: {op: 'ИП Тест', contact: '123'}})); S.dg = {busy: false, groups: [{k: 'error', m: 'тест', n: 2, last: Date.now(), v: ['1'], who: ['a'], screen: ['plan'], st: 'a\nb'}]}; go(Object.assign(home(), {sheet: 'diag'})); S.dg = null; go(home()); const u = UPDREQ; UPDREQ = 0; go(Object.assign(home(), {sheet: 'updreq'})); UPDREQ = u; go(home()); });
