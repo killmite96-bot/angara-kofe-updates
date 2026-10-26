@@ -1,9 +1,9 @@
 {
-    "content":  156,
+    "content":  157,
     "apk":  22,
-    "notes":  "Расценки курьеров в «Зарплате» теперь сохраняются на сервере и не возвращаются после обновления.",
+    "notes":  "На экране входа «Техническая поддержка приложения» подписана «Техподдержка».",
     "contentFile":  "index.html",
-    "contentSha256":  "1cf8b2106f628cbf8d52caea1e70643b464f83e51007c281d0a56c42e095d2f1",
+    "contentSha256":  "537b3761912557fd7cd039efaf0a81335d3cd02c877401bc7b9ea91c8874e1f1",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

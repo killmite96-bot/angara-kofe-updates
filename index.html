@@ -225,7 +225,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 156;
+const APP_VERSION = 157;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -801,7 +801,7 @@ function lgTick() {
 }
 function loginScreen() {
   const rem = S.lg.rem !== false;
-  const accs = ACCS.length ? `<div class="tiny">Сохранённые аккаунты: нажмите, чтобы подставить данные входа</div>` + ACCS.map((a, i) => `<div class="card" style="margin:0;padding:10px 12px"><div class="row"><div class="row grow" style="cursor:pointer" onclick="useAcc(${i})"><div class="badge b1" style="min-width:38px;height:38px;border-radius:50%;font-size:16px">${esc((a.name || '?')[0])}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(a.name)}</div><div class="t2">${a.role === 'mgr' ? 'Менеджер' : 'Курьер'} · ${esc(a.login)}</div></div></div><button class="btn sec sm" onclick="unpinAcc(${i})">Открепить</button></div></div>`).join('') : '';
+  const accs = ACCS.length ? `<div class="tiny">Сохранённые аккаунты: нажмите, чтобы подставить данные входа</div>` + ACCS.map((a, i) => `<div class="card" style="margin:0;padding:10px 12px;text-align:left"><div class="row"><div class="row grow" style="cursor:pointer" onclick="useAcc(${i})"><div class="badge b1" style="min-width:38px;height:38px;border-radius:50%;font-size:16px">${esc((a.name || '?')[0])}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(a.name === 'Техническая поддержка приложения' ? 'Техподдержка' : a.name)}</div><div class="t2">${a.role === 'mgr' ? 'Менеджер' : 'Курьер'} · ${esc(a.login)}</div></div></div><button class="btn sec sm" onclick="unpinAcc(${i})">Открепить</button></div></div>`).join('') : '';
   return `<div class="login" style="text-align:center"><div style="margin:0 auto 6px;width:72px">${logo(72)}</div><h1>Ангара Кофе</h1><div class="t2" style="margin-bottom:6px">Приложение для курьеров и менеджеров сети</div>
   ${accs}
   <input type="text" placeholder="Логин" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(S.lg.login)}" oninput="S.lg.login=this.value" onkeydown="if(event.key==='Enter')doLogin()">
