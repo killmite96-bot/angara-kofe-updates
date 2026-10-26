@@ -1,9 +1,9 @@
 {
-    "content":  130,
+    "content":  131,
     "apk":  22,
-    "notes":  "Исправлен вход: приложение снова подключается к серверу сети. Блокировка после 10 неверных попыток — 1 минута.",
+    "notes":  "Чат с Ильёй подписан просто «Илья».",
     "contentFile":  "index.html",
-    "contentSha256":  "6108b47f9d2bad9800b4ea4a0e2e94261287b509299de00d49c774ce1e0f5aaa",
+    "contentSha256":  "ab6b2cd833c682ff72ab9c60b467828118b1c2549bcbcd2e75dedab214119b10",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
