@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 180;
+const APP_VERSION = 181;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1623,7 +1623,7 @@ function ptNewSave() {
 // ----- станции и удаление существующей точки -----
 function ptManage(p) {
   const nu = p.units.length;
-  return `<h3>Станции и расположение</h3><div class="card">${p.units.map((u, i) => `<div class="row" style="padding:6px 0"><div class="photo" style="width:34px;height:48px;flex:none">${exHTML(u.st)}</div><div class="grow"><div class="t1" style="font-size:14px">Станция ${i + 1}</div><div class="t2">${esc(STN[u.st])}</div></div><button class="btn sec sm" onclick="go({sheet:'ptunit',pu:{pid:${p.id},i:${i}}})">Сменить вид</button>${nu > 1 ? `<button class="btn sec sm" onclick="ptUOpen(${p.id},${i})" title="Особенности и задачи станции">${ic('edit', 15)}</button>` : ''}${nu > 1 ? `<button class="btn sec sm" style="color:#ffb0b0" onclick="go({sheet:'ptunitdel',pu:{pid:${p.id},i:${i}}})">${ic('trash', 15)}</button>` : ''}</div>`).join('')}
+  return `<h3>Станции и расположение</h3><div class="card">${p.units.map((u, i) => stnHead(p, i) + `<div class="btns" style="margin:0 0 4px"><button class="btn sec sm" onclick="go({sheet:'ptunit',pu:{pid:${p.id},i:${i}}})">Сменить вид</button>${nu > 1 ? `<button class="btn sec sm" onclick="ptUOpen(${p.id},${i})">${ic('edit', 15)} Особенности и задачи</button>` : ''}${nu > 1 ? `<button class="btn sec sm" style="color:#ffb0b0" onclick="go({sheet:'ptunitdel',pu:{pid:${p.id},i:${i}}})">${ic('trash', 15)} Убрать станцию</button>` : ''}</div>`).join('')}
     ${nu < PT_MAX_UNITS ? `<button class="btn sec sm" style="margin-top:6px" onclick="ptAddUnit(${p.id})">${ic('plus', 15)} Добавить станцию</button>` : ''}
     <div class="fld${p.nocoord ? '' : ' on'}" style="margin-top:10px" onclick="ptCdOpen(${p.id},'ptname')"><span style="color:${p.nocoord ? 'var(--o)' : 'var(--g)'}">${ic('pin', 18)}</span><div class="grow" style="min-width:0"><span class="fl">Координаты</span><b>${p.nocoord ? '<span style="color:var(--o);font-weight:600">не указаны: нажмите, чтобы добавить</span>' : (+p.lat).toFixed(5) + ', ' + (+p.lon).toFixed(5)}</b></div></div>
     <button class="btn sec sm" style="margin-top:10px;color:#ffb0b0" onclick="go({sheet:'ptdel',pd:${p.id}})">${ic('trash', 15)} Удалить точку</button></div>`;
@@ -3264,7 +3264,11 @@ function sheet() {
     const p = pt(S.tk), item = L(c, TODAY).find(x => x.pid === p.id), fmt = (g, n) => (g.t === 'count' ? n : +(+n).toFixed(1)) + ' ' + g.u;
     const rows = ING.map(g => ({g, need:recP(p, g), nb:needBase(p, g)})).filter(r => r.need > 0);
     let h = `<h2>Что взять для точки</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)} · ${esc(p.addr)}</div>`;
-    h += rows.length ? '<div class="tiny">Нужно для наполнения станции (с запасом 20%). Подтоварка на точке уже учтена.</div><div class="card">' + rows.map(r => `<div class="kv"><span>${gn(r.g, p)}</span><span><b>${fmt(r.g, r.need)}</b>${p.back[r.g.id] > 0 ? ` <span class="tiny">из подтоварки ${fmt(r.g, Math.min(p.back[r.g.id], r.need))}</span>` : ''}${r.nb > 0 ? ` <span class="pill warn">с базы ${fmt(r.g, r.nb)}</span>` : ''}</span></div>`).join('') + '</div>' : '<div class="card t2">Пополнение не требуется: остатков хватает.</div>';
+    const takeRow = (g, need, back, nb) => `<div class="kv"><span>${gn(g, p)}</span><span><b>${fmt(g, need)}</b>${back > 0 ? ` <span class="tiny">из подтоварки ${fmt(g, Math.min(back, need))}</span>` : ''}${nb > 0 ? ` <span class="pill warn">с базы ${fmt(g, nb)}</span>` : ''}</span></div>`;
+    if (multiU(p)) {   // несколько станций: у каждой своя подтоварка, поэтому и «с базы» считается по каждой
+      h += '<div class="tiny">Нужно для наполнения каждой станции (с запасом 20%). Подтоварка этой станции уже учтена.</div>';
+      p.units.forEach((u, k) => { const ur = ING.map(g => ({g, need: rec(u, g), back: backOf(p, k)[g.id] || 0, nb: needBaseU(p, g, k)})).filter(r => r.need > 0); h += stnHead(p, k) + (ur.length ? '<div class="card">' + ur.map(r => takeRow(r.g, r.need, r.back, r.nb)).join('') + '</div>' : '<div class="card t2">Эту станцию пополнять не нужно: остатков хватает.</div>'); });
+    } else h += rows.length ? '<div class="tiny">Нужно для наполнения станции (с запасом 20%). Подтоварка на точке уже учтена.</div><div class="card">' + rows.map(r => `<div class="kv"><span>${gn(r.g, p)}</span><span><b>${fmt(r.g, r.need)}</b>${p.back[r.g.id] > 0 ? ` <span class="tiny">из подтоварки ${fmt(r.g, Math.min(p.back[r.g.id], r.need))}</span>` : ''}${r.nb > 0 ? ` <span class="pill warn">с базы ${fmt(r.g, r.nb)}</span>` : ''}</span></div>`).join('') + '</div>' : '<div class="card t2">Пополнение не требуется: остатков хватает.</div>';
     if (item && item.type >= 2) h += `<div class="card"><div class="t1" style="font-size:14px">Для мойки (${item.type === 3 ? 'генеральная уборка' : 'тип 2'})</div><div class="t2">Моющее средство, чистящие таблетки, ветошь, перчатки, запасные комплекты деталей</div></div>`;
     return h + `<button class="btn" style="margin-top:8px" onclick="go({sheet:null});startVisit(${p.id},false)">Начать визит ▸</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
   }
