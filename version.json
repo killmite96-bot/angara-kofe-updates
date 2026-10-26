@@ -1,9 +1,9 @@
 {
-    "content":  137,
+    "content":  138,
     "apk":  22,
-    "notes":  "Вкладка «Точки» у менеджера: Остатки, Пора на тип 2, Генеральная.",
+    "notes":  "Курьеры: кнопка «Удалить» с подтверждением.",
     "contentFile":  "index.html",
-    "contentSha256":  "1854c5ecc46da77f09e3713d0f7b41cc3be6c24f73d8553907cd1740045cdf59",
+    "contentSha256":  "e50973ed06f230dbbf2e22dd424af7fcbc27853ce1bc0a88b882b4c456d9280f",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

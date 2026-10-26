@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 137;
+const APP_VERSION = 138;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1969,10 +1969,10 @@ function teamScreen() {
     h += `<div class="card" data-sw="${c.active ? 'Отключить' : 'Включить'}|toggleCour(${c.id})|#8a5a14;Изменить|openCF(${c.id})|#2d5aa0" style="${c.active ? '' : 'opacity:.6'}"><div class="row"><div class="grow"><div class="t1">${esc(c.name)}</div>
       <div class="t2">Логин: ${c.login} · тип 1 ${money(c.r1)} · тип 2 ${money(c.r2)} · Г ${money(c.r3)}</div></div><span class="pill ${c.active ? 'ok' : 'bad'}">${c.active ? 'активен' : 'отключён'}</span></div>
       <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div><div class="tiny" style="margin-top:3px">${esc(gcLine(c.id))}</div><div data-geoc="${c.id}" style="margin-top:4px">${geoCardPill(c.id)}</div>${geoNudgeLine(c.id)}${nstLine(c.id)}
-      <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button><button class="btn sec sm" onclick="go({sheet:'cologout',clo:${c.id}})">Выйти на всех телефонах</button><button class="btn sec sm" onclick="go({sheet:'geolog',gl:${c.id}})">Прибытия</button></div></div>`;
+      <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button><button class="btn sec sm" onclick="go({sheet:'cologout',clo:${c.id}})">Выйти на всех телефонах</button><button class="btn sec sm" onclick="go({sheet:'geolog',gl:${c.id}})">Прибытия</button><button class="btn sec sm" style="color:#ffb0b0" onclick="go({sheet:'codel',cdl:${c.id}})">${ic('trash', 15)} Удалить</button></div></div>`;
   });
   h += '<div class="card" style="margin-top:8px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Качество геолокации</div><div class="t2">Как часто определение прибытия срабатывает, за 60 дней</div></div><button class="btn sec sm" onclick="openGeoStat()">Открыть</button></div></div>';
-  return h + '<div class="tiny" style="margin-top:8px">Отключённый курьер не может войти, но его история и зарплата сохраняются. Пароль курьер получает от менеджера.</div></div>';
+  return h + '<div class="tiny" style="margin-top:8px">Отключённый курьер не может войти, но его история и зарплата сохраняются; удаление стирает курьера насовсем. Пароль курьер получает от менеджера.</div></div>';
 }
 const genPass = () => Array.from({length:6}, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join('');
 function openCF(id) {
@@ -2001,6 +2001,23 @@ function saveCF() {
     return go({sheet:null, cf:null, toast:f.id ? 'Данные курьера сохранены' : 'Курьер создан: логин ' + login});
   }
   render();
+}
+// данные удалённого курьера убираются и на телефоне, чтобы они не вернулись на сервер
+function purgeCour(id) {
+  const k = String(id), mine = x => String(x.cid) === k;
+  delete sched[id]; delete TEMPLATE[id]; delete CHAT[id]; delete CHATN[id]; delete OFF[id]; delete PR[k]; delete AV[k]; delete GCS.all[k]; delete PROG[k];
+  [LOADED, PASS].forEach(o => Object.keys(o).forEach(x => { if (x.split(':')[0] === k) delete o[x]; }));
+  replaceArr(MV, MV.filter(m => !mine(m))); replaceArr(reviews, reviews.filter(r => !mine(r)));
+  replaceArr(NOTIFS, NOTIFS.filter(n => String(n.to) !== k));
+  Object.keys(DMS).forEach(x => { if (x.split('-').includes(k)) delete DMS[x]; });
+  [RD, RX, TP].forEach(o => Object.keys(o).forEach(x => { if (x.split('-').includes(k) || x === 'm' + k || x === 'n' + k) delete o[x]; else if (o[x] && typeof o[x] === 'object') delete o[x][k]; }));
+}
+function doDelCour() {
+  const id = S.cdl, c = cr(id); if (!c) return go({sheet:null, cdl:null});
+  if (COUR.length <= 1) return go({sheet:null, cdl:null, toast:'Нельзя удалить последнего курьера'});
+  const fin = () => { purgeCour(id); if (!cr(S.mc) && COUR.length) S.mc = (COUR.find(x => x.active) || COUR[0]).id; go({sheet:null, cdl:null, th:S.th && String(S.th).slice(2) === String(id) ? null : S.th, toast:'Курьер удалён: ' + c.name}); };
+  if (SRV) return api('/api/users', {action:'delete', cid:id}).then(j => { applyDoc('cour', j.cour, false); fin(); pushChanges(); }).catch(e => go({toast:e.message}));
+  COUR.splice(COUR.findIndex(x => x.id === id), 1); fin();
 }
 function toggleCour(id) {
   const c = cr(id);
@@ -2960,6 +2977,7 @@ function applyDoc(k, v, dele) {
   if (h === 'cour') {
     if (!Array.isArray(v)) return;
     const old = COUR.slice(); replaceArr(COUR, v.map(c => Object.assign({}, old.find(o => o.id === c.id) || {}, c)));
+    old.filter(o => !COUR.some(c => c.id === o.id)).forEach(o => purgeCour(o.id));   // курьера удалили (на этом или другом телефоне)
     COUR.forEach(c => ensureCour(c.id));
     if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
   } else if (h === 'core') {
@@ -4931,6 +4949,13 @@ function sheetNew() {
       <input type="password" placeholder="Повторите пароль" autocomplete="new-password" value="${esc(f.n2)}" oninput="S.mp2.n2=this.value">
       ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${esc(f.err)}</div>` : ''}
       <button class="btn" style="margin-top:8px" ${f.busy ? 'disabled' : ''} onclick="savePwMust()">${f.busy ? 'Сохраняем…' : 'Сохранить пароль'}</button>`;
+  }
+  if (s === 'codel') {
+    const c = cr(S.cdl); if (!c) return '<h2>Курьер не найден</h2><button class="btn sec" onclick="go({sheet:null,cdl:null})">Закрыть</button>';
+    return `<h2>Удалить курьера?</h2><div class="card"><div class="t1" style="font-size:14px">${esc(c.name)}</div><div class="t2">Логин: ${esc(c.login)}</div></div>
+      <div class="tiny" style="margin:8px 0">Будут удалены аккаунт, график и шаблон недели, переписка, уведомления и статусы курьера. Войти он больше не сможет. Это нельзя отменить. Сообщения курьера в общем чате останутся.</div>
+      <div class="tiny" style="margin-bottom:10px">Если курьер нужен позже, лучше нажмите «Отключить»: история и зарплата сохранятся.</div>
+      <button class="btn" style="background:#4a1a1a;color:#ffb0b0" onclick="doDelCour()">${ic('trash', 16)} Удалить навсегда</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null,cdl:null})">Отмена</button>`;
   }
   if (s === 'cologout') {
     const c = cr(S.clo); if (!c) return '<h2>Курьер не найден</h2><button class="btn sec" onclick="go({sheet:null,clo:null})">Закрыть</button>';
