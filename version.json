@@ -1,9 +1,9 @@
 {
-    "content":  131,
+    "content":  132,
     "apk":  22,
-    "notes":  "Чат с Ильёй подписан просто «Илья».",
+    "notes":  "Личный чат между двумя менеджерами.",
     "contentFile":  "index.html",
-    "contentSha256":  "ab6b2cd833c682ff72ab9c60b467828118b1c2549bcbcd2e75dedab214119b10",
+    "contentSha256":  "dc56db3d12bb1ed8dee3aaacc8410d621596f6be59628baa2d4551c4817f913d",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

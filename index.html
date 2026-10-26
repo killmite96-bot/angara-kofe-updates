@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 131;
+const APP_VERSION = 132;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -575,6 +575,8 @@ const NS = {off: [], q: {on: false, from: 22, to: 8}, ld: false};   // наст�
 const PR = {};   // статусы людей: PR[«mgr» или номер курьера] = {t: последний сигнал, v: приложение открыто, a: последнее действие, lc: где находится, sh: смена}
 const GCHAT = [], DMS = {}, RD = {}, RX = {};   // RX[беседа][кто] = {id сообщения: вид реакции}   // RD[беседа][читатель] = время последнего прочитанного сообщения (беседа: 'g' или пара 'a-b')   // общий чат команды и личные чаты курьер↔курьер (ключ «меньший id-больший id»)
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const MM = [];   // беседа двух менеджеров («k:1», документы mmsg/<id>): видна только менеджерам
+const otherMk = () => mkey() === 'mgr2' ? 'mgr' : 'mgr2';
 const CHATN = {};   // переписка курьеров со вторым менеджером: беседа «n:<id курьера>» (у основного менеджера — CHAT, беседа «m:<id>»)
 const MGR2 = {name:'Илья'};
 const mkey = () => SY.mk || 'mgr';   // кто вошёл: 'mgr' — основной менеджер, 'mgr2' — второй
@@ -1268,7 +1270,7 @@ function pruneOld() {
   const now = Date.now(), D = 86400000;
   for (let i = reviews.length - 1; i >= 0; i--) if (reviews[i].id > 1e12 && now - reviews[i].id > 30 * D) reviews.splice(i, 1);
   for (let i = NOTIFS.length - 1; i >= 0; i--) if (NOTIFS[i].ts > 1e12 && now - NOTIFS[i].ts > 30 * D) NOTIFS.splice(i, 1);
-  [...Object.values(CHAT), ...Object.values(CHATN), ...Object.values(DMS), GCHAT].forEach(a => { for (let i = a.length - 1; i >= 0; i--) if (a[i].ts > 1e12 && now - a[i].ts > 90 * D) a.splice(i, 1); });
+  [...Object.values(CHAT), ...Object.values(CHATN), ...Object.values(DMS), GCHAT, MM].forEach(a => { for (let i = a.length - 1; i >= 0; i--) if (a[i].ts > 1e12 && now - a[i].ts > 90 * D) a.splice(i, 1); });
 }function refreshDay() {
   pruneOld();
   if (todayIdx() !== TODAY) { TODAY = todayIdx(); S.day = TODAY; if (S.role) render(true); }
@@ -1605,24 +1607,25 @@ const whAdj = (id, d) => { const g = ING.find(x => x.id === id); WH[id] = Math.m
 const meKey = () => S.role === 'mgr' ? mkey() : S.me;
 const dmKey = (a, b) => Math.min(a, b) + '-' + Math.max(a, b);
 // «прочитано до»: время последнего прочитанного сообщения у каждого читателя хранится на сервере (RD), поэтому видно и отправителю, и на других телефонах
-const rdKey = th => th === 'g' ? 'g' : th[0] === 'd' ? dmKey(S.me, +th.slice(2)) : null;
+const rdKey = th => th === 'g' ? 'g' : th[0] === 'k' ? 'k' : th[0] === 'd' ? dmKey(S.me, +th.slice(2)) : null;
 const rdGet = (th, who) => { const k = rdKey(th); return (k && RD[k] && RD[k][who]) || 0; };
 function rdMark(th, ts) { const k = rdKey(th), me = String(meKey()); if (!k || !ts || rdGet(th, me) >= ts) return; (RD[k] = RD[k] || {})[me] = ts; }
 const grpRecips = m => ['mgr', 'mgr2', ...COUR.filter(c => c.active).map(c => c.id)].filter(x => String(x) !== String(m.from));
 // галочки у своих сообщений: ✓ отправлено на сервер, ✓✓ серые — прочитали не все (в общем чате), ✓✓ зелёные — прочитал собеседник / все
 function ticks(th, m) {
-  const key = isMT(th) ? (th[0] === 'n' ? 'msgn/' : 'msg/') + th.slice(2) + '/' + m.id : th === 'g' ? 'gmsg/' + m.id : 'dm/' + rdKey(th) + '/' + m.id;
+  const key = isMT(th) ? (th[0] === 'n' ? 'msgn/' : 'msg/') + th.slice(2) + '/' + m.id : th === 'g' ? 'gmsg/' + m.id : th[0] === 'k' ? 'mmsg/' + m.id : 'dm/' + rdKey(th) + '/' + m.id;
   if (SRV && SY.mirror[key] === undefined) return '<span style="opacity:.6">…</span>';
   let lv = 1;
   if (isMT(th)) lv = m.read ? 3 : 1;
   else if (th === 'g') { const r = grpRecips(m), n = r.filter(x => rdGet('g', x) >= m.ts).length; lv = !r.length || !n ? 1 : n < r.length ? 2 : 3; }
-  else lv = rdGet(th, +th.slice(2)) >= m.ts ? 3 : 1;
+  else lv = rdGet(th, th[0] === 'k' ? otherMk() : +th.slice(2)) >= m.ts ? 3 : 1;
   const col = lv === 3 ? '#5dffa0' : '#9fb5aa';
   return `<span style="color:${col};font-weight:700;letter-spacing:-2px;${th === 'g' ? 'cursor:pointer' : ''}" ${th === 'g' ? `onclick="go({sheet:'readers',rdm:'${m.id}'})"` : ''}>${lv === 1 ? '✓' : '✓✓'}</span>`;
 }
 
 function thMsgs(th) {
   if (th === 'g') return GCHAT;
+  if (th[0] === 'k') return MM;
   if (th[0] === 'd') return DMS[dmKey(S.me, +th.slice(2))] || [];
   return (th[0] === 'n' ? CHATN : CHAT)[th.slice(2)] || [];
 }
@@ -1634,13 +1637,13 @@ const thUnread = th => {
 };
 function thList() {
   const act = COUR.filter(c => c.active && (S.role === 'mgr' || c.id !== S.me)).sort((a, b) => a.name.localeCompare(b.name, 'ru'));   // курьеры по алфавиту
-  if (S.role === 'mgr') return ['g', ...act.map(c => mkind() + ':' + c.id)];
+  if (S.role === 'mgr') return ['g', 'k:1', ...act.map(c => mkind() + ':' + c.id)];
   return ['m:' + S.me, 'g', 'n:' + S.me, ...act.map(c => 'd:' + c.id)];   // сверху техподдержка, затем общий чат, второй менеджер и остальные курьеры
 }
 const chatUnread = () => thList().reduce((n, th) => n + thUnread(th), 0);
 const tabBadge = k => { const n = k === 'mgr' ? pendCount() : k === 'chat' ? chatUnread() : 0; return n ? `<i class="tb">${n}</i>` : ''; };
 function openTh(th) { closeShade(); go({tab:'chat', view:null, th:th || null}); }
-const thTitle = th => th === 'g' ? 'Общий чат' : th[0] === 'd' ? cr(+th.slice(2)).name : S.role === 'mgr' ? cr(+th.slice(2)).name : th[0] === 'n' ? mgrNm('mgr2') : mgrNm('mgr');
+const thTitle = th => th === 'g' ? 'Общий чат' : th[0] === 'k' ? mgrNm(otherMk()) : th[0] === 'd' ? cr(+th.slice(2)).name : S.role === 'mgr' ? cr(+th.slice(2)).name : th[0] === 'n' ? mgrNm('mgr2') : mgrNm('mgr');
 const sender = f => f === 'mgr' || f === 'mgr2' ? mgrNm(f) : (cr(+f) || {name:'?'}).name;
 const CHAT_SEEN = {};   // какие сообщения уже показаны в беседе: новые «выезжают» с анимацией
 function chatScreen() {
@@ -1653,6 +1656,7 @@ function chatScreen() {
       const av = th === 'g' ? `<div class="av" style="width:38px;height:38px;border-radius:50%;background:var(--g);display:flex;align-items:center;justify-content:center;color:#06210f">${ic('users', 20)}</div>`
         : S.role !== 'mgr' && th[0] === 'm' ? `<div class="av" style="width:38px;height:38px;border-radius:50%;background:#26382e;display:flex;align-items:center;justify-content:center">${ic('shield', 20)}</div>`
         : S.role !== 'mgr' && th[0] === 'n' ? avatar('mgr2', MGR2.name, 38)
+        : th[0] === 'k' ? (otherMk() === 'mgr2' ? avatar('mgr2', MGR2.name, 38) : `<div class="av" style="width:38px;height:38px;border-radius:50%;background:#26382e;display:flex;align-items:center;justify-content:center">${ic('shield', 20)}</div>`)
         : avatar(+th.slice(2), thTitle(th), 38);
       h += `<div class="card" onclick="go({th:'${th}'})"><div class="row">${av}
         <div class="grow"><div class="t1">${esc(thTitle(th))}</div>${thPk(th) ? `<div>${prHTML(thPk(th), mgr)}</div>` : ''}<div class="t2">${last ? (last.del ? 'Сообщение удалено' : who + (last.md ? esc(mdLabel(last.md)) : esc((last.text || '').slice(0, 46)))) : 'Сообщений нет'}</div></div>${un ? `<span class="pill warn">${un}</span>` : ''}</div></div>`;
@@ -1728,7 +1732,7 @@ const findMsg = (th, id) => thMsgs(th).find(m => sameId(m.id, id));
 /* ----- реакции: пять простых значков в стиле приложения ----- */
 const RXS = [['up', 'rxup', '#5dffa0'], ['down', 'rxdown', '#ff9b6b'], ['smile', 'rxsmile', '#ffd34d'], ['sad', 'sad', '#6ab7ff'], ['cup', 'rxcup', '#d9a066']];
 const rxIcon = (k, s) => { const r = RXS.find(x => x[0] === k) || RXS[0]; return `<span style="color:${r[2]};display:inline-flex">${ic(r[1], s)}</span>`; };
-const rxKey = th => th === 'g' ? 'g' : th[0] === 'd' ? dmKey(S.me, +th.slice(2)) : th[0] + th.slice(2);
+const rxKey = th => th === 'g' ? 'g' : th[0] === 'd' ? dmKey(S.me, +th.slice(2)) : th[0] === 'k' ? 'k' : th[0] + th.slice(2);
 const rxName = x => String(x) === 'mgr' || String(x) === 'mgr2' ? mgrNm(String(x)) : (cr(+x) || {name:'?'}).name;
 function rxList(th, id) {   // [{k, users:[...]}] по видам реакций
   const all = RX[rxKey(th)] || {}, out = {};
@@ -1784,9 +1788,10 @@ function sendTeamMsg(th, text, pid, extra) {
   const m = Object.assign({id:uid(), ts:Date.now(), from, text, t, pid:pid || null}, extra || {});
   let to = [];
   if (th === 'g') { GCHAT.push(m); to = ['mgr', 'mgr2', ...COUR.filter(c => c.active).map(c => c.id)].filter(x => String(x) !== String(from)); }
+  else if (th[0] === 'k') { MM.push(m); to = [otherMk()]; }
   else { const other = +th.slice(2), k = dmKey(S.me, other); (DMS[k] = DMS[k] || []).push(m); to = [other]; }
   const label = th === 'g' ? 'Общий чат · ' + sender(from) : sender(from);
-  to.forEach(x => notify(x, 'chat', label + ': ' + (m.fw ? '↪ ' : '') + (text || mdNote(m.md)), Object.assign({th:th === 'g' ? 'g' : 'd:' + S.me, pid:m.pid}, m.md ? {md: m.md} : {})));
+  to.forEach(x => notify(x, 'chat', label + ': ' + (m.fw ? '↪ ' : '') + (text || mdNote(m.md)), Object.assign({th:th === 'g' ? 'g' : th[0] === 'k' ? 'k:1' : 'd:' + S.me, pid:m.pid}, m.md ? {md: m.md} : {})));
 }
 function askComment(id) { go({shade:false, sheet:'rcomment', rc:{id, text:''}}); }
 function sendRC(accept) {
@@ -2636,7 +2641,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, ex2: 1,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, ex2: 1,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -2646,7 +2651,7 @@ function restoreData(txt) {
   replaceArr(P, d.P); P.forEach(p => { p.units.forEach(u => { u.loc = p; }); const s = PTS_SRC[p.id - 1]; if (s && s[0] === p.name) { p.lat = s[5]; p.lon = s[6]; } });
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
-  replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
+  replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
   nid = d.nid; CITY = d.CITY;
   if (d.NS) { Object.assign(NS, d.NS); } if (d.NST) Object.assign(NST, d.NST);
@@ -2790,6 +2795,7 @@ function docsFromState() {
   Object.keys(CHAT).forEach(c => CHAT[c].forEach(m => { d['msg/' + c + '/' + m.id] = m; }));
   Object.keys(CHATN).forEach(c => CHATN[c].forEach(m => { d['msgn/' + c + '/' + m.id] = m; }));
   GCHAT.forEach(m => { d['gmsg/' + m.id] = m; });
+  if (SY.role === 'mgr') MM.forEach(m => { d['mmsg/' + m.id] = m; });
   Object.keys(RD).forEach(k => Object.keys(RD[k]).forEach(u => { d['rd/' + k + '/' + u] = {ts:RD[k][u]}; }));
   Object.keys(RX).forEach(k => Object.keys(RX[k]).forEach(u => { d['rx/' + k + '/' + u] = {r:RX[k][u]}; }));
   Object.keys(TP).forEach(k => Object.keys(TP[k]).forEach(u => { d['tp/' + k + '/' + u] = {n:TP[k][u]}; }));
@@ -2877,6 +2883,8 @@ function applyDoc(k, v, dele) {
     if (!dele && v) { Object.assign(LOADED, v.L); Object.assign(PASS, v.P); }
   } else if (h === 'ntf') {
     upsert(NOTIFS, dele ? {id:p[2]} : v, dele, byTsDesc);
+  } else if (h === 'mmsg') {
+    upsert(MM, dele ? {id:p[1]} : v, dele, byTsAsc);
   } else if (h === 'msg' || h === 'msgn') {
     const c = +p[1]; ensureCour(c); upsert((h === 'msgn' ? CHATN : CHAT)[c], dele ? {id:p[2]} : v, dele, byTsAsc);
   } else if (h === 'tp') {
@@ -2913,7 +2921,7 @@ function applyDoc(k, v, dele) {
 function resetFromDocs(docs) { TP_LOADING = true; try { resetFromDocs0(docs); } finally { TP_LOADING = false; } }
 function resetFromDocs0(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
-  [CHAT, CHATN, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
+  [CHAT, CHATN, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(MM, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
   NS.off = []; NS.q = {on: false, from: 22, to: 8}; NS.ld = false; GCS.me = null; GCS.all = {}; GCS.log = []; NST.s = {}; Object.keys(GSD).forEach(k => delete GSD[k]); Object.keys(OFF).forEach(k => delete OFF[k]);
   SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
@@ -3002,7 +3010,7 @@ function pushChanges() {
     ch.push({key:k, value:JSON.parse(js)}); sig[k] = s; bas[k] = js;
   });
   Object.keys(SY.mirror).forEach(k => {
-    if (!(k in cur) && canWriteKey(k, null)) { if (/^(msg|msgn|gmsg|dm|rd)\//.test(k)) { delete SY.mirror[k]; return; } if (/^(ns|nst|gs|off|gc|geo|pr)\//.test(k)) return; ch.push({key:k, value:null, del:true}); sig[k] = null; }   // переписку чистит сервер, телефон её не удаляет
+    if (!(k in cur) && canWriteKey(k, null)) { if (/^(msg|msgn|mmsg|gmsg|dm|rd)\//.test(k)) { delete SY.mirror[k]; return; } if (/^(ns|nst|gs|off|gc|geo|pr)\//.test(k)) return; ch.push({key:k, value:null, del:true}); sig[k] = null; }   // переписку чистит сервер, телефон её не удаляет
   });
   const dels = ch.filter(x => x.del).length;
   if (dels > 15 && dels > Object.keys(SY.mirror).length * .25) { SY.mirror = {}; SY.base = {}; SY.seq = 0; syncResume(); return; }   // слишком много «пропавших» документов: данные на телефоне повреждены, берём всё заново с сервера
@@ -4002,7 +4010,7 @@ const mdOk = md => !!md && MDRX.test(String(md.f || '')) && ['voice', 'photo', '
 const mdLabel = md => !md ? '' : md.k === 'voice' ? 'Голосовое сообщение' : md.k === 'photo' ? 'Фото' : 'Видео';
 const mdNote = md => !md ? '' : (md.k === 'voice' ? '🎤 ' : md.k === 'photo' ? '📷 ' : '🎬 ') + mdLabel(md);
 const fmtDur = s => { s = Math.max(0, Math.round(+s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
-const thPk = th => !th || th === 'g' ? null : isMT(th) ? (S.role === 'mgr' ? th.slice(2) : mgrOf(th)) : th.slice(2);
+const thPk = th => !th || th === 'g' ? null : th[0] === 'k' ? otherMk() : isMT(th) ? (S.role === 'mgr' ? th.slice(2) : mgrOf(th)) : th.slice(2);
 const hm = ts => { const d = new Date(ts); return d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); };
 const durTxt = m => (m >= 60 ? Math.floor(m / 60) + ' ч ' : '') + (m % 60) + ' мин';
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -4699,7 +4707,7 @@ function selBarHTML(th, msgs, me, ids) {
   return `<div id="composer" style="position:relative;z-index:7;background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px"><div class="row" style="gap:8px"><button class="btn sm" style="margin:0;${n ? '' : 'opacity:.45;pointer-events:none'}" onclick="selForward()">${ic('send', 15)} Переслать${n ? ' · ' + n : ''}</button>${own ? `<button class="btn sec sm" style="margin:0;color:#ffb0b0" onclick="selDeleteAsk()">${ic('trash', 15)} Удалить · ${n}</button>` : ''}<div class="grow"></div><button class="btn sec sm" style="margin:0" onclick="selCancel()">Отмена</button></div>${n && !own ? '<div class="tiny" style="margin-top:6px">Удалить можно, когда выбраны только ваши сообщения</div>' : ''}</div>`;
 }
 function selForward() { if (selMsgs().length) go({sheet: 'selfwd'}); }
-function lastOf(target) { return target === 'g' ? GCHAT[GCHAT.length - 1] : target[0] === 'd' ? (DMS[dmKey(S.me, +target.slice(2))] || []).slice(-1)[0] : ((target[0] === 'n' ? CHATN : CHAT)[target.slice(2)] || []).slice(-1)[0]; }
+function lastOf(target) { return target === 'g' ? GCHAT[GCHAT.length - 1] : target[0] === 'k' ? MM[MM.length - 1] : target[0] === 'd' ? (DMS[dmKey(S.me, +target.slice(2))] || []).slice(-1)[0] : ((target[0] === 'n' ? CHATN : CHAT)[target.slice(2)] || []).slice(-1)[0]; }
 function selForwardTo(target) {
   const sl = S.sel, list = selMsgs(); if (!sl || !list.length) return go({sheet: null, sel: null});
   const mgr = S.role === 'mgr', base = Date.now();
