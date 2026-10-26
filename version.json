@@ -1,9 +1,9 @@
 {
-    "content":  171,
+    "content":  172,
     "apk":  22,
-    "notes":  "Новая точка: выбор вида станции стоит сверху, над названием.",
+    "notes":  "Новая точка: форма идёт по станциям, у каждой свой блок, затем общие данные точки.",
     "contentFile":  "index.html",
-    "contentSha256":  "eb84f1949f8f32c85c242e7e5b3e31aaed0b0218093cc0e8bbd04236fcea2834",
+    "contentSha256":  "3c618b90ac648484fab67a6b7fae393df9bae6ed6979e34d7eb0218efd53dddf",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
