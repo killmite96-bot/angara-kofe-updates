@@ -6,9 +6,10 @@
 <script>
 /* журнал ошибок запуска: сообщения уходят на сервер, чтобы находить причины сбоев на телефонах */
 window.__t0 = Date.now();
-window.__log = function (o) { try { var web = /^https?:$/.test(location.protocol); if (!web && !window.__logBase) return; if ((window.__logN = (window.__logN || 0) + 1) > 12) return; o.ua = navigator.userAgent.slice(0, 120); o.v = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 0); o.sa = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ? 1 : 0; var x = new XMLHttpRequest(); x.open('POST', (web ? '' : window.__logBase) + '/api/clientlog'); x.setRequestHeader('Content-Type', 'application/json'); x.send(JSON.stringify(o)); } catch (e) {} };
+window.__log = function (o) { try { var web = /^https?:$/.test(location.protocol); if (!web && !window.__logBase) return; var kk = o.k + '|' + o.m, tn = Date.now(); window.__logSeen = window.__logSeen || {}; if (window.__logSeen[kk] && tn - window.__logSeen[kk] < 60000) return; window.__logSeen[kk] = tn; if ((window.__logN = (window.__logN || 0) + 1) > 25) return; try { if (typeof S !== 'undefined') { o.role = S.role || ''; o.screen = (S.view ? S.view.type : S.tab) + (S.sheet ? '/' + S.sheet : ''); } } catch (e) {} o.ua = navigator.userAgent.slice(0, 120); o.v = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 0); o.sa = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ? 1 : 0; var x = new XMLHttpRequest(); x.open('POST', (web ? '' : window.__logBase) + '/api/clientlog'); x.setRequestHeader('Content-Type', 'application/json'); try { var tk = JSON.parse(localStorage.getItem('angara_kofe_sync') || 'null'); if (tk && tk.token) x.setRequestHeader('Authorization', 'Bearer ' + tk.token); } catch (e) {} x.send(JSON.stringify(o)); } catch (e) {} };
+try { if (/^test\./.test(location.hostname)) document.documentElement.className += ' teststand'; } catch (e) {}   // адрес test.… — тестовый стенд: сверху жёлтая полоска, чтобы не перепутать с рабочим приложением
 window.addEventListener('error', function (e) { window.__log({k: 'error', m: String(e.message), l: e.lineno, c: e.colno, st: ((e.error && e.error.stack) || '').slice(0, 500)}); });
-window.addEventListener('unhandledrejection', function (e) { window.__log({k: 'reject', m: String((e.reason && e.reason.message) || e.reason)}); });
+window.addEventListener('unhandledrejection', function (e) { window.__log({k: 'reject', m: String((e.reason && e.reason.message) || e.reason), st: ((e.reason && e.reason.stack) || '').slice(0, 500)}); });
 </script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -219,13 +220,14 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 .wi span{font-size:13px;margin-left:4px;opacity:.7}
 .wi.on{color:var(--tx);font-weight:800;font-size:24px}
 .fxoff *,.fxoff *::before,.fxoff *::after{animation-duration:.001s !important;animation-delay:0s !important;transition:none !important}
+html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные не настоящие';position:fixed;left:0;right:0;top:0;z-index:9999;background:#e0a800;color:#1a1400;text-align:center;font:700 11px/16px sans-serif;letter-spacing:.04em;pointer-events:none}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 157;
+const APP_VERSION = 158;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1600,6 +1602,70 @@ function amScreen() {
   return h + '<div class="tiny">Месячная сумма делится на недели (×12 ÷ 52) и входит в недельную выплату вместе с ГСМ. Она начисляется независимо от числа рабочих дней.</div></div>';
 }
 
+/* ===================== ОБНОВЛЕНИЕ ПО ТРЕБОВАНИЮ, ПОЛИТИКА, СОГЛАСИЕ, ДИАГНОСТИКА ===================== */
+// сервер может потребовать минимальную версию приложения: слишком старое покажет окно «Нужно обновить»
+let UPDREQ = 0;
+function updRequired(min) { UPDREQ = min || 1; if (S.sheet !== 'updreq') go({sheet: 'updreq'}); }
+function updReqSheet() {
+  const app = !!window.AndroidBridge;
+  return `<h2>Нужно обновить приложение</h2><div class="card"><div class="t2">Эта версия (${APP_VERSION}) слишком старая и больше не работает с сервером. Обновление займёт меньше минуты, ваши данные и вход сохранятся.</div></div>
+    ${app ? updBlock() : `<button class="btn" onclick="location.reload()">Обновить страницу</button>`}`;
+}
+// политика конфиденциальности и согласие на обработку данных
+const POLICY_VER = 1;
+const POL = {op: '', contact: ''};   // данные оператора (задаёт Техподдержка, лежат в документе core)
+function policyHTML() {
+  const op = POL.op || 'Техподдержка приложения «Ангара Кофе»', ct = POL.contact || 'кнопка «Нашли ошибку / Предложение» в профиле';
+  const sec = (t, x) => `<h3>${t}</h3><div class="card"><div class="t2" style="font-size:13px;line-height:1.5">${x}</div></div>`;
+  return sec('Кто обрабатывает данные', `Оператор: ${esc(op)}.<br>Связь: ${esc(ct)}.`)
+    + sec('Какие данные', 'Имя и логин; пароль (хранится только в зашифрованном виде); сообщения, фото и голосовые в чатах; фото визитов на точках; график, отметки смен и выполненные маршруты; сведения об устройстве и версии приложения, когда происходит ошибка. Геолокация собирается только если вы сами включили «Определять прибытие на точку» и только во время смены.')
+    + sec('Зачем', 'Чтобы работали маршруты и график, считались выплаты (зарплата, ГСМ, амортизация), сотрудники могли общаться, менеджер проверял фото, а ошибки приложения исправлялись. Данные не передаются третьим лицам и не используются для рекламы.')
+    + sec('Где хранятся', 'На арендуемом сервере в России. Доступ имеют только уполномоченные менеджеры. Передача данных между телефоном и сервером защищена шифрованием (HTTPS).')
+    + sec('Сколько хранятся', 'Уведомления: 30 дней. Сообщения чатов: 90 дней. Вложения чата (фото, видео, голосовые): 30 дней. Подтверждённые фото визитов: 180 дней. Журнал прибытий по геолокации: 7 дней. Обезличенная статистика геолокации без координат: 60 дней. Журнал ошибок приложения: 14 дней. После удаления сотрудника его данные удаляются сразу, кроме подтверждённых фото: они хранятся ещё 31 день.')
+    + sec('Ваши права', 'Вы можете узнать, какие данные о вас хранятся, потребовать их исправить или удалить, а также отозвать согласие. После отзыва согласия работа в приложении прекращается и аккаунт отключается. Запрос можно отправить кнопкой ниже.');
+}
+function privReq() { fbOpen('idea'); setTimeout(() => { if (S.fb) { S.fb.tab = 'Профиль'; S.fb.type = 'Другое'; S.fb.title = 'Запрос по персональным данным'; S.fb.text = 'Прошу сообщить, какие данные обо мне хранятся / удалить мои данные (нужное оставьте):\n'; render(true); } }, 50); }
+function privacySheet() {
+  return `<div class="fbh"><div class="fbic">${ic('shield', 26)}</div><div class="grow"><h2 style="margin:0">Конфиденциальность</h2><div class="tiny">Политика обработки данных, версия ${POLICY_VER}</div></div></div>${policyHTML()}
+    <button class="btn sec" style="margin-top:10px" onclick="privReq()">Запросить данные или удаление</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
+}
+function consentSheet() {
+  return `<div class="fbh"><div class="fbic">${ic('shield', 26)}</div><div class="grow"><h2 style="margin:0">Согласие на обработку данных</h2><div class="tiny">Прочитайте и примите, чтобы продолжить</div></div></div>${policyHTML()}
+    <button class="btn" style="margin-top:12px" onclick="consentAccept()">Принимаю</button><button class="btn sec" style="margin-top:8px" onclick="doLogout()">Не принимаю, выйти</button>`;
+}
+function consentAccept() { api('/api/consent', {v: POLICY_VER}).then(() => { SY.consent = POLICY_VER; go({sheet: null, toast: 'Спасибо, согласие сохранено'}); }).catch(e => go({toast: e.message})); }
+// пока согласие не принято, остальное приложение закрыто этим окном
+function consentGuard() {
+  if (!S.role || !SY.on || typeof SY.consent !== 'number' || SY.consent >= POLICY_VER || MUSTPW || S.sheet === 'consent' || S.sheet === 'mustpw') return;
+  setTimeout(() => { if (S.role && typeof SY.consent === 'number' && SY.consent < POLICY_VER && S.sheet !== 'consent' && !MUSTPW) go({sheet: 'consent'}); }, 0);
+}
+function polsetOpen() { go({sheet: 'polset', ps: {op: POL.op, contact: POL.contact}}); }
+function polsetSheet() {
+  const f = S.ps;
+  return `<h2>Данные оператора</h2><div class="tiny">Эти сведения увидят все в политике конфиденциальности: кто обрабатывает данные и как с ним связаться.</div>
+    <div class="fbl">ОПЕРАТОР (ИП, ООО ИЛИ ФИО)</div><input type="text" maxlength="120" placeholder="Например: ИП Иванов И. И." value="${esc(f.op)}" oninput="S.ps.op=this.value" style="margin:4px 0">
+    <div class="fbl">КАК СВЯЗАТЬСЯ</div><input type="text" maxlength="120" placeholder="Телефон или почта" value="${esc(f.contact)}" oninput="S.ps.contact=this.value" style="margin:4px 0 12px">
+    <button class="btn" style="margin-bottom:8px" onclick="POL.op=S.ps.op.trim();POL.contact=S.ps.contact.trim();go({sheet:null,ps:null,toast:'Сохранено'})">Сохранить</button><button class="btn sec" onclick="go({sheet:null,ps:null})">Отмена</button>`;
+}
+// «Диагностика»: ошибки приложения у сотрудников за 14 дней (только Техподдержка)
+function diagOpen() { go({sheet: 'diag', dg: {busy: true, groups: []}}); api('/api/diag').then(j => { S.dg = {busy: false, groups: j.groups || []}; render(true); }).catch(e => { S.dg = {busy: false, groups: [], err: e.message}; render(true); }); }
+function diagClear() { api('/api/diag-clear', {}).then(() => { S.dg = {busy: false, groups: []}; render(true); }).catch(e => go({toast: e.message})); }
+function diagSheet() {
+  const f = S.dg || {busy: true, groups: []};
+  let h = `<div class="fbh"><div class="fbic">${ic('bug', 26)}</div><div class="grow"><h2 style="margin:0">Ошибки приложения</h2><div class="tiny">Сбои у сотрудников за 14 дней, одинаковые склеены</div></div></div>`;
+  if (f.busy) h += '<div class="card t2">Загружаем…</div>';
+  else if (f.err) h += `<div class="card t2" style="color:var(--r)">${esc(f.err)}</div>`;
+  else if (!f.groups.length) h += rvEmpty('Ошибок не было');
+  f.groups.forEach(g => {
+    const d = new Date(g.last);
+    h += `<div class="card"><div class="row"><span class="pill ${g.k === 'bootfail' || g.k === 'bootfail2' ? 'bad' : 'warn'}">${g.k === 'error' ? 'ошибка' : g.k === 'reject' || g.k === 'rej' ? 'сбой запроса' : 'не запустилось'}</span><div class="grow tiny" style="text-align:right">${g.n} раз · последняя ${d.getDate()} ${MN[d.getMonth()]}, ${hm(g.last)}</div></div>
+      <div style="font-size:13px;margin-top:6px;word-break:break-word">${esc(g.m)}</div>
+      <div class="tiny" style="margin-top:6px">${[g.v.length ? 'версии: ' + g.v.join(', ') : '', g.who.length ? 'у: ' + g.who.join(', ') : '', g.screen.length ? 'экран: ' + g.screen.join(', ') : ''].filter(Boolean).map(esc).join(' · ')}</div>
+      ${g.st ? `<div class="tiny" style="margin-top:6px;white-space:pre-wrap;opacity:.7;word-break:break-all">${esc(g.st.split('\\n').slice(0, 3).join('\\n'))}</div>` : ''}</div>`;
+  });
+  return h + `${f.groups.length ? '<button class="btn sec" style="margin-top:6px;color:#ffb0b0" onclick="diagClear()">Очистить журнал</button>' : ''}<button class="btn sec" style="margin-top:8px" onclick="go({sheet:null,dg:null})">Закрыть</button>`;
+}
+
 /* ===================== ОБРАЩЕНИЯ В ТЕХПОДДЕРЖКУ: «Нашли ошибку» и «Предложение» ===================== */
 // получает их только основной менеджер (Техподдержка); остальные только отправляют
 const FB = [];
@@ -1631,7 +1697,7 @@ async function fbSend() {
 function fbBlock() {
   const n = FB.filter(x => x.status !== 'done').length;
   return `<h3>Связь с Техподдержкой</h3><div class="card fbcard"><div class="row"><div class="fbic">${ic('bug', 26)}</div><div class="grow"><div class="t1" style="font-size:14px">Нашли ошибку или есть идея?</div><div class="t2">Расскажите: сообщение получит только Техподдержка</div></div></div>
-    <div class="btns" style="margin:12px 0 0"><button class="btn sm" onclick="fbOpen('bug')">${ic('bug', 15)} Нашли ошибку</button><button class="btn sec sm" onclick="fbOpen('idea')">${ic('chat', 15)} Предложение</button>${fbSupport() ? `<button class="btn sec sm" onclick="go({sheet:'fblist',fbf:'new'})">Обращения${n ? ' · ' + n : ''}</button>` : ''}</div></div>`;
+    <div class="btns" style="margin:12px 0 0"><button class="btn sm" onclick="fbOpen('bug')">${ic('bug', 15)} Нашли ошибку</button><button class="btn sec sm" onclick="fbOpen('idea')">${ic('chat', 15)} Предложение</button>${fbSupport() ? `<button class="btn sec sm" onclick="go({sheet:'fblist',fbf:'new'})">Обращения${n ? ' · ' + n : ''}</button><button class="btn sec sm" onclick="diagOpen()">Ошибки приложения</button><button class="btn sec sm" onclick="polsetOpen()">Данные оператора</button>` : ''}<button class="btn sec sm" onclick="go({sheet:'privacy'})">${ic('shield', 15)} Конфиденциальность</button></div></div>`;
 }
 function fbSheet() {
   const f = S.fb, bug = f.t === 'bug', chip = (l, on, c) => `<button class="${on ? 'on' : ''}" onclick="${c}">${esc(l)}</button>`, row = (arr, key) => `<div class="chips" style="flex-wrap:wrap;margin:4px 0">${arr.map(x => chip(x, f[key] === x, `fbSet('${key}','${x}')`)).join('')}</div>`;
@@ -2468,6 +2534,11 @@ function sheet() {
       <button class="btn" style="margin-bottom:8px" onclick="savePtName()">Сохранить</button>
       <button class="btn sec" onclick="go({sheet:null,pn:null})">Отмена</button>`;
   }
+  if (S.sheet === 'updreq') return updReqSheet();
+  if (S.sheet === 'consent') return consentSheet();
+  if (S.sheet === 'privacy') return privacySheet();
+  if (S.sheet === 'polset' && S.ps) return polsetSheet();
+  if (S.sheet === 'diag') return diagSheet();
   if (S.sheet === 'fb' && S.fb) return fbSheet();
   if (S.sheet === 'fblist') return fbListSheet();
   if (S.sheet === 'dpick' && S.dp) {
@@ -2927,6 +2998,7 @@ const sigOf = () => Array.from($('app').querySelectorAll('.body .days button.on,
 function render(keep) {
   deepEnsure();
   if (INGX.length) ingEnsure();
+  if (UPDREQ && S.sheet !== 'updreq') S.sheet = 'updreq';   // слишком старое приложение: кроме окна «Нужно обновить» ничего не открывается
   if (!S.visit && (S.sheet === 'level' || S.sheet === 'trash')) S.sheet = null;   // окно уровней без визита закрывается: иначе его кнопки обращаются к несуществующему визиту
   if (keep && SWL.on) { SWL.pend = true; return; }
   saveSoon();
@@ -3134,7 +3206,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, FB, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, AMORT, ex2: 1,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, FB, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, AMORT, POL, ex2: 1,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -3146,7 +3218,7 @@ function restoreData(txt) {
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(FB, d.FB || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
-  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP); if (d.GSM) Object.assign(GSM, d.GSM); replaceArr(AMORT, d.AMORT || []);
+  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP); if (d.GSM) Object.assign(GSM, d.GSM); replaceArr(AMORT, d.AMORT || []); if (d.POL) Object.assign(POL, d.POL);
   if (d.NS) { Object.assign(NS, d.NS); } if (d.NST) Object.assign(NST, d.NST);
   replaceObj(GSD, d.GSD || {}); replaceObj(OFF, d.OFF || {}); replaceObj(PR, d.PR || {});
   if (d.GCS) { GCS.me = d.GCS.me || null; GCS.all = d.GCS.all || {}; GCS.log = d.GCS.log || []; }
@@ -3263,15 +3335,17 @@ function hsh(s) { let a = 5381, b = 52711; for (let i = 0; i < s.length; i++) { 
 function api(path, body) {
   const opt = body === undefined ? {headers:{}} : {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)};
   if (SY.token) opt.headers.Authorization = 'Bearer ' + SY.token;
+  opt.headers['X-App-Ver'] = String(APP_VERSION);
   return fetch(SRV + path, opt).then(r => r.json().catch(() => ({})).then(j => {
     if (r.status === 401 && SY.token) { syncAuthLost(); throw new Error('Сессия истекла, войдите снова'); }
     if (r.status === 403 && j.error === 'change_password') { mustPw(); throw new Error('Сначала смените пароль'); }
+    if (r.status === 426) { updRequired(j.min); throw new Error('Нужно обновить приложение'); }
     if (!r.ok) { const er = new Error(j.error || 'Ошибка сервера (' + r.status + ')'); if (j.wait) er.wait = j.wait; if (j.left !== undefined) er.left = j.left; throw er; }
     return j;
   }), () => { throw new Error('Нет связи с сервером'); });
 }
 function docsFromState() {
-  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX, DEEP, GSM, AMORT}}, ld = {};
+  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX, DEEP, GSM, AMORT, POL}}, ld = {};
   Object.keys(AV).forEach(k => { d['av/' + k] = AV[k]; });
   Object.keys(EX).forEach(k => { d['ex/' + k] = EX[k]; });
   Object.keys(INFO).forEach(k => { d['info/' + k] = INFO[k]; });
@@ -3349,7 +3423,7 @@ function applyDoc(k, v, dele) {
     COUR.forEach(c => ensureCour(c.id));
     if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
   } else if (h === 'core') {
-    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); if (v.DEEP && typeof v.DEEP === 'object') { DEEP.on = v.DEEP.on !== false; DEEP.mo = Math.max(1, Math.min(12, +v.DEEP.mo || 3)); } if (v.GSM && typeof v.GSM === 'object') { GSM.price = Math.max(0, +v.GSM.price || 0); GSM.formula = String(v.GSM.formula || GSM_DEF).slice(0, 200); GSM.back = v.GSM.back !== false; } if (Array.isArray(v.AMORT)) replaceArr(AMORT, v.AMORT.filter(a => a && typeof a.n === 'string' && a.m > 0).slice(0, 60)); }
+    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); if (v.DEEP && typeof v.DEEP === 'object') { DEEP.on = v.DEEP.on !== false; DEEP.mo = Math.max(1, Math.min(12, +v.DEEP.mo || 3)); } if (v.GSM && typeof v.GSM === 'object') { GSM.price = Math.max(0, +v.GSM.price || 0); GSM.formula = String(v.GSM.formula || GSM_DEF).slice(0, 200); GSM.back = v.GSM.back !== false; } if (Array.isArray(v.AMORT)) replaceArr(AMORT, v.AMORT.filter(a => a && typeof a.n === 'string' && a.m > 0).slice(0, 60)); if (v.POL && typeof v.POL === 'object') { POL.op = String(v.POL.op || '').slice(0, 120); POL.contact = String(v.POL.contact || '').slice(0, 120); } }
   } else if (h === 'av') {
     if (dele || !v) delete AV[p[1]]; else AV[p[1]] = v;
   } else if (h === 'ex') {
@@ -3614,7 +3688,7 @@ function doLoginServer(l, p, rem) {
 function loginToken(i) {
   const a = ACCS[i]; S.lg.busy = true; S.lg.err = ''; render();
   syncStop(); SY.token = a.token;
-  return api('/api/me').then(me => startServerSession({token:a.token, role:me.role, cid:me.cid, name:me.name}, a.login, true)).catch(e => {
+  return api('/api/me').then(me => startServerSession({token:a.token, role:me.role, cid:me.cid, name:me.name, mk:me.mk, consent:me.consent}, a.login, true)).catch(e => {
     syncStop(); S.lg.busy = false; S.lg.login = a.login; S.lg.pass = '';
     if (/Сессия истекла/.test(e.message)) { delete a.token; saveAccs(); S.lg.err = 'Сессия истекла: введите пароль'; } else S.lg.err = e.message;
     render();
@@ -3677,7 +3751,7 @@ function pushBlock() {
 function startServerSession(j, l, rem) {
   let seed = false;
   {
-    Object.assign(SY, {token:j.token, role:j.role, cid:j.cid, mk:j.mk || '', login:l}); setTimeout(pushResync, 4000);
+    Object.assign(SY, {token:j.token, role:j.role, cid:j.cid, mk:j.mk || '', login:l, consent:typeof j.consent === 'number' ? j.consent : undefined}); setTimeout(pushResync, 4000);
     return api('/api/state?since=0').then(st => {
       if (st.empty) {
         if (j.role !== 'mgr') throw new Error('Менеджер ещё не заполнил данные на сервере, зайдите позже');
@@ -3763,7 +3837,7 @@ function uiAfterRender() {
   SHEETSEEN = S.sheet || null;
   if (S.shade && !SHADESEEN) { const o = $('sheetshade'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
   SHADESEEN = !!S.shade;
-  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); archHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); geoSync(); kbCheck(); ctxLeave(); lgTick(); if (S.sel && !(S.tab === 'chat' && S.th === S.sel.th && !S.view)) S.sel = null; } catch (e) {}
+  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); archHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); consentGuard(); geoSync(); kbCheck(); ctxLeave(); lgTick(); if (S.sel && !(S.tab === 'chat' && S.th === S.sel.th && !S.view)) S.sel = null; } catch (e) {}
 }
 // шапка сжимается, только если у экрана достаточно прокрутки: иначе после сжатия прокрутка «съедается», шапка снова растёт, и всё дёргается по кругу
 function hdrState(tp, bd) {
@@ -4397,7 +4471,7 @@ function sheetExtras() {
   const sh = $('sheetmain'); if (!sh) { DET.name = null; return; }
   if (S.sheet === 'gsearch' && DET.name !== 'gsearch') setTimeout(() => { const i = $('gsq'); if (i) i.focus(); }, 380);
   if (DET.name !== S.sheet) { DET.name = S.sheet; DET.v = ['geoconsent'].includes(S.sheet) ? 'large' : 'med'; }   // окно согласия сразу высокое: кнопки видны без прокрутки
-  const H = $('app').clientHeight, grab = $('grab'), skip = ['level', 'trash', 'wheel', 'afpick', 'dpick', 'fb', 'fblist'].includes(S.sheet);   // у окон выбора нет положений «половина / весь экран»: они просто прокручиваются
+  const H = $('app').clientHeight, grab = $('grab'), skip = ['level', 'trash', 'wheel', 'afpick', 'dpick', 'fb', 'fblist', 'updreq', 'consent', 'privacy', 'polset', 'diag'].includes(S.sheet);   // у окон выбора нет положений «половина / весь экран»: они просто прокручиваются
   const tall = !skip && sh.scrollHeight > H * 0.64;
   if (!tall || !grab) return;
   grab.dataset.tall = '1'; sh.style.maxHeight = DET.v === 'large' ? '92%' : '58%'; if (SCM_KEEP) sh.scrollTop = SCM_KEEP;
@@ -4915,7 +4989,7 @@ function nsHour(w, d) { NS.q[w] = (NS.q[w] + d + 24) % 24; nsSave(); }
 /* ----- обязательная смена пароля и выход на всех телефонах ----- */
 let MUSTPW = false, MUSTCHK = false;
 function mustPw() { if (MUSTPW) return; MUSTPW = true; go({sheet: 'mustpw', mp2: {n1: '', n2: '', err: '', busy: false}}); }
-function mustCheck() { if (MUSTCHK || !SY.on) return; MUSTCHK = true; api('/api/me').then(me => { if (me && me.must) mustPw(); }).catch(() => { MUSTCHK = false; }); }
+function mustCheck() { if (MUSTCHK || !SY.on) return; MUSTCHK = true; api('/api/me').then(me => { if (me && typeof me.consent === 'number') { SY.consent = me.consent; consentGuard(); } if (me && me.must) mustPw(); }).catch(() => { MUSTCHK = false; }); }
 function mustGuard() { if (MUSTPW && S.role && S.sheet !== 'mustpw') setTimeout(() => { if (MUSTPW && S.role && S.sheet !== 'mustpw') go({sheet: 'mustpw', mp2: S.mp2 || {n1: '', n2: '', err: '', busy: false}}); }, 0); }
 function savePwMust() {
   const f = S.mp2; if (!f || f.busy) return;
@@ -5192,6 +5266,7 @@ function selfTest() {
     common.concat(own).forEach(sp => T(role + ': окно ' + (sp.sheet || 'уведомления'), () => go(Object.assign(home(), sp))));
     T(role + ': форма «Нашли ошибку» и «Предложение»', () => { fbOpen('bug'); render(); S.fb.areas.push('Кнопка'); S.fb.shots.push('data:image/jpeg;base64,/9j/4AAQ'); fbSet('freq', 'Иногда'); S.fb.t = 'idea'; render(); go(home()); });
     T(role + ': окно обращений', () => { FB.push({id: 'selftest', ts: Date.now(), kind: 'bug', status: 'new', from: {name: 'Тест', role: 'cour'}, text: 'проверка', files: [], areas: ['Кнопка'], ctx: {ver: '1'}}); go(Object.assign(home(), {sheet: 'fblist', fbf: 'new'})); FB.length = 0; go(home()); });
+    T(role + ': политика, согласие, диагностика, оператор, «нужно обновить»', () => { go(Object.assign(home(), {sheet: 'privacy'})); go(Object.assign(home(), {sheet: 'consent'})); go(Object.assign(home(), {sheet: 'polset', ps: {op: 'ИП Тест', contact: '123'}})); S.dg = {busy: false, groups: [{k: 'error', m: 'тест', n: 2, last: Date.now(), v: ['1'], who: ['a'], screen: ['plan'], st: 'a\nb'}]}; go(Object.assign(home(), {sheet: 'diag'})); S.dg = null; go(home()); const u = UPDREQ; UPDREQ = 0; go(Object.assign(home(), {sheet: 'updreq'})); UPDREQ = u; go(home()); });
     T(role + ': закрыть окна', () => go(home()));
     T(role + ': карточка точки', () => go({tab: 'points', view: {type: 'point', id: P[0].id}, sheet: null}));
     T(role + ': общий чат', () => go({tab: 'chat', view: null, th: 'g', sheet: null}));
