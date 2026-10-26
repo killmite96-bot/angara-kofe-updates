@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 143;
+const APP_VERSION = 144;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -3743,12 +3743,15 @@ function mgrRings() {
 
 // ----- числа «накручиваются»: суммы в рублях плавно пробегают от прежнего значения к новому -----
 const CNTLAST = {};
+let CNTSUB = '';   // какая подвкладка «Зарплаты» была на прошлой отрисовке
 function cntAnimate() {
   if (FX_OFF) return;
+  const sub = S.tab === 'pay' && !S.view ? (S.pm || 'pay') : '', swSub = !!sub && !!CNTSUB && sub !== CNTSUB;   // перешли на другую подвкладку: числа «накручиваются» заново, даже если суммы совпали
+  CNTSUB = sub;
   $('app').querySelectorAll('.body .big').forEach((el, i) => {
     const m = /^([\d\s ]+)\s*₽$/.exec((el.textContent || '').trim()); if (!m) return;
-    const to = +m[1].replace(/[\s ]/g, ''), key = [S.role, S.tab, S.view ? 1 : 0, i].join('|'), enter = $('app').classList.contains('enter');
-    const from = key in CNTLAST ? CNTLAST[key] : (enter ? 0 : to); CNTLAST[key] = to;
+    const to = +m[1].replace(/[\s ]/g, ''), key = [S.role, S.tab, sub, S.view ? 1 : 0, i].join('|'), enter = $('app').classList.contains('enter');
+    const from = swSub ? 0 : key in CNTLAST ? CNTLAST[key] : (enter ? 0 : to); CNTLAST[key] = to;
     if (from === to) return;
     const t0 = performance.now(), dur = 700;
     const step = now => { const k = Math.max(0, Math.min(1, (now - t0) / dur)), e = 1 - Math.pow(1 - k, 3); if (!el.isConnected) return; el.textContent = money(Math.round(from + (to - from) * e)); if (k < 1) requestAnimationFrame(step); };
