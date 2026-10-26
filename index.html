@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 128;
+const APP_VERSION = 129;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -768,16 +768,25 @@ function popHTML() {
 }
 
 /* ===================== ВХОД ===================== */
+// блокировка входа после 10 неверных попыток: показываем обратный отсчёт
+const lgLocked = () => !!(S.lg && S.lg.until && S.lg.until > Date.now());
+const lgLeft = () => { const t = Math.max(0, Math.ceil((S.lg.until - Date.now()) / 1000)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+let LGT = 0;
+function lgTick() {
+  clearInterval(LGT); LGT = 0;
+  if (!lgLocked()) { if (S.lg && S.lg.until) { S.lg.until = 0; S.lg.err = ''; if (!S.role) render(); } return; }
+  LGT = setInterval(() => { if (!lgLocked()) return lgTick(); document.querySelectorAll('[data-lock]').forEach(e => { e.textContent = lgLeft(); }); }, 1000);
+}
 function loginScreen() {
   const rem = S.lg.rem !== false;
   const accs = ACCS.length ? `<div class="tiny">Сохранённые аккаунты: нажмите, чтобы подставить данные входа</div>` + ACCS.map((a, i) => `<div class="card" style="margin:0;padding:10px 12px"><div class="row"><div class="row grow" style="cursor:pointer" onclick="useAcc(${i})"><div class="badge b1" style="min-width:38px;height:38px;border-radius:50%;font-size:16px">${esc((a.name || '?')[0])}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(a.name)}</div><div class="t2">${a.role === 'mgr' ? 'Менеджер' : 'Курьер'} · ${esc(a.login)}</div></div></div><button class="btn sec sm" onclick="unpinAcc(${i})">Открепить</button></div></div>`).join('') : '';
-  return `<div class="login"><div style="margin-bottom:6px">${logo(64)}</div><h1>Ангара Кофе</h1><div class="t2" style="margin-bottom:6px">Приложение для курьеров и менеджеров сети</div>
+  return `<div class="login" style="text-align:center"><div style="margin:0 auto 6px;width:72px">${logo(72)}</div><h1>Ангара Кофе</h1><div class="t2" style="margin-bottom:6px">Приложение для курьеров и менеджеров сети</div>
   ${accs}
   <input type="text" placeholder="Логин" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(S.lg.login)}" oninput="S.lg.login=this.value" onkeydown="if(event.key==='Enter')doLogin()">
   <input type="password" placeholder="Пароль" autocomplete="new-password" value="${esc(S.lg.pass)}" oninput="S.lg.pass=this.value" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--tx);font-size:14px;margin:6px 0">
-  ${S.lg.err ? `<div style="color:var(--r);font-size:13px">${S.lg.err}</div>` : ''}
-  <div class="row" style="cursor:pointer" onclick="S.lg.rem=${!rem};render()"><div class="grow" style="font-size:14px">Запомнить аккаунт на этом телефоне</div>${swHTML(rem)}</div>
-  <button class="btn" onclick="doLogin()" ${S.lg.busy ? 'disabled' : ''}>${S.lg.busy ? 'Входим…' : 'Войти'}</button>
+  ${lgLocked() ? `<div style="color:var(--r);font-size:13px">Слишком много попыток входа. Повторите через <b data-lock>${lgLeft()}</b></div>` : S.lg.err ? `<div style="color:var(--r);font-size:13px">${S.lg.err}${S.lg.left !== undefined && S.lg.left <= 5 ? '. Осталось попыток: ' + S.lg.left : ''}</div>` : ''}
+  <div class="row" style="cursor:pointer;text-align:left" onclick="S.lg.rem=${!rem};render()"><div class="grow" style="font-size:14px">Запомнить аккаунт на этом телефоне</div>${swHTML(rem)}</div>
+  <button class="btn" onclick="doLogin()" ${S.lg.busy || lgLocked() ? 'disabled' : ''}>${S.lg.busy ? 'Входим…' : lgLocked() ? 'Подождите <span data-lock>' + lgLeft() + '</span>' : 'Войти'}</button>
   ${SRV ? '<div class="tiny" style="margin-top:8px">Логин и пароль выдаёт менеджер. Данные общие для всех телефонов и обновляются сразу.</div>' : ''}</div>`;
 }
 const avKey = () => S.role === 'mgr' ? mkey() : String(S.me);
@@ -2758,7 +2767,7 @@ function api(path, body) {
   return fetch(SRV + path, opt).then(r => r.json().catch(() => ({})).then(j => {
     if (r.status === 401 && SY.token) { syncAuthLost(); throw new Error('Сессия истекла, войдите снова'); }
     if (r.status === 403 && j.error === 'change_password') { mustPw(); throw new Error('Сначала смените пароль'); }
-    if (!r.ok) throw new Error(j.error || 'Ошибка сервера (' + r.status + ')');
+    if (!r.ok) { const er = new Error(j.error || 'Ошибка сервера (' + r.status + ')'); if (j.wait) er.wait = j.wait; if (j.left !== undefined) er.left = j.left; throw er; }
     return j;
   }), () => { throw new Error('Нет связи с сервером'); });
 }
@@ -3091,7 +3100,7 @@ function doLoginServer(l, p, rem) {
   if (!l || !p) { S.lg.err = 'Введите логин и пароль'; return render(); }
   S.lg.busy = true; S.lg.err = ''; render();
   syncStop();
-  return api('/api/login', {login:l, password:p}).then(j => startServerSession(j, l, rem)).catch(e => { syncStop(); S.lg.busy = false; S.lg.err = e.message; render(); });
+  return api('/api/login', {login:l, password:p}).then(j => startServerSession(j, l, rem)).catch(e => { syncStop(); S.lg.busy = false; S.lg.err = e.message; S.lg.left = e.left; S.lg.until = e.wait ? Date.now() + e.wait * 1000 : 0; render(); });
 }
 // вход по сохранённому ключу: пароль не нужен; если ключ устарел, просим ввести пароль
 function loginToken(i) {
@@ -3246,7 +3255,7 @@ function uiAfterRender() {
   SHEETSEEN = S.sheet || null;
   if (S.shade && !SHADESEEN) { const o = $('sheetshade'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
   SHADESEEN = !!S.shade;
-  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); geoSync(); kbCheck(); ctxLeave(); if (S.sel && !(S.tab === 'chat' && S.th === S.sel.th && !S.view)) S.sel = null; } catch (e) {}
+  try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); geoSync(); kbCheck(); ctxLeave(); lgTick(); if (S.sel && !(S.tab === 'chat' && S.th === S.sel.th && !S.view)) S.sel = null; } catch (e) {}
 }
 // шапка сжимается, только если у экрана достаточно прокрутки: иначе после сжатия прокрутка «съедается», шапка снова растёт, и всё дёргается по кругу
 function hdrState(tp, bd) {

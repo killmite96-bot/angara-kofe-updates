@@ -1,9 +1,9 @@
 {
-    "content":  128,
+    "content":  129,
     "apk":  21,
-    "notes":  "На экране входа у выбранных полей «Логин» и «Пароль» нет подсветки.",
+    "notes":  "Экран входа: значок по центру, обратный отсчёт при блокировке, счётчик оставшихся попыток.",
     "contentFile":  "index.html",
-    "contentSha256":  "e4e4d7d4bafeb3634819d1e25cdfe7143386ca016611ab9c308f51ed8348d1f6",
+    "contentSha256":  "3f3fd476c985db864b8dcd84d356187813f842b6944ea95098c8996605686884",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "8edd30b4e60912cf494b35a7352719c21c33ae9cc877681a3c7649b6baae772d"
 }
