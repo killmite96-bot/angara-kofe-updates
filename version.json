@@ -1,9 +1,9 @@
 {
-    "content":  161,
+    "content":  162,
     "apk":  22,
-    "notes":  "В карточке точки у менеджера количество подтоварки и остатков выбирается барабаном: нажмите на число.",
+    "notes":  "Закреплённые заголовки разделов (например, «Подтоварка на точке») прилегают к шапке без лишнего зазора.",
     "contentFile":  "index.html",
-    "contentSha256":  "5cc904451e557cf735e7abaf9fd2ad5dbd2ce9876b3f5fe99d8c6bf35a76f3b1",
+    "contentSha256":  "83c8c727798d7e683b1ea61c3e709ada49e6ab44ada8b58c3c231d48c28b6f4b",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
