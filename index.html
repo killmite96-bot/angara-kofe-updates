@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 187;
+const APP_VERSION = 190;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -980,8 +980,8 @@ function routeScreen() {
   const c = S.me, list = L(c, TODAY), done = list.filter(x => x.done).length, lg = legs(c);
   const mins = lg.out.reduce((s, o) => s + workMin(o.x.type) + eta(o.d), 0);
   let h = topbar('Маршрут', `${WD[TODAY]} · ${list.length} точек · выполнено ${done}${shActive() ? ' · на смене <span data-shiftt>' + shiftDur() + '</span>' : ''}`);
-  h += '<div class="body">' + (list.length ? courRings(c) : '') + shiftBlock();
   const loaded = LOADED[S.me + ':' + TODAY];
+  h += '<div class="body">' + shiftBlock() + (list.length ? courRings(c) : '') + loadBtn(c, loaded);   // сверху «Начало смены», затем круги, под ними «Погрузка»
   h += `<div class="card" style="border-color:${loaded ? 'var(--line)' : 'var(--o)'}"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(DEPOT.name)}</div><div class="t2">${esc(DEPOT.addr || 'Адрес базы не указан')}</div>
     <div class="t2" style="color:${loaded ? 'var(--g)' : 'var(--o)'}">${loaded ? '✓ Загрузка подтверждена' : 'Начало смены: заедьте за ингредиентами'}</div>
     ${!loaded && passNeed(S.me).length ? `<div class="t2" style="color:var(--o);margin-top:2px">${ic('pass', 14)} Возьмите пропуск: ${esc(passNeed(S.me).map(p => p.name).join(', '))}</div>` : ''}</div><button class="btn sm" onclick="go({sheet:'tobase'})">На базу ▸</button></div></div>`;
@@ -994,7 +994,7 @@ function routeScreen() {
       <div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="go({sheet:'mapone'})">Навигатор ▸</button>
       <button class="btn sec sm" onclick="doOpt()">Построить по ближайшим</button></div></div>`;
     h += `<div class="row" style="margin:6px 2px"><div class="grow tiny">Осталось ${lg.out.length} точек · ${lg.tot.toFixed(1)} км · ≈ ${Math.floor(mins / 60)} ч ${mins % 60} мин</div></div>`;
-    h += `<div class="btns" style="margin-top:0"><button class="btn sec sm" onclick="go({sheet:'load'})">Погрузка</button><button class="btn sec sm" onclick="go({sheet:'map'})">Весь маршрут в картах</button></div>`;
+    h += `<div class="btns" style="margin-top:0"><button class="btn sec sm" onclick="go({sheet:'map'})">Весь маршрут в картах</button></div>`;
   } else h += TODAY === 6 ? '<div class="card"><div class="t1">Сегодня выходной</div><div class="t2">Воскресенье: точек в маршруте нет. Хорошего отдыха!</div></div>' : '<div class="card"><div class="t1">Маршрут выполнен</div><div class="t2">Все точки на сегодня сданы.</div>' + (shActive() ? '<button class="btn" style="margin-top:10px" onclick="shiftEndAsk()">Завершить смену</button>' : '') + '</div>';
   let prev = posOf(c), n = 0;
   list.forEach(x => {
@@ -1688,6 +1688,12 @@ function loadHistSheet() {
       ${r.items.map(it => { const g = ING.find(x => x.id === it.id); if (!g) return ''; const diff = it.took < it.plan - 1e-6 ? 'less' : it.took > it.plan + 1e-6 ? 'more' : ''; return `<div class="kv" style="padding:5px 0"><span>${esc(g.n)}</span><span><b style="color:${diff === 'less' ? 'var(--r)' : diff === 'more' ? 'var(--o)' : 'var(--tx)'}">${fmt(g, it.took)}</b>${diff ? ` <span class="tiny">план ${fmt(g, it.plan)}</span>` : ''}</span></div>`; }).join('')}
       ${r.undone ? `<div class="tiny" style="color:var(--o);margin-top:4px">Отменена, ${esc(r.undone.byName || '')}</div>` : ''}${last && sameId(last.id, r.id) ? `<button class="btn sec sm" style="margin-top:8px;color:#ffb0b0" onclick="ldUndo('${r.id}')">Отменить эту погрузку</button>` : ''}</div>`; }).join('');
   return h + `<div class="tiny" style="margin:8px 0">Красным выделено, где взято меньше плана, оранжевым — больше. Отменить можно только последнюю погрузку: остатки склада вернутся.</div><button class="btn sec" onclick="go({sheet:null})">Закрыть</button>`;
+}
+// крупная кнопка «Погрузка» на вкладке «Маршрут» курьера: пока не подтверждена — яркая, после подтверждения спокойная с отметкой
+function loadBtn(c, loaded) {
+  const plan = ldPlan(c), n = ING.filter(g => plan[g.id] > 0).length, rec = LOADS.find(r => r.key === c + ':' + TODAY && !r.undone), took = rec ? rec.items.filter(x => x.took > 0).length : 0;
+  const pos = k => k + (k % 10 === 1 && k % 100 !== 11 ? ' позиция' : k % 10 >= 2 && k % 10 <= 4 && (k % 100 < 10 || k % 100 >= 20) ? ' позиции' : ' позиций');
+  return `<button class="loadbtn${loaded ? ' done' : ''}" onclick="go({sheet:'load'})"><span class="lic">${ic(loaded ? 'check' : 'box', 30)}</span><span><b>Погрузка</b><small>${loaded ? 'Подтверждена' + (rec ? ' · взято ' + pos(took) : '') + '. Нажмите, чтобы посмотреть' : n ? 'Отметьте, сколько взяли на складе · по плану ' + pos(n) : 'Отметьте, сколько взяли на складе'}</small></span><span class="lgo">›</span></button>`;
 }
 function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, feat: '', notes: [], uex: [{feat: '', notes: [], cam: ''}], info: {}, err: ''}}); }
 function nwUnits(d) { const u = S.nw.units, n = Math.max(1, Math.min(PT_MAX_UNITS, u.length + d)); while (u.length < n) u.push(u[u.length - 1] || 'B'); u.length = n; S.nw.uex = S.nw.uex || []; while (S.nw.uex.length < n) S.nw.uex.push({feat: '', notes: []}); S.nw.uex.length = n; render(true); }
@@ -5361,6 +5367,15 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 .cal i{font-style:normal;font-size:11px;color:var(--mut);text-align:center;padding:2px 0}
 .cal button{height:34px;border-radius:11px;border:1px solid transparent;background:var(--card2,#16221b);color:var(--tx);font-size:14px;cursor:pointer;padding:0}
 .cal button.on{background:var(--g);color:#06210f;font-weight:800}.cal button.td{border-color:rgba(93,255,160,.6)}.cal .e{visibility:hidden}
+.loadbtn{display:flex;align-items:center;gap:14px;width:100%;margin:10px 0;padding:15px 16px;border:0;border-radius:22px;background:linear-gradient(135deg,#1c9150,#34d67f);color:#06210f;text-align:left;cursor:pointer;box-shadow:0 10px 24px rgba(52,214,127,.26),inset 0 1px 0 rgba(255,255,255,.4);animation:lpulse 2.6s ease-in-out infinite;transition:transform .15s}
+.loadbtn:active{transform:scale(.98)}
+.loadbtn .lic{width:54px;height:54px;border-radius:17px;background:rgba(6,33,15,.17);display:flex;align-items:center;justify-content:center;flex:none}
+.loadbtn b{display:block;font-size:20px;font-weight:800;letter-spacing:-.015em;line-height:1.15}
+.loadbtn small{display:block;font-size:13px;font-weight:600;opacity:.8;margin-top:3px;line-height:1.25}
+.loadbtn .lgo{margin-left:auto;font-size:30px;font-weight:300;opacity:.65;line-height:1}
+.loadbtn.done{background:var(--card);color:var(--tx);box-shadow:none;border:1px solid rgba(93,255,160,.38);animation:none}
+.loadbtn.done .lic{background:rgba(93,255,160,.14);color:var(--g)}
+@keyframes lpulse{0%,100%{box-shadow:0 10px 24px rgba(52,214,127,.22),inset 0 1px 0 rgba(255,255,255,.4)}50%{box-shadow:0 12px 30px rgba(52,214,127,.42),inset 0 1px 0 rgba(255,255,255,.4)}}
 .stnh{display:flex;align-items:center;gap:10px;margin:16px 0 8px;padding:10px 12px;border-radius:16px;background:rgba(93,255,160,.09);border:1px solid rgba(93,255,160,.32)}.stnt{font-size:17px;font-weight:800;letter-spacing:-.01em}.stnb{width:30px;height:30px;border-radius:50%;background:var(--g);color:#06210f;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none}
 .sttile{flex:1 1 0;min-width:0;border:1px solid var(--line);border-radius:12px;padding:6px;background:var(--card2,#16221b);cursor:pointer;text-align:center}.sttile.on{border-color:rgba(93,255,160,.7);background:rgba(93,255,160,.08)}.sttile .tiny{font-size:10.5px;line-height:1.15;margin-top:4px}.cal button:disabled{opacity:.28;cursor:default}
 .supr{padding:9px 0;border-bottom:1px solid var(--line)}.supr:last-child{border-bottom:0}
@@ -5683,7 +5698,7 @@ function shiftBlock() {
   if (s && s.e && today && sNow() - s.e < 6 * 3600000) return `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Смена завершена${s.auto ? ' автоматически' : ''}</div><div class="t2">${hm(s.s)}–${hm(s.e)} · ${shiftDur()}</div></div><button class="btn sec sm" onclick="shiftResume()">Вернуться на смену</button></div></div>`;
   if (s && s.e && today) return `<div class="tiny" style="margin:0 2px 8px;opacity:.85">Смена завершена${s.auto ? ' автоматически' : ''}: ${hm(s.s)}–${hm(s.e)} · ${shiftDur()}</div>`;
   if (!L(S.me, TODAY).length) return '';
-  return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('flag', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Начало смены</div><div class="t2">Нажмите, когда приедете на склад: менеджер увидит, что вы вышли</div></div><button class="btn sm" onclick="shiftStart()">Выйти на смену</button></div></div>`;
+  return `<div class="card" style="border-color:var(--g)"><div class="row"><div style="color:var(--g)">${ic('flag', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Начало смены</div><div class="t2">Нажмите, когда приедете на склад: менеджер увидит, что вы вышли</div></div><button class="btn sm" onclick="shiftStart()">Войти на смену</button></div></div>`;
 }
 function shiftStart() {
   const r = prMine(), now = sNow(); r.sh = {s: now}; r.lc = {k: 'start', pid: 0, ts: now};
@@ -5835,7 +5850,7 @@ const TIPS_KEY = 'angara_tips';
 const tipsSeen = () => { try { return JSON.parse(localStorage.getItem(TIPS_KEY) || '[]'); } catch (e) { return []; } };
 const TIPS = [
   {id: 'chat', icon: 'mic', title: 'Голосовые, фото и видео', text: 'Нажмите на микрофон, чтобы записать голосовое (до 2 минут). Скрепка рядом: фото и видео до 30 секунд.', host: 'composer', ok: () => S.tab === 'chat' && !!S.th && !S.view},
-  {id: 'shift', icon: 'flag', title: 'Смена', text: 'Приехали на склад: нажмите «Выйти на смену». Менеджер увидит, что вы вышли, а в конце дня смену можно завершить одной кнопкой.', ok: () => S.role === 'cour' && S.tab === 'route' && !S.view && !!document.querySelector('button[onclick="shiftStart()"]')},
+  {id: 'shift', icon: 'flag', title: 'Смена', text: 'Приехали на склад: нажмите «Войти на смену». Менеджер увидит, что вы вышли, а в конце дня смену можно завершить одной кнопкой.', ok: () => S.role === 'cour' && S.tab === 'route' && !S.view && !!document.querySelector('button[onclick="shiftStart()"]')},
   {id: 'rings', icon: 'ok', title: 'Кольца нажимаются', text: 'Нажмите на любое кольцо вверху: покажем, из чего оно состоит.', ok: () => (S.tab === 'route' || S.tab === 'plan') && !S.view && !!document.querySelector('.rings')},
   {id: 'status', icon: 'users', title: 'Где курьеры', text: 'Под именем курьера видно, в сети ли он и где сейчас: на точке, в пути или на базе.', ok: () => S.role === 'mgr' && S.tab === 'plan' && !S.view && !!document.querySelector('[data-mgl]')},
   {id: 'ntf', icon: 'chat', title: 'Свои уведомления', text: 'В профиле можно выбрать, какие уведомления вам приходят, и включить тихие часы.', ok: () => S.role === 'mgr' && S.tab === 'plan' && !S.view},
@@ -5855,7 +5870,7 @@ function tipsReset() { try { localStorage.removeItem(TIPS_KEY); } catch (e) {} g
 const tipsBlock = () => '<h3>Подсказки</h3><div class="card"><div class="tiny" style="margin-bottom:8px">Короткие подсказки по новым возможностям показываются один раз.</div><button class="btn sec sm" onclick="tipsReset()">Показать подсказки заново</button></div>';
 
 /* ----- геолокация: «курьер приехал на точку» определяется сам ----- */
-// Работает только если курьер дал согласие и включил переключатель, и только пока идёт смена (между «Выйти на смену» и «Завершить смену»).
+// Работает только если курьер дал согласие и включил переключатель, и только пока идёт смена (между «Войти на смену» и «Завершить смену»).
 // Координаты уходят на сервер, лишь когда курьер ближе 300 м к какой-нибудь точке; сервер их не сохраняет, а записывает только отметку «прибыл на точку» (хранится 7 дней).
 const GEO = {w: null, last: 0, native: '', nt: 0, denied: false, asked: false};
 const distM = (la1, lo1, la2, lo2) => { const r = 6371000, p1 = la1 * Math.PI / 180, p2 = la2 * Math.PI / 180, dp = p2 - p1, dl = (lo2 - lo1) * Math.PI / 180, a = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2; return 2 * r * Math.asin(Math.sqrt(a)); };
@@ -5931,7 +5946,7 @@ function geoBlock() {
   const g = GCS.me, on = !!(g && g.on), app = geoApp(), perm = app ? geoPermApp() : -1;
   let h = '<h3>Геолокация</h3><div class="card"><div class="row" style="cursor:pointer" onclick="geoToggle()"><div class="grow"><div class="t1" style="font-size:14px">Определять прибытие на точку</div><div class="t2">Приложение само отметит, что вы приехали, без нажатий. Только во время смены.</div></div>' + swHTML(on) + '</div>';
   if (on) {
-    h += '<div class="tiny" style="margin-top:8px">Включено. Работает только между «Выйти на смену» и «Завершить смену». Пока определение идёт, приложение показывает значок «Геолокация включена».</div>';
+    h += '<div class="tiny" style="margin-top:8px">Включено. Работает только между «Войти на смену» и «Завершить смену». Пока определение идёт, приложение показывает значок «Геолокация включена».</div>';
     if (app) h += perm === 0 ? '<div class="tiny" style="margin-top:6px;color:var(--o)">Для работы нужен доступ к геолокации.</div><button class="btn sm" style="margin-top:6px" onclick="try{AndroidBridge.geoRequest()}catch(e){}">Разрешить геолокацию</button>'
       : perm === 1 ? '<div class="tiny" style="margin-top:6px">Работает, пока идёт смена. Чтобы определение не прерывалось при перезапуске телефона, можно разрешить «Всегда» (необязательно).</div><button class="btn sec sm" style="margin-top:6px" onclick="try{AndroidBridge.geoBgHelp()}catch(e){}">Открыть настройки приложения</button>'
       : '<div class="tiny" style="margin-top:6px;color:var(--g)">Разрешён доступ «Всегда»: работает и при свёрнутом приложении.</div>';
@@ -5940,7 +5955,7 @@ function geoBlock() {
   if (g) h += '<button class="btn sec sm" style="margin-top:10px" onclick="geoRevoke()">Отозвать согласие</button>';
   return h + '</div><div class="tiny">Координаты на сервере не сохраняются: остаётся только отметка «прибыл на точку» на 7 дней. Включить и выключить определение можно в любой момент.</div>';
 }
-const GEO_TEXT = 'Я даю согласие работодателю (сеть «Ангара Кофе») на определение местоположения моего телефона <b>только в рабочее время: с момента нажатия «Выйти на смену» до «Завершить смену»</b>. Цель: автоматически отмечать, что я приехал(а) на точку. Координаты на сервере не сохраняются: сохраняется только отметка «прибыл на точку, во столько-то» на 7 дней. Для проверки качества работы сервер 60 дней хранит обезличенные счётчики («сколько раз определение сработало»), без координат. Пока определение идёт, приложение показывает значок. Я могу отключить определение или отозвать это согласие в любой момент в «Профиле», на мою работу и оплату это не повлияет.';
+const GEO_TEXT = 'Я даю согласие работодателю (сеть «Ангара Кофе») на определение местоположения моего телефона <b>только в рабочее время: с момента нажатия «Войти на смену» до «Завершить смену»</b>. Цель: автоматически отмечать, что я приехал(а) на точку. Координаты на сервере не сохраняются: сохраняется только отметка «прибыл на точку, во столько-то» на 7 дней. Для проверки качества работы сервер 60 дней хранит обезличенные счётчики («сколько раз определение сработало»), без координат. Пока определение идёт, приложение показывает значок. Я могу отключить определение или отозвать это согласие в любой момент в «Профиле», на мою работу и оплату это не повлияет.';
 const gcLine = cid => { const g = GCS.all[String(cid)]; return g ? 'Геолокация: согласие дано ' + new Date(g.ts).toLocaleDateString('ru-RU') + ', ' + (g.on ? 'включено' : 'выключено курьером') : 'Геолокация: согласия нет'; };
 function geoLogSheet(cid) {
   const c = cr(cid), week = Date.now() - 7 * 86400000, list = GCS.log.filter(x => String(x.cid) === String(cid) && x.ts > week).sort((a, b) => b.ts - a.ts);

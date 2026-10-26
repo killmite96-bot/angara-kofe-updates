@@ -1,9 +1,9 @@
 {
-    "content":  187,
+    "content":  190,
     "apk":  22,
-    "notes":  "Погрузка: курьер отмечает, сколько реально взял, склад списывается сразу; журнал погрузок и отмена у менеджера.",
+    "notes":  "Маршрут курьера: сверху «Начало смены», затем круги, под ними «Погрузка».",
     "contentFile":  "index.html",
-    "contentSha256":  "f7de5cea768036a083e2a3394c4976714eec27f58173faf9a6078f2a791ad7c9",
+    "contentSha256":  "09d349f6ab680c2639e9242e149f2b8d978e1aa3e78e5e2f161bd1657abe2bb1",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
