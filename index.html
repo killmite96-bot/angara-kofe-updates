@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 158;
+const APP_VERSION = 159;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2659,7 +2659,7 @@ function sheet() {
       <input type="password" placeholder="Повторите новый пароль" autocomplete="off" value="${esc(f.n2)}" oninput="S.pw.n2=this.value">
       ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${f.err}</div>` : ''}
       <button class="btn sec" style="margin:8px 0" onclick="changePass()">Сменить пароль</button>`;
-    h += (mgr ? nsBlock() : '') + fxBlock() + pushBlock() + geoBlock() + tipsBlock() + fbBlock() + updBlock();
+    h += (mgr ? nsBlock() : '') + fxBlock() + pushBlock() + geoBlock() + tipsBlock() + standBlock() + fbBlock() + updBlock();
     return h + `<button class="btn" style="background:#4a1a1a;color:#ffb0b0;margin-top:12px" onclick="doLogout()">Выйти из профиля</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
   }
   if (S.sheet === 'water') {
@@ -3772,6 +3772,51 @@ function startServerSession(j, l, rem) {
   }
 }
 // после перезапуска приложения продолжаем сессию без повторного ввода пароля
+/* ===================== ТЕСТОВЫЙ СТЕНД ДЛЯ ТЕХПОДДЕРЖКИ ===================== */
+// На рабочем сервере у основного менеджера в профиле кнопка «Тестовый стенд»: сервер выдаёт билет на 2 минуты, стенд пускает без пароля.
+// На стенде два тестовых аккаунта (менеджер и курьер) переключаются кнопками, пароли не нужны.
+const isStand = () => /^test\./.test(location.hostname);
+const STAND_LOGIN = {mgr:'manager', cour:'alex'};
+function standBlock() {
+  if (!SRV) return '';
+  if (isStand()) {
+    const cur = SY.role === 'cour' ? 'cour' : 'mgr';
+    if (!/^(manager|alex)$/i.test(SY.login || '')) return '';
+    return `<h3>Тестовый стенд</h3><div class="card"><div class="t2" style="margin-bottom:10px">Здесь данные не настоящие. Переключайтесь между аккаунтами без пароля.</div>
+      <div class="seg"><button class="${cur === 'mgr' ? 'on' : ''}" onclick="standSwitch('mgr')">Менеджер</button><button class="${cur === 'cour' ? 'on' : ''}" onclick="standSwitch('cour')">Курьер</button></div>
+      <button class="btn sec sm" style="margin-top:10px" onclick="standBack()">Вернуться в рабочее приложение</button>${S.stErr ? `<div style="color:var(--r);font-size:13px;margin-top:8px">${esc(S.stErr)}</div>` : ''}</div>`;
+  }
+  if (SY.role !== 'mgr' || SY.mk !== 'mgr') return '';
+  return `<h3>Тестовый стенд</h3><div class="card"><div class="t2" style="margin-bottom:10px">Копия приложения с выдуманными данными: проверяйте новое, не затрагивая рабочее. Вход без пароля, есть тестовый менеджер и тестовый курьер.</div>
+    <button class="btn sec sm" ${S.stBusy ? 'disabled' : ''} onclick="standOpen()">${S.stBusy ? 'Открываем…' : 'Открыть тестовый стенд'}</button>${S.stErr ? `<div style="color:var(--r);font-size:13px;margin-top:8px">${esc(S.stErr)}</div>` : ''}</div>`;
+}
+function standOpen() {
+  S.stBusy = true; S.stErr = ''; render(true);
+  api('/api/stand-ticket', {}).then(j => {
+    S.stBusy = false; render(true);
+    if (!j.url) throw new Error('Стенд недоступен');
+    location.href = j.url;   // в приложении Android адрес откроется в браузере телефона, в браузере — в этой же вкладке
+  }).catch(e => { S.stBusy = false; S.stErr = e.message || 'Стенд недоступен'; render(true); });
+}
+function standSwitch(as) {
+  if ((SY.role === 'cour' ? 'cour' : 'mgr') === as) return;
+  S.stErr = '';
+  api('/api/stand-switch', {as}).then(j => {
+    const old = SY.token; syncStop(); if (old) srvLogout(old);
+    go({sheet:null, visit:null, view:null});
+    return startServerSession(j, STAND_LOGIN[as], true);
+  }).catch(e => { S.stErr = e.message || 'Не удалось переключить'; render(true); });
+}
+function standBack() { location.href = 'https://' + location.hostname.replace(/^test\./, ''); }
+// переход со стенда по билету: сразу входим тестовым менеджером
+function standEntry() {
+  if (!isStand()) return;
+  const m = /[#&]st=([\w.\-]+)/.exec(location.hash || ''); if (!m) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  const old = SY.token; syncStop(); if (old) srvLogout(old);
+  S.lg.busy = true; S.lg.err = ''; render();
+  api('/api/stand-login', {ticket:m[1], as:'mgr'}).then(j => startServerSession(j, STAND_LOGIN.mgr, true)).catch(e => { syncStop(); S.lg.busy = false; S.lg.err = e.message; render(); });
+}
 function syncBoot() {
   if (!SRV) return;
   if (!SY.token) { S.role = null; return; }
@@ -5479,7 +5524,7 @@ function sheetNew() {
 { const _sheet0 = sheet; sheet = function () { const x = sheetNew(); return x === null ? _sheet0.apply(this, arguments) : x; }; }
 
 // запуск: при ошибке один раз сбрасываем сохранённый на телефоне снимок (все данные на сервере) и пробуем снова; если не вышло — понятное сообщение вместо пустого экрана
-function bootApp() { syncBoot(); render(); }
+function bootApp() { syncBoot(); render(); standEntry(); }
 function fatalScreen(msg) {
   $('app').innerHTML = '<div style="padding:28px 20px;color:#e9f1eb"><h2 style="margin:0 0 10px">Не удалось запустить приложение</h2><div style="color:#8ea396;font-size:13px;margin-bottom:6px">Данные в безопасности: они хранятся на сервере.</div><div style="font-size:11px;color:#8ea396;word-break:break-all;margin-bottom:16px">' + esc(String(msg).slice(0, 160)) + '</div><button class="btn" style="width:100%;margin-bottom:8px" onclick="location.reload()">Перезапустить</button><button class="btn sec" style="width:100%" onclick="try{localStorage.removeItem(STORE_KEY);localStorage.removeItem(SYNC_KEY);}catch(e){};location.reload()">Сбросить данные на этом телефоне и войти заново</button></div>';
 }
