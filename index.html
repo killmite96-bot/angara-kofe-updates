@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 168;
+const APP_VERSION = 169;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1418,7 +1418,8 @@ const clFor = p => CL.filter(c => c.items.length && (c.all || (c.pids || []).inc
 const clPlural = n => n + (n % 10 === 1 && n % 100 !== 11 ? ' пункт' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? ' пункта' : ' пунктов');
 const clScope = c => c.all ? 'для всех точек' : 'для точек: ' + ((c.pids || []).map(id => pt(id) ? pt(id).name : '').filter(Boolean).join(', ') || 'не выбраны');
 function clManage() {
-  let h = `<div class="tiny" style="margin:2px 2px 8px">Дополнительные чек-листы появляются у курьера на визите после основного чек-листа. Показывать их можно на всех точках или только на выбранных.</div>`;
+  let h = `<h3>Стандартные (для каждой точки)</h3>` + STD_LISTS().map(l => `<div class="card" onclick="go({sheet:'chkvisit',cv:{pid:null}})"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${esc(l.title)}</div><div class="t2">${clPlural(l.items.length)} · ${esc(l.when)}</div></div><span style="color:var(--mut)">›</span></div></div>`).join('') + `<h3>Свои чек-листы</h3>`;
+  h += `<div class="tiny" style="margin:2px 2px 8px">Дополнительные чек-листы появляются у курьера на визите после основного чек-листа. Показывать их можно на всех точках или только на выбранных.</div>`;
   if (!CL.length) h += `<div class="card t2">Чек-листов пока нет. Создайте первый, например «Проверка перед закрытием».</div>`;
   CL.forEach(c => { h += `<div class="card" onclick="clOpen('${c.id}')"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${esc(c.name)}</div><div class="t2">${clPlural(c.items.length)} · ${esc(clScope(c))}</div></div><span class="pen">${ic('edit', 18)}</span></div></div>`; });
   return h + (CL.length < CL_MAX ? `<button class="btn sec" style="margin-top:6px" onclick="clOpen(null)">${ic('plus', 16)} Новый чек-лист</button>` : '');
@@ -1475,6 +1476,23 @@ function ptTasksSave() {
   const f = S.pk, p = pt(f.pid); if (!p) return go({sheet: null, pk: null});
   if (ptBusy(f.pid)) return go({sheet: null, pk: null, toast: 'Идёт визит на этой точке: изменить задачи можно после него'});
   p.notes = ptNotesClean(f.notes); go({sheet: null, pk: null, toast: 'Особые задачи сохранены'});
+}
+
+// ----- стандартные пункты визита: показ (общий список и полный состав для конкретной точки) -----
+const STD_LISTS = () => [
+  {k: 'a', title: 'Стандартный чек-лист', when: 'на каждом визите, на каждой точке', items: CHK1},
+  {k: 'b', title: 'Промывка миксеров с разбором', when: 'на визитах типа 2 и на генеральной уборке', items: CHK2},
+  {k: 'g', title: 'Генеральная уборка', when: 'только на визитах типа «генеральная»', items: CHK3}];
+const stdRows = items => items.map((c, i) => `<div class="row" style="align-items:flex-start;margin:6px 0"><span class="badge b1" style="min-width:26px;height:26px;border-radius:50%">${i + 1}</span><div class="grow" style="font-size:14px">${esc(c)}</div></div>`).join('');
+function chkVisitSheet() {
+  const f = S.cv, p = f.pid ? pt(f.pid) : null;
+  let h = `<h2>${p ? 'Задачи на визите' : 'Стандартные чек-листы'}</h2><div class="t2" style="margin-bottom:8px">${p ? esc(p.name) + ' · ' + esc(p.addr) : 'Эти пункты курьер проходит на каждой точке. Они общие и пока не меняются.'}</div>`;
+  const std = STD_LISTS(), card = (title, when, body) => `<div class="card"><div class="t1" style="font-size:14px">${esc(title)}</div><div class="tiny" style="margin-bottom:4px">${esc(when)}</div>${body}</div>`;
+  h += card(std[0].title, std[0].when, stdRows(std[0].items));
+  if (p && p.notes.length) h += card('Особые задачи этой точки', 'только на этой точке', stdRows(p.notes));
+  if (p) clFor(p).forEach(c => { h += card(c.name, 'дополнительный чек-лист, ' + clScope(c), stdRows(c.items)); });
+  h += card(std[1].title, std[1].when, stdRows(std[1].items)) + card(std[2].title, std[2].when, stdRows(std[2].items));
+  return h + `<button class="btn sec" style="margin-top:8px" onclick="go({sheet:null,cv:null})">Закрыть</button>`;
 }
 function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, feat: '', notes: [], info: {}, err: ''}}); }
 function nwUnits(d) { const u = S.nw.units, n = Math.max(1, Math.min(PT_MAX_UNITS, u.length + d)); while (u.length < n) u.push(u[u.length - 1] || 'B'); u.length = n; render(true); }
@@ -1560,7 +1578,7 @@ function pointCard(id) {
     ${needT2(p) ? '<div style="margin-top:6px"><span class="pill warn">рекомендуем тип 2</span></div>' : ''}</div></div></div>`;
   if (p.water) h += waterPanel(p, S.role === 'cour');
   if (p.win || p.feat || S.role === 'mgr') h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особенности точки</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptNotesOpen(${p.id})" title="Изменить особенности">${ic('edit', 18)}</span>` : ''}</div>${p.feat ? `<div class="t2" style="margin-top:6px;white-space:pre-wrap;color:var(--tx)">${esc(p.feat)}</div>` : ''}${p.win ? winLine(p, 'margin-top:6px') : ''}${!p.feat && !p.win ? '<div class="t2" style="margin-top:4px">Пока ничего не добавлено. Нажмите на карандаш.</div>' : ''}</div>`;
-  if (p.notes.length || clFor(p).length || S.role === 'mgr') h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особые задачи на визите</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptTasksOpen(${p.id})" title="Изменить особые задачи">${ic('edit', 18)}</span>` : ''}</div><div class="tiny" style="margin-top:2px">Добавляются к основному чек-листу на этой точке</div>${p.notes.map(n => `<div class="t2" style="margin-top:4px">• ${esc(n)}</div>`).join('')}${clFor(p).length ? `<div class="tiny" style="margin-top:8px">Дополнительные чек-листы: ${clFor(p).map(c => esc(c.name)).join(', ')}</div>` : ''}${!p.notes.length && !clFor(p).length ? '<div class="t2" style="margin-top:4px">Пока нет. Нажмите на карандаш, чтобы добавить.</div>' : ''}</div>`;
+  h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особые задачи на визите</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptTasksOpen(${p.id})" title="Изменить особые задачи">${ic('edit', 18)}</span>` : ''}</div><div class="tiny" style="margin-top:2px">Добавляются к основному чек-листу на этой точке</div>${p.notes.map(n => `<div class="t2" style="margin-top:4px">• ${esc(n)}</div>`).join('')}${clFor(p).length ? `<div class="tiny" style="margin-top:8px">Дополнительные чек-листы: ${clFor(p).map(c => esc(c.name)).join(', ')}</div>` : ''}${!p.notes.length && !clFor(p).length ? `<div class="t2" style="margin-top:4px">${S.role === 'mgr' ? 'Пока нет. Нажмите на карандаш, чтобы добавить.' : 'Особых задач нет.'}</div>` : ''}<button class="btn sec sm" style="margin-top:8px" onclick="go({sheet:'chkvisit',cv:{pid:${p.id}}})">Все пункты визита на этой точке</button></div>`;
   h += toolBlock(p) + camBlock(p);
   h += `<div class="card"><div class="t1" style="font-size:14px">При прибытии на последнем визите</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
     <span class="pill ${CCOL[p.arr.clean]}">Чистота: ${CLEAN[p.arr.clean]}</span><span class="pill ${p.arr.trash >= .75 ? 'warn' : ''}">Урна: ${Math.round(p.arr.trash * 100)}% · ${trashStatus(p.arr.trash)}</span></div></div>`;
@@ -3036,6 +3054,7 @@ function sheet() {
   if (S.sheet === 'ptcoord' && S.cd) return ptCdSheet();
   if (S.sheet === 'ptnotes' && S.pe) return ptNotesSheet();
   if (S.sheet === 'pttasks' && S.pk) return ptTasksSheet();
+  if (S.sheet === 'chkvisit' && S.cv) return chkVisitSheet();
   if (S.sheet === 'cledit' && S.ce) return clEditSheet();
   if (S.sheet === 'cldel' && S.ce) return clDelSheet();
   if (S.sheet === 'ptunit' && S.pu) return ptUnitSheet();
@@ -5881,6 +5900,7 @@ function selfTest() {
         clOpen(c.id); clDel(); eq(CL.length, n, 'чек-лист удалён'); go({sheet: null, ce: null});
       });
       [{sheet: 'cledit', ce: {id: null, name: '', items: [''], all: false, pids: [], err: ''}}, {sheet: 'pttasks', pk: {pid: P[0].id, notes: ['Контроль']}}].forEach(sp => T('чек-листы: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'points'}, sp))));
+      [{sheet: 'chkvisit', cv: {pid: null}}, {sheet: 'chkvisit', cv: {pid: P[0].id}}].forEach(sp => T('чек-листы: окно стандартных пунктов', () => go(Object.assign(home(), {tab: 'points'}, sp))));
       T('чек-листы: вкладка на «Точки»', () => go(Object.assign(home(), {tab: 'points', flt: 'cl'})));
       [{sheet: 'ptnotes', pe: {pid: P[0].id, feat: 'Комментарий', win: '', err: ''}}, {sheet: 'info', nw: {name: 'Тест', addr: 'Адрес', win: '', units: ['B'], lat: null, lon: null, notes: [], info: {}, err: ''}, inf: {pid: 'new', k: 'wet', edit: true, d: {imgs: [], steps: ['Шаг'], text: ''}}}].forEach(sp => T('точки: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'points'}, sp))));
       [{sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B', 'D'], lat: null, lon: null, notes: ['Контроль'], info: {}, err: ''}}, {sheet: 'ptcoord', cd: {t: 'new', back: 'ptnew', text: '', res: {empty: true}}, nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, err: ''}}].forEach(sp => T('точки: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'points'}, sp))));
