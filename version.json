@@ -1,9 +1,9 @@
 {
-    "content":  175,
+    "content":  177,
     "apk":  22,
-    "notes":  "Новая точка: поле ссылки на камеру. Станции и расположение перенесены в окно изменения точки, под адрес.",
+    "notes":  "Камеру можно подключить у каждой станции; подпись «с базы» стоит под названием, а не у кнопки «−».",
     "contentFile":  "index.html",
-    "contentSha256":  "0ac7a5aa7d8a9e86d933f4be366f9036d3c12063def28c93bbd45bba117969be",
+    "contentSha256":  "13a914c0c2d3828c56a8a8c06432185c5bccb2fa30286913f3e4f40d3bace838",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

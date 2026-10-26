@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 175;
+const APP_VERSION = 177;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1523,21 +1523,25 @@ const uFeatHTML = p => p.units.map((u, i) => u.feat ? `<div class="t2" style="ma
 const uNotesHTML = p => p.units.map((u, i) => (u.notes || []).length ? `<div class="tiny" style="margin-top:8px">Станция ${i + 1}:</div>` + u.notes.map(n => `<div class="t2" style="margin-top:4px">• ${esc(n)}</div>`).join('') : '').join('');
 const nwUnitExtra = i => { const u = S.nw.uex || (S.nw.uex = []), x = u[i] || (u[i] = {feat: '', notes: []});
   return `<div class="fbl" style="margin-top:10px">ОСОБЕННОСТИ ТОЧКИ (НЕОБЯЗАТЕЛЬНО)</div><textarea class="fbta" rows="3" maxlength="1000" placeholder="Например: вход со двора, охранник просит оставлять паспорт, станция у лифта" oninput="S.nw.uex[${i}].feat=this.value">${esc(x.feat)}</textarea>
-    <div class="fbl" style="margin-top:6px">ОСОБЫЕ ЗАДАЧИ ТОЧКИ (НЕОБЯЗАТЕЛЬНО)</div><div class="tiny">Курьер отметит каждую галочкой на визите.</div>${noteRows(x.notes, 'nw.uex[' + i + ']')}`; };
-function ptUOpen(pid, i) { const p = pt(pid), u = p && p.units[i]; if (!u || S.role !== 'mgr') return; go({sheet: 'ptunotes', pu2: {pid, i, feat: u.feat || '', notes: (u.notes || []).slice()}}); }
+    <div class="fbl" style="margin-top:6px">ОСОБЫЕ ЗАДАЧИ ТОЧКИ (НЕОБЯЗАТЕЛЬНО)</div><div class="tiny">Курьер отметит каждую галочкой на визите.</div>${noteRows(x.notes, 'nw.uex[' + i + ']')}
+    <div class="fbl" style="margin-top:6px">КАМЕРА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="300" placeholder="Ссылка на камеру: https://..." value="${esc(x.cam || '')}" oninput="S.nw.uex[${i}].cam=this.value" style="margin:4px 0">`; };
+function ptUOpen(pid, i) { const p = pt(pid), u = p && p.units[i]; if (!u || S.role !== 'mgr') return; go({sheet: 'ptunotes', pu2: {pid, i, feat: u.feat || '', notes: (u.notes || []).slice(), cam: u.cam || '', err: ''}}); }
 function ptUSheet() {
   const f = S.pu2, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return `<h2>Станция не найдена</h2><button class="btn sec" onclick="go({sheet:${pnB()},pu2:null})">Закрыть</button>`;
   return `<h2>Станция ${f.i + 1}: особенности и задачи</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)} · ${esc(STN[u.st])}</div>
     <div class="fbl">ОСОБЕННОСТИ СТАНЦИИ (КОММЕНТАРИЙ)</div><textarea class="fbta" rows="4" maxlength="1000" placeholder="Что нужно знать об этой станции" oninput="S.pu2.feat=this.value">${esc(f.feat)}</textarea>
     <div class="fbl" style="margin-top:8px">ОСОБЫЕ ЗАДАЧИ СТАНЦИИ</div><div class="tiny">Курьер отметит каждую галочкой на визите.</div>${noteRows(f.notes, 'pu2')}
+    <div class="fbl" style="margin-top:6px">КАМЕРА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="300" placeholder="Ссылка на камеру: https://..." value="${esc(f.cam || '')}" oninput="S.pu2.cam=this.value" style="margin:4px 0">
+    ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${esc(f.err)}</div>` : ''}
     <button class="btn" style="margin:10px 0 8px" onclick="ptUSave()">Сохранить</button><button class="btn sec" onclick="go({sheet:${pnB()},pu2:null})">Отмена</button>`;
 }
 function ptUSave() {
   const f = S.pu2, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return go({sheet: pnSh(), pu2: null});
   if (ptBusy(f.pid)) return go({sheet: pnSh(), pu2: null, toast: 'Идёт визит на этой точке: изменить можно после него'});
-  u.feat = String(f.feat || '').trim().slice(0, 1000); u.notes = ptNotesClean(f.notes); go({sheet: pnSh(), pu2: null, toast: 'Сохранено'});
+  const cam = String(f.cam || '').trim().slice(0, 300); if (cam && !/^https?:\/\/\S+$/i.test(cam)) { f.err = 'Ссылка на камеру должна начинаться с http:// или https://'; return render(true); }
+  u.feat = String(f.feat || '').trim().slice(0, 1000); u.notes = ptNotesClean(f.notes); if (cam) u.cam = cam; else delete u.cam; go({sheet: pnSh(), pu2: null, toast: 'Сохранено'});
 }
-function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, cam: '', feat: '', notes: [], uex: [{feat: '', notes: []}], info: {}, err: ''}}); }
+function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, feat: '', notes: [], uex: [{feat: '', notes: [], cam: ''}], info: {}, err: ''}}); }
 function nwUnits(d) { const u = S.nw.units, n = Math.max(1, Math.min(PT_MAX_UNITS, u.length + d)); while (u.length < n) u.push(u[u.length - 1] || 'B'); u.length = n; S.nw.uex = S.nw.uex || []; while (S.nw.uex.length < n) S.nw.uex.push({feat: '', notes: []}); S.nw.uex.length = n; render(true); }
 function nwType(i, st) { S.nw.units[i] = st; render(true); }
 const stTiles = (cur, call) => `<div class="row" style="gap:6px;align-items:stretch">${['A', 'B', 'C', 'D'].map(st => `<div class="sttile${cur === st ? ' on' : ''}" onclick="${call.replace('@', st)}"><div class="photo" style="width:100%;height:74px">${exHTML(st)}</div><div class="tiny">${esc(STN[st])}</div></div>`).join('')}</div>`;
@@ -1554,7 +1558,6 @@ function ptNewSheet() {
     <div class="fbl" style="margin-top:12px">ПОДСКАЗКИ КУРЬЕРУ (НЕОБЯЗАТЕЛЬНО)</div>
     <div class="fgrid" style="margin-top:4px">${[['wet', 'drop', 'Мокрая точка'], ['park', 'pin', 'Парковка']].map(([k, ico, t]) => { const o = infoOf('new', k), has = o.imgs.length || (o.steps || []).length || o.text; return `<div class="fld${has ? ' on' : ''}" onclick="infoNew('${k}')"><span style="color:${has ? 'var(--g)' : 'var(--mut)'}">${ic(ico, 18)}</span><div class="grow" style="min-width:0"><span class="fl">${t}</span><b>${has ? 'заполнено' : '<span style="color:var(--mut);font-weight:500">добавить</span>'}</b></div></div>`; }).join('')}</div>
     <div class="fbl" style="margin-top:10px">КООРДИНАТЫ</div><div class="fld${has ? ' on' : ''}" style="margin:4px 0 8px" onclick="ptCdOpen('new','ptnew')"><span style="color:${has ? 'var(--g)' : 'var(--mut)'}">${ic('pin', 18)}</span><div class="grow" style="min-width:0"><span class="fl">Широта, долгота</span><b>${has ? f.lat.toFixed(5) + ', ' + f.lon.toFixed(5) : '<span style="color:var(--mut);font-weight:500">не указаны: нажмите, чтобы вставить</span>'}</b></div></div>
-    <div class="fbl" style="margin-top:10px">КАМЕРА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="300" placeholder="Ссылка на камеру: https://..." value="${esc(f.cam || '')}" oninput="S.nw.cam=this.value" style="margin:4px 0">
     ${has ? '' : '<div class="tiny" style="color:var(--o)">Без координат не работают расстояния в маршруте и отметка прибытия по геолокации. Их можно добавить позже в карточке точки.</div>'}
     ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${esc(f.err)}</div>` : ''}
     <button class="btn" style="margin:8px 0" onclick="ptNewSave()">Создать точку</button><button class="btn sec" onclick="go({sheet:null,nw:null})">Отмена</button>`;
@@ -1564,11 +1567,13 @@ function ptNewSave() {
   if (name.length < 2) { f.err = 'Введите название точки'; return render(true); }
   if (P.some(x => x.name.toLowerCase() === name.toLowerCase())) { f.err = 'Точка с таким названием уже есть'; return render(true); }
   if (addr.length < 3) { f.err = 'Введите адрес точки'; return render(true); }
-  const cam = String(f.cam || '').trim(); if (cam && !/^https?:\/\/\S+$/i.test(cam)) { f.err = 'Ссылка на камеру должна начинаться с http:// или https://'; return render(true); }
+  const many = f.units.length > 1, camOf = k => String(((f.uex || [])[k] || {}).cam || '').trim().slice(0, 300);
+  for (let k = 0; k < f.units.length; k++) if (camOf(k) && !/^https?:\/\/\S+$/i.test(camOf(k))) { f.err = (many ? 'Станция ' + (k + 1) + ': ссылка' : 'Ссылка') + ' на камеру должна начинаться с http:// или https://'; return render(true); }
   const id = Math.max(0, ...P.map(x => x.id)) + 1, has = f.lat != null;
   const p = {id, name, addr, win: f.win.trim().slice(0, 60), feat: f.units.length > 1 ? '' : String(((f.uex || [])[0] || {}).feat || '').trim().slice(0, 1000), notes: f.units.length > 1 ? [] : ptNotesClean(((f.uex || [])[0] || {}).notes || []), lat: has ? f.lat : DEPOT.lat, lon: has ? f.lon : DEPOT.lon, cset: has, nocoord: !has, arr: {clean: 0, trash: 0}, last: 0, last2: 0, nv: true, back: {}, deep: 0, water: null, pass: ''};
-  ING.forEach(g => { p.back[g.id] = 0; }); if (cam) p.cam = cam.slice(0, 300);
+  ING.forEach(g => { p.back[g.id] = 0; }); if (!many && camOf(0)) p.cam = camOf(0);
   p.units = f.units.map((st, k) => Object.assign(newUnit(st, k), {loc: p}, f.units.length > 1 ? {feat: String(((f.uex || [])[k] || {}).feat || '').trim().slice(0, 1000), notes: ptNotesClean(((f.uex || [])[k] || {}).notes || [])} : {}));
+  if (many) p.units.forEach((u, k) => { if (camOf(k)) u.cam = camOf(k); });
   P.push(p); P.sort((a, b) => a.id - b.id);
   const inf = f.info || {}, hasInf = k => inf[k] && (inf[k].imgs.length || (inf[k].steps || []).length || inf[k].text);
   if (hasInf('wet') || hasInf('park')) INFO[id] = {wet: hasInf('wet') ? inf.wet : undefined, park: hasInf('park') ? inf.park : undefined};
@@ -1632,7 +1637,7 @@ function pointCard(id) {
   const mg = S.role === 'mgr';
   // у менеджера значения правятся прямо в карточке кнопками − и +
   const stp = (call, val, wk) => `<div class="step"><button onclick="${call},-1)">−</button><span${wk ? ` data-wk="${wk}"` : ''}>${val}</span><button onclick="${call},1)">+</button></div>`;
-  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${gn(g, p)}${mg ? ` <span class="pen" onclick="openIng('${g.id}')" title="Изменить название">${ic('edit', 14)}</span>` : ''}</span><span>${mg ? stp(`mgBack(${p.id},'${g.id}'`, p.back[g.id] + ' ' + g.u, `PB:${p.id}|${g.id}`) : `<b>${p.back[g.id]} ${g.u}</b>`}${nb > 0 ? ` <span class="pill warn">с базы ${nb}</span>` : ''}</span></div>`; }).join('') + '</div>';
+  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${gn(g, p)}${mg ? ` <span class="pen" onclick="openIng('${g.id}')" title="Изменить название">${ic('edit', 14)}</span>` : ''}${nb > 0 ? `<div style="margin-top:5px"><span class="pill warn">с базы ${nb}</span></div>` : ''}</span><span>${mg ? stp(`mgBack(${p.id},'${g.id}'`, p.back[g.id] + ' ' + g.u, `PB:${p.id}|${g.id}`) : `<b>${p.back[g.id]} ${g.u}</b>`}</span></div>`; }).join('') + '</div>';
   h += '<h3>Остатки на последний визит</h3>';
   p.units.forEach((u, i) => {
     if (p.units.length > 1) h += `<h3>Станция ${i + 1} · ${STN[u.st]}</h3>`;
@@ -5573,14 +5578,19 @@ function saveTool() { const f = S.tl, p = pt(f.pid); p.tool = {on: true, note: f
 function clearTool() { delete pt(S.tl.pid).tool; go({sheet: null, tl: null, toast: 'Пометка снята'}); }
 function camBlock(p) {
   if (S.role !== 'mgr') return '';
-  const u = /^https?:\/\/\S+$/i.test(p.cam || '') ? p.cam : '';
-  return u ? `<div class="row" style="gap:10px;margin:10px 0"><a class="btn sec" style="flex:1 1 0;width:auto;margin:0;text-align:center;text-decoration:none;display:block" href="${esc(u)}" target="_blank" rel="noopener">${ic('cctv', 18)} Смотреть камеру</a><button class="btn sec" style="width:auto;margin:0" onclick="openCam(${p.id})" aria-label="Изменить ссылку">${ic('edit', 16)}</button></div>`
-    : `<div class="row" style="gap:10px;margin:10px 0"><button class="btn sec" style="flex:1 1 0;width:auto;margin:0;opacity:.65" onclick="openCam(${p.id})">${ic('cctv', 18)} Камера не подключена</button></div>`;
+  const okU = v => /^https?:\/\/\S+$/i.test(v || '') ? v : '';
+  const watch = (label, url, onEdit) => `<div class="row" style="gap:10px;margin:10px 0"><a class="btn sec" style="flex:1 1 0;width:auto;margin:0;text-align:center;text-decoration:none;display:block" href="${esc(url)}" target="_blank" rel="noopener">${ic('cctv', 18)} ${label}</a><button class="btn sec" style="width:auto;margin:0" onclick="${onEdit}" aria-label="Изменить ссылку">${ic('edit', 16)}</button></div>`;
+  const off = (label, onEdit) => `<div class="row" style="gap:10px;margin:10px 0"><button class="btn sec" style="flex:1 1 0;width:auto;margin:0;opacity:.65" onclick="${onEdit}">${ic('cctv', 18)} ${label}</button></div>`;
+  const row = (label, url, offLabel, i) => url ? watch(label, url, `openCam(${p.id}${i == null ? '' : ',' + i})`) : off(offLabel, `openCam(${p.id}${i == null ? '' : ',' + i})`);
+  if (p.units.length < 2) return row('Смотреть камеру', okU(p.cam), 'Камера не подключена', null);
+  // несколько станций: у каждой своя камера (показываем все, чтобы подключить любую)
+  return p.units.map((u, i) => row('Камера станции ' + (i + 1), okU(u.cam), 'Камера станции ' + (i + 1) + ' не подключена', i)).join('') + (okU(p.cam) ? watch('Камера точки', okU(p.cam), `openCam(${p.id})`) : '');
 }
-const openCam = pid => go({sheet: 'camset', cs: {pid, url: pt(pid).cam || ''}});
+const openCam = (pid, i) => go({sheet: 'camset', cs: {pid, i: i == null ? null : i, url: (i == null ? pt(pid).cam : (pt(pid).units[i] || {}).cam) || ''}});
 function saveCam() {
   const f = S.cs, u = f.url.trim(); if (u && !/^https?:\/\/\S+$/i.test(u)) return go({toast: 'Ссылка должна начинаться с http:// или https://'});
-  if (u) pt(f.pid).cam = u.slice(0, 300); else delete pt(f.pid).cam;
+  const tgt = f.i == null ? pt(f.pid) : pt(f.pid).units[f.i]; if (!tgt) return go({sheet: null, cs: null});
+  if (u) tgt.cam = u.slice(0, 300); else delete tgt.cam;
   go({sheet: null, cs: null, toast: u ? 'Ссылка на камеру сохранена' : 'Ссылка на камеру убрана'});
 }
 
@@ -5932,7 +5942,7 @@ function selfTest() {
       });
       T('точки: особенности, мокрая точка и парковка', () => {
         const n = P.length; S.nw = {name: 'Тест с подсказками', addr: 'Тестовая 2', win: '10:00–12:00', units: ['B'], lat: null, lon: null, uex: [{feat: '  Вход со двора.\nОхранник просит паспорт  ', notes: ['Контроль стаканов', '  ', 'Проверить воду']}], info: {wet: {imgs: [], steps: ['Налево', 'К лестнице'], text: ''}, park: {imgs: [], steps: [], text: 'Во дворе слева'}}, err: ''};
-        S.nw.cam = 'ftp://плохая'; ptNewSave(); eq(P.length, n, 'плохая ссылка на камеру отклонена'); eq(!!S.nw.err, true, 'сообщение о ссылке'); S.nw.cam = 'https://example.com/cam/1';
+        S.nw.uex[0].cam = 'ftp://плохая'; ptNewSave(); eq(P.length, n, 'плохая ссылка на камеру отклонена'); eq(!!S.nw.err, true, 'сообщение о ссылке'); S.nw.uex[0].cam = 'https://example.com/cam/1';
         ptNewSave(); const p = P[P.length - 1]; eq(P.length, n + 1, 'точка создана'); eq(p.cam, 'https://example.com/cam/1', 'ссылка на камеру'); eq(p.notes.length, 2, 'пустая особенность отброшена'); eq(p.win, '10:00–12:00', 'окно визита'); eq(p.feat, 'Вход со двора.\nОхранник просит паспорт', 'комментарий с переносом строки'); eq(p.nocoord, true, 'без координат');
         eq(infoOf(p.id, 'wet').steps.length, 2, 'мокрая точка сохранена'); eq(infoOf(p.id, 'park').text, 'Во дворе слева', 'парковка сохранена');
         ptNotesOpen(p.id); S.pe.win = ''; S.pe.feat = 'Новый комментарий'; ptNotesSave(); eq(p.win, '', 'окно очищено'); eq(p.feat, 'Новый комментарий', 'комментарий изменён'); eq(p.notes.length, 2, 'задачи не затронуты');
@@ -5958,9 +5968,9 @@ function selfTest() {
         chkxApply({b: ['Один пункт']}); eq(CHK2.length, 1, 'применено из настроек'); chkxApply(null); eq(CHK2.length, CHK_DEF.b.length, 'сброс'); go({sheet: null, sd: null});
       });
       T('станции: особенности и задачи у каждой', () => {
-        const n = P.length; S.nw = {name: 'Две станции', addr: 'Тестовая 3', win: '', units: ['A', 'B'], lat: null, lon: null, feat: '', notes: [], uex: [{feat: '', notes: ['Задача для первой']}, {feat: 'Вторая у окна', notes: ['Протереть окно', ' ']}], info: {}, err: ''};
-        ptNewSave(); const p = P[P.length - 1]; eq(P.length, n + 1, 'точка создана'); eq(p.units[1].feat, 'Вторая у окна', 'особенности второй станции'); eq(p.units[1].notes.length, 1, 'задача второй станции'); eq(p.units[0].notes[0], 'Задача для первой', 'задача первой станции');
-        ptUOpen(p.id, 0); S.pu2.feat = 'Новое про первую'; S.pu2.notes.push('Ещё задача'); ptUSave(); eq(p.units[0].feat, 'Новое про первую', 'правка станции'); eq(p.units[0].notes.length, 2, 'задачи станции изменены');
+        const n = P.length; S.nw = {name: 'Две станции', addr: 'Тестовая 3', win: '', units: ['A', 'B'], lat: null, lon: null, feat: '', notes: [], uex: [{feat: '', notes: ['Задача для первой']}, {feat: 'Вторая у окна', notes: ['Протереть окно', ' '], cam: 'https://example.com/cam/second'}], info: {}, err: ''};
+        ptNewSave(); const p = P[P.length - 1]; eq(P.length, n + 1, 'точка создана'); eq(p.units[1].feat, 'Вторая у окна', 'особенности второй станции'); eq(p.units[1].notes.length, 1, 'задача второй станции'); eq(p.units[0].notes[0], 'Задача для первой', 'задача первой станции'); eq(p.units[1].cam, 'https://example.com/cam/second', 'камера второй станции'); eq(p.units[0].cam, undefined, 'у первой станции камеры нет'); eq(p.cam, undefined, 'камера точки не задана');
+        ptUOpen(p.id, 0); S.pu2.cam = 'https://example.com/cam/first'; S.pu2.feat = 'Новое про первую'; S.pu2.notes.push('Ещё задача'); ptUSave(); eq(p.units[0].feat, 'Новое про первую', 'правка станции'); eq(p.units[0].cam, 'https://example.com/cam/first', 'камера станции добавлена правкой'); ptUOpen(p.id, 0); S.pu2.cam = ''; ptUSave(); eq(p.units[0].cam, undefined, 'камера станции убрана'); eq(p.units[0].notes.length, 2, 'задачи станции изменены');
         S.pd = p.id; ptDel(); eq(P.length, n, 'тестовая точка удалена'); go({view: null, sheet: null, nw: null});
       });
       [{sheet: 'stdedit', sd: {k: 'a', items: ['Один', 'Два'], err: ''}}, {sheet: 'ptunotes', pu2: {pid: P[0].id, i: 0, feat: 'Текст', notes: ['Задача']}}, {sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['A', 'B'], lat: null, lon: null, feat: '', notes: [], uex: [{feat: '', notes: ['Х']}, {feat: 'Y', notes: []}], info: {}, err: ''}}].forEach(sp => T('чек-листы: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'points'}, sp))));
@@ -6172,7 +6182,7 @@ function sheetNew() {
   }
   if (s === 'camset') {
     const f = S.cs, p = pt(f.pid);
-    return `<h2>Камера точки</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)}</div>
+    return `<h2>${f.i == null ? 'Камера точки' : 'Камера станции ' + (f.i + 1)}</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)}</div>
       <div class="card"><div class="row"><div style="color:var(--g)">${ic('cctv', 32)}</div><div class="grow t2">Вставьте ссылку для просмотра камеры из её приложения или сервиса. Пока ссылки нет, кнопка на точке серая.</div></div></div>
       <input type="text" inputmode="url" autocapitalize="off" placeholder="https://…" value="${esc(f.url)}" oninput="S.cs.url=this.value" style="margin-top:8px">
       <button class="btn" style="margin-top:8px" onclick="saveCam()">Сохранить</button>
