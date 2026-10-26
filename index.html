@@ -225,7 +225,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 151;
+const APP_VERSION = 152;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -4389,7 +4389,7 @@ function sheetExtras() {
   const tall = !skip && sh.scrollHeight > H * 0.64;
   if (!tall || !grab) return;
   grab.dataset.tall = '1'; sh.style.maxHeight = DET.v === 'large' ? '92%' : '58%'; if (SCM_KEEP) sh.scrollTop = SCM_KEEP;
-  const web = !pushIsApp();
+  const web = true;   // в половинном положении содержимое не прокручивается само: движение вверх сразу разворачивает окно (и в приложении, и в браузере)
   const webMode = () => { if (!web) return; const big = DET.v === 'large'; sh.style.overflowY = big ? '' : 'hidden'; sh.style.touchAction = big ? '' : 'none'; if (!big) sh.scrollTop = 0; };
   const setDet = v => { DET.v = v; sh.style.transition = 'max-height .4s cubic-bezier(.22,1,.36,1)'; sh.style.maxHeight = v === 'large' ? '92%' : '58%'; webMode(); haptic(8); };
   webMode();
@@ -4411,7 +4411,7 @@ function sheetExtras() {
   sh.addEventListener('touchmove', e => {
     if (!c) return; const dy = e.touches[0].clientY - c.y0;
     if (!c.mode) {
-      if (DET.v === 'med' && dy < -12) c.mode = 'up';
+      if (DET.v === 'med' && dy < -6) c.mode = 'up';
       else if (DET.v === 'large' && dy > 12 && c.top && sh.scrollTop <= 4) c.mode = 'down';   // окно сворачивается, только если жест начался вверху; прокрутка вверх, дошедшая до верха посреди жеста, окно не сворачивает
       else return;
       setDet(c.mode === 'up' ? 'large' : 'med');
