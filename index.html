@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 170;
+const APP_VERSION = 171;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1543,15 +1543,16 @@ const stTiles = (cur, call) => `<div class="row" style="gap:6px;align-items:stre
 function ptNewSheet() {
   const f = S.nw, has = f.lat != null;
   return `<h2>Новая точка</h2><div class="tiny" style="margin-bottom:6px">Курьеры увидят её в адресах, а вы сможете назначать её в график.</div>
-    <div class="fbl">НАЗВАНИЕ</div><input type="text" maxlength="60" placeholder="Например: ТЦ Центральный" value="${esc(f.name)}" oninput="S.nw.name=this.value" style="margin:4px 0">
+    <div class="row" style="margin-top:4px"><div class="grow fbl" style="margin:0">СТАНЦИЙ НА ТОЧКЕ</div><div class="step"><button onclick="nwUnits(-1)">−</button><span>${f.units.length}</span><button onclick="nwUnits(1)">+</button></div></div>
+    ${f.units.map((st, i) => `<div class="tiny" style="margin:8px 0 4px">${f.units.length > 1 ? 'Станция ' + (i + 1) + ': ' : 'Вид станции: '}${esc(STN[st])}</div>${stTiles(st, `nwType(${i},'@')`)}`).join('')}
+    <div class="fbl" style="margin-top:12px">НАЗВАНИЕ</div><input type="text" maxlength="60" placeholder="Например: ТЦ Центральный" value="${esc(f.name)}" oninput="S.nw.name=this.value" style="margin:4px 0">
     <div class="fbl">АДРЕС</div><input type="text" maxlength="120" placeholder="Улица, дом" value="${esc(f.addr)}" oninput="S.nw.addr=this.value" style="margin:4px 0">
     <div class="fbl">ОСОБЕННОСТИ ТОЧКИ (НЕОБЯЗАТЕЛЬНО)</div><textarea class="fbta" rows="4" maxlength="1000" placeholder="Например: вход со двора, охранник просит оставлять паспорт, станция у лифта" oninput="S.nw.feat=this.value">${esc(f.feat || '')}</textarea>
     <div class="fbl" style="margin-top:8px">ОКНО ВИЗИТА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="60" placeholder="Например: 13:00–22:00" value="${esc(f.win)}" oninput="S.nw.win=this.value" style="margin:4px 0">
     <div class="fbl" style="margin-top:8px">ОСОБЫЕ ЗАДАЧИ (НЕОБЯЗАТЕЛЬНО)</div><div class="tiny">Курьер отметит каждую галочкой на визите.</div>${noteRows(f.notes, 'nw')}
     <div class="fbl" style="margin-top:12px">ПОДСКАЗКИ КУРЬЕРУ (НЕОБЯЗАТЕЛЬНО)</div>
     <div class="fgrid" style="margin-top:4px">${[['wet', 'drop', 'Мокрая точка'], ['park', 'pin', 'Парковка']].map(([k, ico, t]) => { const o = infoOf('new', k), has = o.imgs.length || (o.steps || []).length || o.text; return `<div class="fld${has ? ' on' : ''}" onclick="infoNew('${k}')"><span style="color:${has ? 'var(--g)' : 'var(--mut)'}">${ic(ico, 18)}</span><div class="grow" style="min-width:0"><span class="fl">${t}</span><b>${has ? 'заполнено' : '<span style="color:var(--mut);font-weight:500">добавить</span>'}</b></div></div>`; }).join('')}</div>
-    <div class="row" style="margin-top:12px"><div class="grow fbl" style="margin:0">СТАНЦИЙ НА ТОЧКЕ</div><div class="step"><button onclick="nwUnits(-1)">−</button><span>${f.units.length}</span><button onclick="nwUnits(1)">+</button></div></div>
-    ${f.units.map((st, i) => `<div class="tiny" style="margin:8px 0 4px">${f.units.length > 1 ? 'Станция ' + (i + 1) + ': ' : 'Вид станции: '}${esc(STN[st])}</div>${stTiles(st, `nwType(${i},'@')`)}${f.units.length > 1 ? nwUnitExtra(i) : ''}`).join('')}
+    ${f.units.length > 1 ? f.units.map((st, i) => nwUnitExtra(i)).join('') : ''}
     <div class="fbl" style="margin-top:10px">КООРДИНАТЫ</div><div class="fld${has ? ' on' : ''}" style="margin:4px 0 8px" onclick="ptCdOpen('new','ptnew')"><span style="color:${has ? 'var(--g)' : 'var(--mut)'}">${ic('pin', 18)}</span><div class="grow" style="min-width:0"><span class="fl">Широта, долгота</span><b>${has ? f.lat.toFixed(5) + ', ' + f.lon.toFixed(5) : '<span style="color:var(--mut);font-weight:500">не указаны: нажмите, чтобы вставить</span>'}</b></div></div>
     ${has ? '' : '<div class="tiny" style="color:var(--o)">Без координат не работают расстояния в маршруте и отметка прибытия по геолокации. Их можно добавить позже в карточке точки.</div>'}
     ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${esc(f.err)}</div>` : ''}
