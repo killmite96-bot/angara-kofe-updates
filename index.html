@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 129;
+const APP_VERSION = 130;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2736,6 +2736,7 @@ let SRV = '';   // адрес сервера; пусто = режим без с�
 try { SRV = localStorage.getItem(SRV_KEY) || ''; } catch (e) {}
 if (!SRV) { try { SRV = window.AndroidBridge && AndroidBridge.serverUrl ? String(AndroidBridge.serverUrl() || '') : ''; } catch (e) {} }
 if (!SRV && /^https?:$/.test(location.protocol)) SRV = location.origin;
+if (!SRV && !/[?&]selftest=/.test(location.search)) SRV = 'https://188-130-251-213.sslip.io';   // сервер сети по умолчанию: без него приложение уходит в режим без сервера и не пускает под настоящими логинами
 SRV = SRV.trim().replace(/\/+$/, ''); window.__logBase = SRV;
 const SY = {token:'', role:'', cid:0, mk:'', login:'', seq:0, mirror:{}, base:{}, on:false, net:false, pend:{}, pushing:false, es:null};
 try { const t = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (t && t.url === SRV && t.token) Object.assign(SY, {token:t.token, role:t.role, cid:t.cid, mk:t.mk || '', login:t.login || ''}); } catch (e) {}
