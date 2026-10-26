@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 135;
+const APP_VERSION = 136;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -332,7 +332,7 @@ let TODAY = todayIdx();   // настоящий сегодняшний день 
 const DEPOT = {name:'База (склад)', addr:'Красноказачья, 85', lat:52.2752, lon:104.3246};
 const DEPOT_LL = [DEPOT.lat, DEPOT.lon];
 const COUR = [{id:1, name:'Алексей', login:'alex', pass:'1234', active:true, r1:600, r2:1100, r3:2000}, {id:2, name:'Мария', login:'maria', pass:'1234', active:true, r1:600, r2:1100, r3:2000}];
-const DEEP_DAYS = 90;   // генеральная уборка по всем точкам раз в 3 месяца
+const DEEP = {on:true, mo:3};   // общий срок генеральной уборки для всех точек: раз в N месяцев (задаёт менеджер во вкладке «Точки»); у точки может быть и своя дата (p.dd = {m, d})
 const MGR = {login:'manager', pass:'admin', name:'Менеджер'};
 let CITY = '';
 const EX = {};   // фото-примеры станций по дизайну (A–D), которые менеджер загрузил сам; EX_DEF — примеры, вшитые в приложение
@@ -436,7 +436,9 @@ const stepFor = g => g.t === 'count' ? 10 : (g.u === 'бут' || g.u === 'уп' 
 // название ингредиента на точке: у сиропов добавляется вкус, который вписал курьер или менеджер (p.syr)
 const gn = (g, p) => { const fl = p && p.syr && p.syr[g.id]; return fl ? g.n + ' · ' + esc(fl) : g.n; };
 const needBase = (p, g) => { const n = Math.max(0, recP(p, g) - (g.id === 'water' ? 0 : (p.back[g.id] || 0))); return g.t === 'count' ? Math.round(n / 10) * 10 : (g.u === 'бут' || g.u === 'уп' ? Math.ceil(n - .001) : Math.round(n * 2) / 2); };
-const deepLeft = p => DEEP_DAYS - p.deep;
+const deepDays = p => p.deepAt ? Math.max(0, Math.floor((sNow() - p.deepAt) / 864e5)) : p.deep;   // сколько дней назад была генеральная уборка
+const deepLeft = p => DEEP.on ? Math.round(DEEP.mo * 30.4) - deepDays(p) : 9999;   // дней до общего срока (отрицательное — просрочено)
+function deepEnsure() { P.forEach(p => { if (p.deepAt === undefined && p.deep !== undefined) p.deepAt = Math.floor(sNow() / 864e5) * 864e5 - p.deep * 864e5; }); }
 const tl = t => t === 3 ? 'Г' : t;
 const bcls = t => t === 3 ? 'b3' : t === 2 ? 'b2' : 'b1';
 const rateOf = (c, t) => t === 3 ? c.r3 : t === 2 ? c.r2 : c.r1;
@@ -1088,8 +1090,9 @@ function pointsScreen() {
   let h = topbar(S.role === 'mgr' ? 'Остатки по точкам' : 'Мои адреса', S.role === 'mgr' ? P.length + ' точек' : 'Адреса из вашего расписания');
   h += `<div class="body"><input type="text" placeholder="Поиск по адресу" value="${S.q}" oninput="S.q=this.value;render(true)">`;
   if (S.role === 'mgr') h += `<div class="chips"><button class="${S.flt === 'all' ? 'on' : ''}" onclick="go({flt:'all'})">Все</button><button class="${S.flt === 'bad' ? 'on' : ''}" onclick="go({flt:'bad'})">Проблемные</button><button class="${S.flt === 't2' ? 'on' : ''}" onclick="go({flt:'t2'})">Пора на тип 2</button><button class="${S.flt === 'deep' ? 'on' : ''}" onclick="go({flt:'deep'})">Генеральная уборка</button></div>`;
+  if (S.role === 'mgr' && S.flt === 'deep') return h + deepManage() + '</div>';
   P.filter(p => (!mine || mine.has(p.id)) && (p.name + p.addr).toLowerCase().includes(S.q.toLowerCase()))
-    .filter(p => S.role !== 'mgr' || S.flt === 'all' || (S.flt === 'bad' && health(p) !== 'g') || (S.flt === 't2' && needT2(p)) || (S.flt === 'deep' && deepLeft(p) <= 14))
+    .filter(p => S.role !== 'mgr' || S.flt === 'all' || (S.flt === 'bad' && health(p) !== 'g') || (S.flt === 't2' && needT2(p)))
     .forEach(p => {
       const low = []; p.units.forEach((u, i) => ING.forEach(g => { if (frac(u, g) < .4) low.push({g, u, i}); })); low.length = Math.min(low.length, 3);
       h += `<div class="card" onclick="openPoint(${p.id})"><div class="row"><span class="dot d${health(p)}"></span>
@@ -1320,7 +1323,7 @@ function pointCard(id) {
   h += `<div class="card"><div class="t1" style="font-size:14px">При прибытии на последнем визите</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
     <span class="pill ${CCOL[p.arr.clean]}">Чистота: ${CLEAN[p.arr.clean]}</span><span class="pill ${p.arr.trash >= .75 ? 'warn' : ''}">Урна: ${Math.round(p.arr.trash * 100)}% · ${trashStatus(p.arr.trash)}</span></div></div>`;
   h += `<div class="row" style="gap:10px;margin:10px 0"><button class="btn sec" style="flex:1 1 0;width:auto;margin:0" onclick="openInfo(${p.id},'wet')">${ic('drop', 16)} Мокрая точка</button><button class="btn sec" style="flex:1 1 0;width:auto;margin:0" onclick="openInfo(${p.id},'park')">${ic('pin', 16)} Парковка</button></div>`;
-  h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Генеральная уборка</div><div class="t2">${deepText(p)}</div></div>${deepLeft(p) <= 14 ? `<span class="pill warn">${deepLeft(p) < 0 ? 'пора' : 'скоро срок'}</span>` : ''}</div></div>`;
+  h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Генеральная уборка</div><div class="t2">${deepText(p)}</div>${ddInfo(p) ? `<div class="t2">${ddInfo(p).text}</div>` : ''}</div>${(DEEP.on && deepLeft(p) <= 14) || (ddInfo(p) && ddInfo(p).show) ? `<span class="pill warn">${DEEP.on && deepLeft(p) < 0 ? 'пора' : 'скоро срок'}</span>` : ''}</div></div>`;
   const mg = S.role === 'mgr';
   // у менеджера значения правятся прямо в карточке кнопками − и +
   const stp = (call, val) => `<div class="step"><button onclick="${call},-1)">−</button><span>${val}</span><button onclick="${call},1)">+</button></div>`;
@@ -1463,7 +1466,7 @@ function applyStock(v) {
 function saveQuick() { applyStock(S.visit); S.visit = null; go({view:null, toast:S.role === 'mgr' ? 'Остатки исправлены' : 'Остатки обновлены, менеджер их видит'}); }
 function finishVisit() {
   const v = S.visit, p = pt(v.pid), item = L(S.me, TODAY).find(x => x.pid === v.pid);
-  applyStock(v); p.last = 0; if (v.type >= 2) p.last2 = 0; if (v.type === 3) p.deep = 0;
+  applyStock(v); p.last = 0; if (v.type >= 2) p.last2 = 0; if (v.type === 3) { p.deep = 0; p.deepAt = sNow(); }
   p.arr = {clean:v.arrive.clean, trash:v.arrive.trash};
   item.done = true; item.review = 'pending'; item.redo = false;
   const rvObj = {id:Date.now(), cid:S.me, pid:v.pid, when:'только что', type:v.type, status:'pending', day:TODAY, arrive:v.arrive, photos:v.SP.slice(), nozzles:v.NP.slice()};
@@ -1554,27 +1557,69 @@ function planScreen() {
   list.forEach((x, i) => {
     const p = pt(x.pid);
     h += `<div class="card" data-ri="${i}" data-sw="Убрать|rmPt(${i})|#b83a3a"><div class="row"><div class="grow"><div class="t1">${i + 1}. ${esc(p.name)}</div><div class="t2">${esc(p.addr)} ${x.done ? '· выполнена' : ''}</div>${winLine(p)}</div>
-      <div class="seg" style="margin:0;width:112px"><button class="${x.type === 1 ? 'on' : ''}" onclick="setType(${i},1)">1</button><button class="${x.type === 2 ? 'on' : ''}" onclick="setType(${i},2)">2</button><button class="${x.type === 3 ? 'on' : ''}" onclick="setType(${i},3)">Г</button></div>
+      <div class="seg" style="margin:0;width:${x.type === 3 ? 112 : 76}px"><button class="${x.type === 1 ? 'on' : ''}" onclick="setType(${i},1)">1</button><button class="${x.type === 2 ? 'on' : ''}" onclick="setType(${i},2)">2</button>${x.type === 3 ? '<button class="on" onclick="go({toast:\'Генеральная уборка назначается во вкладке «Точки»\'})">Г</button>' : ''}</div>
       <div style="display:flex;flex-direction:column"><button class="step" style="background:none;border:0;color:var(--mut);cursor:pointer;font-size:12px" onclick="mv(${i},-1)">▲</button><button class="step" style="background:none;border:0;color:var(--mut);cursor:pointer;font-size:12px" onclick="mv(${i},1)">▼</button></div>
       <button style="background:none;border:0;color:var(--r);font-size:18px;cursor:pointer" onclick="rmPt(${i})">✕</button></div></div>`;
   });
-  return h + '<div class="tiny" style="margin-top:8px">Шаблон повторяется каждую неделю: «Сохранить день в шаблон» запоминает этот день, «По шаблону» собирает его заново. Тип 1: обслуживание по чек-листу. Тип 2: промывка миксеров с разбором, чистота кофейни со всех сторон, зона сиропов и фото носиков. Г: генеральная уборка раз в 3 месяца (включает тип 2).</div></div>';
+  return h + '<div class="tiny" style="margin-top:8px">Шаблон повторяется каждую неделю: «Сохранить день в шаблон» запоминает этот день, «По шаблону» собирает его заново. Тип 1: обслуживание по чек-листу. Тип 2: промывка миксеров с разбором, чистота кофейни со всех сторон, зона сиропов и фото носиков. Генеральная уборка (Г, включает тип 2) назначается только во вкладке «Точки» → «Генеральная уборка».</div></div>';
 }
 const setType = (i, t) => { L(S.mc, S.day)[i].type = t; render(true); };
 const rmPt = i => { const l = L(S.mc, S.day), it = l.splice(i, 1)[0]; render(true); if (it) undoPush('Точка убрана из дня', () => { l.splice(Math.min(i, l.length), 0, it); render(true); }); };
 const mv = (i, d) => { const l = L(S.mc, S.day), j = i + d; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; render(true); };
-const deepText = p => p.deep + ' дн. назад · ' + (deepLeft(p) < 0 ? 'пора проводить' : 'срок через ' + deepLeft(p) + ' дн.');
+const MN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const MNS = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+// своя дата генеральной уборки у точки (месяц и число, каждый год): когда подходит и не пропущена ли
+function ddInfo(p) {
+  const dd = p.dd; if (!dd || !(dd.m >= 1 && dd.m <= 12) || !(dd.d >= 1 && dd.d <= 31)) return null;
+  const t = new Date(sNow()), y = t.getFullYear(), today = new Date(y, t.getMonth(), t.getDate());
+  const at = yy => new Date(yy, dd.m - 1, Math.min(dd.d, new Date(yy, dd.m, 0).getDate()));
+  let next = at(y); if (next < today) next = at(y + 1);
+  let prev = at(y); if (prev > today) prev = at(y - 1);
+  const days = Math.round((next - today) / 864e5), since = Math.round((today - prev) / 864e5);
+  const late = since > 0 && since <= 14 && deepDays(p) > since, soon = days <= 14;
+  const label = dd.d + ' ' + MN[dd.m - 1];
+  return {label, days, since, late, soon, show: soon || late, text: 'Своя дата ' + label + ': ' + (late && !soon ? 'прошла ' + since + ' дн. назад, уборки ещё не было' : days === 0 ? 'сегодня' : 'через ' + days + ' дн.')};
+}
+const genText = p => !DEEP.on ? '' : 'Общий срок (раз в ' + DEEP.mo + ' мес.): ' + (deepLeft(p) < 0 ? 'пора проводить, просрочено на ' + (-deepLeft(p)) + ' дн.' : deepLeft(p) === 0 ? 'сегодня' : 'через ' + deepLeft(p) + ' дн.');
+const deepText = p => deepDays(p) + ' дн. назад' + (DEEP.on ? ' · ' + (deepLeft(p) < 0 ? 'пора проводить' : 'срок через ' + deepLeft(p) + ' дн.') : '');
+// «План»: только напоминание, когда подходит общий срок или своя дата; назначается генеральная уборка во вкладке «Точки»
 function deepCard() {
-  const due = P.slice().sort((a, b) => deepLeft(a) - deepLeft(b)), soon = due.filter(p => deepLeft(p) <= 14).length;
-  let h = `<div class="card"><div class="t1" style="font-size:14px">Генеральная уборка · раз в 3 месяца</div><div class="t2">Пора или скоро срок (14 дней): ${soon}</div>`;
-  due.slice(0, 4).forEach(p => { h += `<div class="row" style="margin-top:8px"><div class="grow"><div class="t1" style="font-size:13px">${esc(p.name)}</div><div class="t2" style="color:${deepLeft(p) <= 14 ? 'var(--o)' : 'var(--mut)'}">${deepText(p)}</div></div><button class="btn sec sm" onclick="addDeep(${p.id})">Г на ${WD[S.day]}</button></div>`; });
+  const rows = P.map(p => ({p, g: DEEP.on && deepLeft(p) <= 14 ? deepLeft(p) : null, i: ddInfo(p)})).filter(r => r.g !== null || (r.i && r.i.show));
+  if (!rows.length) return '';
+  const urg = r => Math.min(r.g === null ? 999 : r.g, r.i && r.i.show ? (r.i.late && !r.i.soon ? -r.i.since : r.i.days) : 999);
+  rows.sort((a, b) => urg(a) - urg(b));
+  let h = `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Генеральная уборка · напоминание</div><div class="t2">Подходит срок: ${rows.length} ${rows.length === 1 ? 'точка' : 'точек'}. Назначается во вкладке «Точки».</div></div><button class="btn sec sm" onclick="go({tab:'points',flt:'deep',view:null})">Открыть</button></div>`;
+  rows.slice(0, 6).forEach(r => { h += `<div style="margin-top:8px"><div class="t1" style="font-size:13px">${esc(r.p.name)}</div>${r.g !== null ? `<div class="t2" style="color:var(--o)">${genText(r.p)}</div>` : ''}${r.i && r.i.show ? `<div class="t2" style="color:var(--o)">${r.i.text}</div>` : ''}</div>`; });
+  if (rows.length > 6) h += `<div class="tiny" style="margin-top:8px">И ещё ${rows.length - 6}: смотрите во вкладке «Точки»</div>`;
   return h + '</div>';
 }
-function addDeep(pid) {
-  const l = L(S.mc, S.day), it = l.find(x => x.pid === pid);
-  if (!it && takenBy(pid, S.day)) return go({toast:'Эта точка в этот день у другого курьера'});
-  if (it) it.type = 3; else l.push(mk(pid, 3));
-  go({toast:'Генеральная уборка добавлена на ' + WD[S.day]});
+// «Точки» → «Генеральная уборка»: общий срок для всех, своя дата для каждой точки и назначение курьеру
+function deepToggle() { DEEP.on = !DEEP.on; render(true); }
+function deepMo(d) { DEEP.mo = Math.max(1, Math.min(12, DEEP.mo + d)); render(true); }
+function deepManage() {
+  let h = `<div class="card"><div class="row" style="cursor:pointer" onclick="deepToggle()"><div class="grow"><div class="t1" style="font-size:14px">Для всех точек</div><div class="t2">${DEEP.on ? 'Раз в ' + DEEP.mo + ' мес. после последней генеральной уборки' : 'Выключено: срок считается только по своим датам'}</div></div>${swHTML(DEEP.on)}</div>
+    ${DEEP.on ? `<div class="row" style="margin-top:10px"><div class="grow tiny">Через сколько месяцев (нажмите на число, чтобы выбрать барабаном)</div><div class="step"><button onclick="deepMo(-1)">−</button><span data-wk="DEEPM:0">${DEEP.mo}</span><button onclick="deepMo(1)">+</button></div></div>` : ''}
+    <div class="tiny" style="margin-top:8px">Общий срок и своя дата точки работают независимо: одно не отменяет другое.</div></div>`;
+  const list = P.map(p => ({p, i: ddInfo(p)})).sort((a, b) => Math.min(deepLeft(a.p), a.i ? a.i.days : 999) - Math.min(deepLeft(b.p), b.i ? b.i.days : 999));
+  list.forEach(({p, i}) => {
+    const col = (DEEP.on && deepLeft(p) <= 14) || (i && i.show) ? 'var(--o)' : 'var(--mut)';
+    h += `<div class="card"><div class="t1">${esc(p.name)}</div><div class="t2">Последняя: ${deepDays(p)} дн. назад</div>
+      ${DEEP.on ? `<div class="t2" style="color:${deepLeft(p) <= 14 ? 'var(--o)' : 'var(--mut)'}">${genText(p)}</div>` : ''}
+      <div class="t2" style="color:${i && i.show ? 'var(--o)' : 'var(--mut)'}">${i ? i.text : 'Своя дата не задана'}</div>
+      <div class="btns" style="margin-top:8px"><button class="btn sm" onclick="deepAsOpen(${p.id})">Назначить</button><button class="btn sec sm" onclick="deepDateOpen(${p.id})">${ic('edit', 15)} ${p.dd ? 'Изменить дату' : 'Своя дата'}</button></div></div>`;
+  });
+  return h;
+}
+function deepDateOpen(pid) { const p = pt(pid), t = new Date(sNow()); go({sheet:'deepdate', dd:{pid, m:p.dd ? p.dd.m : t.getMonth() + 1, d:p.dd ? p.dd.d : t.getDate()}}); }
+function deepDateSave() { const f = S.dd, p = pt(f.pid); p.dd = {m:f.m, d:Math.min(f.d, new Date(2024, f.m, 0).getDate())}; go({sheet:null, dd:null, toast:'Дата сохранена: ' + p.dd.d + ' ' + MN[f.m - 1]}); }
+function deepDateClear() { const p = pt(S.dd.pid); delete p.dd; go({sheet:null, dd:null, toast:'Своя дата убрана'}); }
+function deepAsOpen(pid) { const c = COUR.find(x => x.active && x.id === S.mc) || COUR.find(x => x.active); go({sheet:'deepas', da:{pid, cid:c ? c.id : 0, day:S.day === undefined ? TODAY : S.day}}); }
+function deepAssign() {
+  const f = S.da; if (!f.cid) return go({sheet:null, da:null});
+  ensureCour(f.cid); const l = L(f.cid, f.day), it = l.find(x => x.pid === f.pid);
+  if (!it && takenBy(f.pid, f.day)) return go({toast:'Эта точка в этот день уже у другого курьера'});
+  if (it) it.type = 3; else l.push(mk(f.pid, 3));
+  go({sheet:null, da:null, toast:'Генеральная уборка: ' + cr(f.cid).name + ', ' + WD[f.day]});
 }
 const planOpt = () => { sched[S.mc][S.day] = optimize(L(S.mc, S.day), DEPOT); go({toast:'Порядок оптимизирован по расстоянию'}); };
 const fromTpl = (c, d) => optimize(TEMPLATE[c][d].filter(x => !x.cond), DEPOT).map(x => mk(x.pid, x.type));
@@ -2038,6 +2083,27 @@ function sheet() {
       <div id="chatptlist">${P.map(p => `<div class="card" data-s="${esc((p.name + ' ' + (p.addr || '')).toLowerCase())}" style="padding:10px 12px;cursor:pointer" onclick="go({sheet:null,chatPid:${p.id}})"><div class="row"><div style="color:var(--g)">${ic('pin', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(p.addr || '')}</div></div></div></div>`).join('')}</div>
       <button class="btn sec" style="margin-top:6px" onclick="go({sheet:null})">Отмена</button>`;
   }
+  if (S.sheet === 'deepdate' && S.dd) {
+    const f = S.dd, p = pt(f.pid), dim = new Date(2024, f.m, 0).getDate();
+    if (f.d > dim) f.d = dim;
+    return `<h2>Своя дата уборки</h2><div class="tiny">${esc(p.name)}. Генеральная уборка этой точки будет напоминать о себе каждый год в этот день, независимо от общего срока.</div>
+      <div class="tiny" style="margin-top:10px">Месяц</div>
+      <div class="chips" style="flex-wrap:wrap;margin:6px 0 10px">${MNS.map((n, i) => `<button class="${f.m === i + 1 ? 'on' : ''}" onclick="S.dd.m=${i + 1};render(true)">${n}</button>`).join('')}</div>
+      <div class="row" style="margin-bottom:12px"><div class="grow t1" style="font-size:14px">Число</div><div class="step"><button onclick="S.dd.d=Math.max(1,S.dd.d-1);render(true)">−</button><span>${f.d}</span><button onclick="S.dd.d=Math.min(${dim},S.dd.d+1);render(true)">+</button></div></div>
+      <button class="btn" style="margin-bottom:8px" onclick="deepDateSave()">Сохранить: ${f.d} ${MN[f.m - 1]}</button>
+      ${p.dd ? '<button class="btn sec" style="margin-bottom:8px" onclick="deepDateClear()">Убрать свою дату</button>' : ''}
+      <button class="btn sec" onclick="go({sheet:null,dd:null})">Отмена</button>`;
+  }
+  if (S.sheet === 'deepas' && S.da) {
+    const f = S.da, p = pt(f.pid);
+    return `<h2>Назначить генеральную уборку</h2><div class="tiny">${esc(p.name)}. Точка попадёт в маршрут выбранного курьера на выбранный день недели.</div>
+      <div class="tiny" style="margin-top:10px">Курьер</div>
+      <div class="chips" style="flex-wrap:wrap;margin:6px 0 10px">${COUR.filter(c => c.active).map(c => `<button class="${f.cid === c.id ? 'on' : ''}" onclick="S.da.cid=${c.id};render(true)">${esc(c.name)}</button>`).join('')}</div>
+      <div class="tiny">День</div>
+      <div class="chips" style="flex-wrap:wrap;margin:6px 0 12px">${WD.map((n, i) => `<button class="${f.day === i ? 'on' : ''}" onclick="S.da.day=${i};render(true)">${n}</button>`).join('')}</div>
+      <button class="btn" style="margin-bottom:8px" onclick="deepAssign()">Назначить</button>
+      <button class="btn sec" onclick="go({sheet:null,da:null})">Отмена</button>`;
+  }
   if (S.sheet === 'ingadd' && S.ia) {
     const f = S.ia;
     return `<h2>Новый ингредиент</h2><div class="tiny">Название увидят все. Позиция появится на складе, в остатках станций и в подтоварке каждой точки.</div>
@@ -2476,6 +2542,7 @@ let NAVDIR = 0, NAVSKIPPED = false;
 const SCROLLMEM = {};   // где был прокручен каждый экран: при возврате назад список остаётся на том же месте
 const sigOf = () => Array.from($('app').querySelectorAll('.body .days button.on, .body .chips button.on')).map(b => b.textContent.trim()).join('|');
 function render(keep) {
+  deepEnsure();
   if (INGX.length) ingEnsure();
   if (keep && SWL.on) { SWL.pend = true; return; }
   saveSoon();
@@ -2683,7 +2750,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, ex2: 1,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, ex2: 1,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -2695,7 +2762,7 @@ function restoreData(txt) {
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
-  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN);
+  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP);
   if (d.NS) { Object.assign(NS, d.NS); } if (d.NST) Object.assign(NST, d.NST);
   replaceObj(GSD, d.GSD || {}); replaceObj(OFF, d.OFF || {}); replaceObj(PR, d.PR || {});
   if (d.GCS) { GCS.me = d.GCS.me || null; GCS.all = d.GCS.all || {}; GCS.log = d.GCS.log || []; }
@@ -2820,7 +2887,7 @@ function api(path, body) {
   }), () => { throw new Error('Нет связи с сервером'); });
 }
 function docsFromState() {
-  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX}}, ld = {};
+  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX, DEEP}}, ld = {};
   Object.keys(AV).forEach(k => { d['av/' + k] = AV[k]; });
   Object.keys(EX).forEach(k => { d['ex/' + k] = EX[k]; });
   Object.keys(INFO).forEach(k => { d['info/' + k] = INFO[k]; });
@@ -2894,7 +2961,7 @@ function applyDoc(k, v, dele) {
     COUR.forEach(c => ensureCour(c.id));
     if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
   } else if (h === 'core') {
-    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); }
+    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); if (v.DEEP && typeof v.DEEP === 'object') { DEEP.on = v.DEEP.on !== false; DEEP.mo = Math.max(1, Math.min(12, +v.DEEP.mo || 3)); } }
   } else if (h === 'av') {
     if (dele || !v) delete AV[p[1]]; else AV[p[1]] = v;
   } else if (h === 'ex') {
@@ -3713,6 +3780,7 @@ function viewerExtras(el) {   // вызывается из bindViewer
 
 // ----- колесо выбора (барабан) для количества: нажмите на число между «−» и «+» -----
 function wheelSpec(kind, id) {
+  if (kind === 'DEEPM') return {title: 'Генеральная уборка: раз в сколько месяцев', cur: DEEP.mo, st: 1, min: 1, max: 12, unit: 'мес.', set: x => { DEEP.mo = Math.max(1, Math.min(12, Math.round(x))); }};
   const v = S.visit, g = ING.find(x => x.id === id);
   if (kind === 'WH' && g) { const have = WH[id] || 0; return {title: 'На складе: ' + g.n, cur: have, st: g.st, max: Math.max(have * 2, g.st * 30), unit: g.u, set: x => { WH[id] = x; }}; }
   if (!v || !g) return null;
@@ -3725,7 +3793,7 @@ function wheelSpec(kind, id) {
 }
 function wheelOpen(kind, id) {
   const sp = wheelSpec(kind, id); if (!sp) return;
-  const vals = []; for (let x = 0; x <= sp.max + 1e-9; x = +(x + sp.st).toFixed(2)) vals.push(x);
+  const vals = []; for (let x = sp.min || 0; x <= sp.max + 1e-9; x = +(x + sp.st).toFixed(2)) vals.push(x);
   let idx = vals.findIndex(x => Math.abs(x - sp.cur) < 1e-6); if (idx < 0) { vals.push(sp.cur); vals.sort((a, b) => a - b); idx = vals.indexOf(sp.cur); }
   S.wh = {kind, id, vals, idx, title: sp.title, unit: sp.unit};
   go({sheet: 'wheel'});
