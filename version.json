@@ -1,9 +1,9 @@
 {
-    "content":  159,
+    "content":  160,
     "apk":  22,
-    "notes":  "Кнопка «Тестовый стенд» в профиле Техподдержки: вход без пароля, тестовые менеджер и курьер.",
+    "notes":  "Во вкладке «Курьеры» кнопка «Удалить» стоит над кнопкой «Прибытия».",
     "contentFile":  "index.html",
-    "contentSha256":  "c209330a2a7dc94eeb7ca8eef0ee310aa1edcfc3a047a386a563b0499cb1619a",
+    "contentSha256":  "152e5f8fe76f2011dffea6a9729f16c8c37c214d6f147e8c699c50cc3d656bec",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

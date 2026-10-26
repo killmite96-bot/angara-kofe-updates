@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 159;
+const APP_VERSION = 160;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2272,7 +2272,7 @@ function teamScreen() {
     h += `<div class="card" data-sw="${c.active ? 'Отключить' : 'Включить'}|toggleCour(${c.id})|#8a5a14;Изменить|openCF(${c.id})|#2d5aa0" style="${c.active ? '' : 'opacity:.6'}"><div class="row"><div class="grow"><div class="t1">${esc(c.name)}</div>
       <div class="t2">Логин: ${c.login} · тип 1 ${money(c.r1)} · тип 2 ${money(c.r2)} · Г ${money(c.r3)}</div></div><span class="pill ${c.active ? 'ok' : 'bad'}">${c.active ? 'активен' : 'отключён'}</span></div>
       <div class="t2" style="margin-top:6px">Точек в плане на неделю: ${n} · Сегодня: ${shiftStatus(c.id).t}</div><div class="tiny" style="margin-top:3px">${esc(gcLine(c.id))}</div><div data-geoc="${c.id}" style="margin-top:4px">${geoCardPill(c.id)}</div>${geoNudgeLine(c.id)}${nstLine(c.id)}
-      <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button><button class="btn sec sm" onclick="go({sheet:'cologout',clo:${c.id}})">Выйти на всех телефонах</button><button class="btn sec sm" onclick="go({sheet:'geolog',gl:${c.id}})">Прибытия</button><button class="btn sec sm" style="color:#ffb0b0" onclick="go({sheet:'codel',cdl:${c.id}})">${ic('trash', 15)} Удалить</button></div></div>`;
+      <div class="btns" style="margin-bottom:0"><button class="btn sec sm" onclick="openCF(${c.id})">Изменить</button><button class="btn sec sm" onclick="toggleCour(${c.id})">${c.active ? 'Отключить' : 'Включить'}</button><button class="btn sec sm" onclick="go({sheet:'geolog',gl:${c.id}})">Прибытия</button><button class="btn sec sm" onclick="go({sheet:'cologout',clo:${c.id}})">Выйти на всех телефонах</button><button class="btn sec sm" style="color:#ffb0b0" onclick="go({sheet:'codel',cdl:${c.id}})">${ic('trash', 15)} Удалить</button></div></div>`;
   });
   h += '<div class="card" style="margin-top:8px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Качество геолокации</div><div class="t2">Как часто определение прибытия срабатывает, за 60 дней</div></div><button class="btn sec sm" onclick="openGeoStat()">Открыть</button></div></div>';
   return h + '<div class="tiny" style="margin-top:8px">Отключённый курьер не может войти, но его история и зарплата сохраняются; удаление стирает курьера насовсем. Пароль курьер получает от менеджера.</div></div>';
