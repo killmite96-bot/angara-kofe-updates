@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 182;
+const APP_VERSION = 184;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -434,8 +434,7 @@ function gapDays(pid) {
 function rec(u, g) {
   const f = frac(u, g);
   const need = Math.max(0, Math.min(u.rate[g.id] * gapDays(u.loc.id) * 1.2 - f, 1 - f)) * g.cap;
-  if (g.t === 'count') return Math.round(need / 10) * 10;
-  return g.u === 'бут' || g.u === 'уп' ? Math.ceil(need - .001) : Math.round(need * 2) / 2;
+  return baseRound(g, need);   // нужда есть — рекомендуем хотя бы минимальную порцию (раньше мелкая нужда округлялась до нуля, и у пустой позиции не было подсказки)
 }
 const stepFor = g => g.t === 'count' ? 10 : (g.u === 'бут' || g.u === 'уп' ? 1 : .5);
 // сколько нужно довезти с базы: потребность станций минус то, что уже лежит в подтоварке точки
@@ -455,7 +454,7 @@ function backEnsure() {
   P.forEach(p => { if (!multiU(p)) return; p.units.forEach(u => { if (!u.arr) u.arr = {clean: p.arr.clean, trash: p.arr.trash}; }); let ch = false; p.units.forEach((u, k) => { if (!u.back) { u.back = {}; ING.forEach(g => { u.back[g.id] = k === 0 ? (p.back[g.id] || 0) : 0; }); ch = true; } ING.forEach(g => { if (u.back[g.id] === undefined) u.back[g.id] = 0; }); }); if (ch) backSync(p); });
 }
 function setBack(p, k, gid, val) { backEnsure(); backOf(p, k)[gid] = val; backSync(p); }
-const baseRound = (g, n) => g.t === 'count' ? Math.round(n / 10) * 10 : (g.u === 'бут' || g.u === 'уп' ? Math.ceil(n - .001) : Math.round(n * 2) / 2);
+const baseRound = (g, n) => n <= 0 ? 0 : g.t === 'count' ? Math.ceil(n / 10 - .001) * 10 : (g.u === 'бут' || g.u === 'уп' ? Math.ceil(n - .001) : Math.ceil(n * 2 - .001) / 2);   // нужда есть — везём хотя бы минимальную порцию, а не округляем до нуля
 const needBaseU = (p, g, k) => baseRound(g, Math.max(0, rec(p.units[k], g) - (g.id === 'water' ? 0 : (backOf(p, k)[g.id] || 0))));
 const needBase = (p, g) => multiU(p) ? p.units.reduce((a, _, k) => a + needBaseU(p, g, k), 0) : baseRound(g, Math.max(0, recP(p, g) - (g.id === 'water' ? 0 : (p.back[g.id] || 0))));
 const deepDays = p => p.deepAt ? Math.max(0, Math.floor((sNow() - p.deepAt) / 864e5)) : p.deep;   // сколько дней назад была генеральная уборка
@@ -1344,6 +1343,14 @@ function stockRows(p) {
 // менеджер может переименовать точку и поправить адрес
 // окно «Изменить точку» работает как черновик: станции, их вид, камеры, задачи и координаты применяются сразу, но выход без «Сохранить» (кнопка «Отмена», смахивание окна, «Назад») возвращает точку как была
 const PN_SHEETS = ['ptname', 'ptunit', 'ptunitdel', 'ptunotes', 'ptcoord', 'ptdel'];
+const sheetFam = () => S.pn && PN_SHEETS.includes(S.sheet) ? 'ptname' : (S.nw && (['ptnew', 'ptcoord'].includes(S.sheet) || (S.sheet === 'info' && S.inf && S.inf.pid === 'new'))) ? 'ptnew' : null;
+let FAMSEEN = null;
+function famScroll(v, shM) {   // из вложенного окна (удаление станции, координаты, подсказки) возвращаемся к тому же месту и в то же положение окна
+  const fam = sheetFam(); if (!fam || fam !== FAMSEEN || S.sheet === SHEETSEEN) return v;
+  const holder = fam === 'ptname' ? S.pn : S.nw, home = fam === 'ptname' ? 'ptname' : 'ptnew';
+  if (SHEETSEEN === home && shM) holder.sc = shM.scrollTop;
+  return S.sheet === home ? (holder.sc || 0) : 0;
+}
 function openPtName(id) {
   const p = pt(id); if (S.role !== 'mgr' || !p) return;
   const snap = JSON.parse(JSON.stringify({units: p.units, back: p.back, arr: p.arr, feat: p.feat, notes: p.notes, cam: p.cam, lat: p.lat, lon: p.lon, cset: p.cset, nocoord: p.nocoord}, (k, v) => k === 'loc' ? undefined : v));
@@ -1688,7 +1695,6 @@ function pointCard(id) {
   // у менеджера значения правятся прямо в карточке кнопками − и +
   const stp = (call, val, wk) => `<div class="step"><button onclick="${call},-1)">−</button><span${wk ? ` data-wk="${wk}"` : ''}>${val}</span><button onclick="${call},1)">+</button></div>`;
   const backRows = k => '<div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = multiU(p) ? needBaseU(p, g, k) : needBase(p, g), have = backOf(p, k)[g.id] || 0; return `<div class="kv"><span>${gn(g, p)}${mg ? ` <span class="pen" onclick="openIng('${g.id}')" title="Изменить название">${ic('edit', 14)}</span>` : ''}${nb > 0 ? `<div style="margin-top:5px"><span class="pill warn">с базы ${nb}</span></div>` : ''}</span><span>${mg ? stp(`mgBackU(${p.id},'${g.id}',${k}`, have + ' ' + g.u, `PB:${p.id}|${k}|${g.id}`) : `<b>${have} ${g.u}</b>`}</span></div>`; }).join('') + '</div>';
-  h += '<h3>Подтоварка на точке</h3>' + (multiU(p) ? p.units.map((u, k) => stnHead(p, k) + baseSummary(p, k) + backRows(k)).join('') : backRows(0));
   h += '<h3>Остатки на последний визит</h3>';
   p.units.forEach((u, i) => {
     if (p.units.length > 1) h += stnHead(p, i);
@@ -1698,6 +1704,7 @@ function pointCard(id) {
         <div style="text-align:right">${mg ? stp(`mgCur(${p.id},${i},'${g.id}'`, fmtCur(u, g), `PC:${p.id}|${i}|${g.id}`) : `<div class="t1" style="font-size:13px">${fmtCur(u, g)}</div>`}<div class="t2" style="color:var(--o)">${r > 0 ? 'взять ' + r + ' ' + g.u : '—'}</div></div></div></div>`;
     });
   });
+  h += '<h3>Подтоварка на точке</h3>' + (multiU(p) ? p.units.map((u, k) => stnHead(p, k) + baseSummary(p, k) + backRows(k)).join('') : backRows(0));
   if (S.role === 'cour') {
     if (item && !item.done) h += `<button class="btn" style="margin-top:10px" onclick="go({sheet:'take',tk:${id}})">Начать визит · ${item.type === 3 ? 'генеральная уборка' : 'тип ' + item.type}</button>`;
     h += `<button class="btn sec" style="margin-top:8px" onclick="startVisit(${id},true)">Обновить остатки без визита</button>`;
@@ -3648,7 +3655,7 @@ function render(keep) {
   const navD0 = navDepth(), navChanged = LASTDEPTH !== null && navD0 !== LASTDEPTH, isPop = navChanged && navD0 < LASTDEPTH;
   const nearBottom = body ? body.scrollHeight - body.scrollTop - body.clientHeight < 90 : true;
   const sc0 = (keep || sameScreen) && body ? body.scrollTop : (isPop ? (SCROLLMEM[key0] || 0) : 0);
-  const shM = $('sheetmain'), shS = $('sheetshade'), scM = (keep || S.sheet === SHEETSEEN) && shM ? shM.scrollTop : 0, scS = (keep || S.shade === SHADESEEN) && shS ? shS.scrollTop : 0; SCM_KEEP = scM;   // прокрутка внутри окон тоже сохраняется
+  const shM = $('sheetmain'), shS = $('sheetshade'), scM = famScroll((keep || S.sheet === SHEETSEEN) && shM ? shM.scrollTop : 0, shM), scS = (keep || S.shade === SHADESEEN) && shS ? shS.scrollTop : 0; SCM_KEEP = scM;   // прокрутка внутри окон тоже сохраняется
   const ae = document.activeElement;
   // поле «Сообщение» теряет фокус (клавиатура закрывается и снимается подсветка), когда вы уходите из беседы, открываете окно или выбираете сообщения; после отправки и «Ответить» фокус остаётся
   const dropFocus = !!(ae && ae.id === 'chatin' && (!sameScreen || S.sheet || S.shade || S.sel) && !S.focusChat);
@@ -4522,8 +4529,8 @@ function uiAfterRender() {
   if (h1 && !(tp && tp.classList.contains('sc'))) { let s = tp && tp.querySelector('.tact') ? 22 : 28; h1.style.setProperty('--fs', s + 'px'); while (h1.scrollWidth > h1.clientWidth + 1 && s > 16) { s -= 1; h1.style.setProperty('--fs', s + 'px'); } FITFS[h1.textContent + '|' + innerWidth] = s; }
   if (tp && bd) hdrState(tp, bd);
   if (tp) { void tp.offsetWidth; setTimeout(() => tp.classList.remove('nt'), 60); }
-  if (S.sheet && SHEETSEEN !== S.sheet) { const o = $('sheetmain'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
-  SHEETSEEN = S.sheet || null;
+  if (S.sheet && SHEETSEEN !== S.sheet && !(sheetFam() && sheetFam() === FAMSEEN)) { const o = $('sheetmain'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
+  SHEETSEEN = S.sheet || null; FAMSEEN = S.sheet ? sheetFam() : null;
   if (S.shade && !SHADESEEN) { const o = $('sheetshade'); if (o && o.parentElement) o.parentElement.classList.add('in'); }
   SHADESEEN = !!S.shade;
   try { boxesUpgrade(); segSlide(); cntAnimate(); updBadge(); backLabels(); tabIcons(); errShake(); onbMaybe(); sheetExtras(); shortcutGo(); mediaHydrate(); archHydrate(); prRefresh(); pushHint(); tipHint(); chatStick(); netPill(); mustGuard(); consentGuard(); geoSync(); kbCheck(); ctxLeave(); lgTick(); if (S.sel && !(S.tab === 'chat' && S.th === S.sel.th && !S.view)) S.sel = null; } catch (e) {}
@@ -5166,7 +5173,8 @@ let SCM_KEEP = 0;   // где было прокручено окно до пер
 function sheetExtras() {
   const sh = $('sheetmain'); if (!sh) { DET.name = null; return; }
   if (S.sheet === 'gsearch' && DET.name !== 'gsearch') setTimeout(() => { const i = $('gsq'); if (i) i.focus(); }, 380);
-  if (DET.name !== S.sheet) { DET.name = S.sheet; DET.v = ['geoconsent'].includes(S.sheet) ? 'large' : 'med'; }   // окно согласия сразу высокое: кнопки видны без прокрутки
+  const detKey = sheetFam() || S.sheet;   // вложенные окна одной правки точки делят положение «половина / весь экран»
+  if (DET.name !== detKey) { DET.name = detKey; DET.v = ['geoconsent'].includes(S.sheet) ? 'large' : 'med'; }   // окно согласия сразу высокое: кнопки видны без прокрутки
   const H = $('app').clientHeight, grab = $('grab'), skip = ['level', 'trash', 'wheel', 'afpick', 'dpick', 'fb', 'fblist', 'updreq', 'consent', 'privacy', 'polset', 'diag'].includes(S.sheet);   // у окон выбора нет положений «половина / весь экран»: они просто прокручиваются
   const tall = !skip && sh.scrollHeight > H * 0.64;
   if (!tall || !grab) return;
@@ -6059,6 +6067,11 @@ function selfTest() {
         S.visit = null; go({view: null, visit: null}); day.splice(day.indexOf(it), 1); S.me = me0;
         S.pu = {pid: p.id, i: 1}; ptUnitDel(); eq(p.units.length, 1, 'станция убрана'); eq(p.units[0].arr, undefined, 'у одной станции состояние снова общее'); eq(p.arr.clean, 0, 'осталось состояние оставшейся станции');
         S.pd = p.id; ptDel(); eq(P.length, n, 'тестовая точка удалена'); go({view: null, sheet: null, nw: null});
+      });
+      T('«с базы»: любая нужда видна, окна одной правки точки', () => {
+        const cof = ING.find(g => g.id === 'coffee'), cup = ING.find(g => g.id === 'cup'), mlk = ING.find(g => g.id === 'milk');
+        eq(baseRound(cof, 0.2), 0.5, 'мелкая нужда в килограммах не пропадает'); eq(baseRound(cup, 4), 10, 'мелкая нужда в штуках не пропадает'); eq(baseRound(mlk, 0), 0, 'нет нужды — нет подписи'); eq(baseRound(cof, 0.5), 0.5, 'ровно полкило'); const eu = newUnit('A', 0); eu.loc = P[0]; eq(rec(eu, cof) > 0, true, 'у пустой позиции всегда есть рекомендация'); eq(rec(eu, cup) > 0, true, 'у пустых стаканчиков тоже'); eq(baseRound(cup, 20), 20, 'ровно 20 штук');
+        const p = P[0]; openPtName(p.id); eq(sheetFam(), 'ptname', 'окно изменения точки'); go({sheet: 'ptunitdel', pu: {pid: p.id, i: 0}}); eq(sheetFam(), 'ptname', 'вложенное окно того же семейства'); go({sheet: null, pu: null, pn: null}); eq(sheetFam(), null, 'после закрытия семейства нет');
       });
       T('подтоварка у каждой станции', () => {
         const n = P.length; S.nw = {name: 'Подтоварка станций', addr: 'Тестовая 7', win: '', units: ['A', 'B'], lat: null, lon: null, uex: [{feat: '', notes: []}, {feat: '', notes: []}], info: {}, err: ''};
