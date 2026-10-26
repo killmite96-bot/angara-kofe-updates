@@ -1,9 +1,9 @@
 {
-    "content":  155,
+    "content":  156,
     "apk":  22,
-    "notes":  "Проверка на ошибки: исправлены сбои при кривых данных и повторных нажатиях.",
+    "notes":  "Расценки курьеров в «Зарплате» теперь сохраняются на сервере и не возвращаются после обновления.",
     "contentFile":  "index.html",
-    "contentSha256":  "9634eafb85ef1c6332918cbd18596ab467365ef65930dcdeb6ef3130817e9182",
+    "contentSha256":  "1cf8b2106f628cbf8d52caea1e70643b464f83e51007c281d0a56c42e095d2f1",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

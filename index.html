@@ -225,7 +225,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 155;
+const APP_VERSION = 156;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1761,7 +1761,16 @@ function gsmScreen() {
   return h + '<div class="tiny">Расстояние считается по точкам из графика на каждый день (маршрут от базы по ближайшим точкам, с запасом на изгибы дорог +30%), поэтому после изменения графика сумма обновляется сама.</div></div>';
 }
 
-const rate = (id, k, d) => { cr(id)[k] = Math.max(0, cr(id)[k] + d); render(true); };
+// расценки курьера хранятся на сервере: каждое нажатие «−/+» сохраняется там (иначе после обновления или синхронизации они возвращались к прежним)
+let RATE_SEQ = 0;
+const rate = (id, k, d) => {
+  const c = cr(id); if (!c) return;
+  c[k] = Math.max(0, c[k] + d); render(true);
+  if (SRV && SY.token && S.role === 'mgr') {
+    const seq = ++RATE_SEQ;
+    api('/api/users', {action: 'update', cid: id, [k]: c[k]}).then(j => { if (seq === RATE_SEQ && j.cour) { applyDoc('cour', j.cour, false); render(true); } }).catch(e => go({toast: e.message}));
+  }
+};
 
 /* ===================== МЕНЕДЖЕР: ПЛАН ===================== */
 function planScreen() {
