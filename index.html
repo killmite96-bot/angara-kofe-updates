@@ -225,7 +225,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 152;
+const APP_VERSION = 155;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1385,7 +1385,7 @@ function unitTabs(p, key) {
 // подтоварка: B — сколько лежит на точке (по счёту курьера), привезённое с базы по умолчанию = недостающее после использования подтоварки
 const sumD = (v, g) => v.D.reduce((a, d) => a + d[g.id], 0);
 const broughtOf = (v, g) => v.BR[g.id] !== undefined ? v.BR[g.id] : Math.max(0, +(sumD(v, g) - v.B[g.id]).toFixed(1));
-function bdAdj(id, d) { const g = ING.find(x => x.id === id); S.visit.B[id] = Math.max(0, +(S.visit.B[id] + d * stepFor(g)).toFixed(1)); render(true); }
+function bdAdj(id, d) { if (!S.visit) return; const g = ING.find(x => x.id === id); S.visit.B[id] = Math.max(0, +(S.visit.B[id] + d * stepFor(g)).toFixed(1)); render(true); }
 function brAdj(id, d) { const v = S.visit, g = ING.find(x => x.id === id); v.BR[id] = Math.max(0, +(broughtOf(v, g) + d * stepFor(g)).toFixed(1)); render(true); }
 function backroomHTML(v, quick) {
   let h = '';
@@ -1463,14 +1463,14 @@ function visitScreen() {
 }
 const chkRow = (k, t) => { const on = S.visit.checks[k]; return `<div class="chk" onclick="ck('${k}')"><div class="box ${on ? 'on' : ''}">${on ? '✓' : ''}</div><div class="grow" style="font-size:14px">${esc(t)}</div></div>`; };
 const checksDone = () => { const v = S.visit, p = pt(v.pid); return CHK1.every((_, i) => v.checks['a' + i]) && p.notes.every((_, i) => v.checks['n' + i]) && (v.type === 1 || (CHK2.every((_, i) => v.checks['b' + i]) && p.units.every((_, i) => v.NP[i]) && (v.type < 3 || CHK3.every((_, i) => v.checks['g' + i])))); };
-function dv(id, d) { const g = ING.find(x => x.id === id), st = g.t === 'count' ? 10 : (g.u === 'бут' || g.u === 'уп' ? 1 : .5); S.visit.deliv[id] = Math.max(0, +(S.visit.deliv[id] + d * st).toFixed(1)); render(true); }
-const sl = (id, i) => { S.visit.after[id] = i / 4; render(true); };
+function dv(id, d) { if (!S.visit) return; const g = ING.find(x => x.id === id), st = g.t === 'count' ? 10 : (g.u === 'бут' || g.u === 'уп' ? 1 : .5); S.visit.deliv[id] = Math.max(0, +(S.visit.deliv[id] + d * st).toFixed(1)); render(true); }
+const sl = (id, i) => { if (!S.visit) return; S.visit.after[id] = i / 4; render(true); };
 // одна полоса из 4 делений: нажатие на деление выставляет уровень (1 — красное … 4 — зелёное); повторное нажатие на первое деление ставит «пусто»
 const lvPick = (id, f) => { const n = Math.max(f > 0 ? 1 : 0, Math.min(4, Math.round(f * 4))), col = LV_COL[n]; return `<div class="lvp">${[1, 2, 3, 4].map(i => `<button onclick="sl('${id}',${i === 1 && n === 1 ? 0 : i})"><i style="${i <= n ? 'background:' + col : ''}"></i></button>`).join('')}<span class="tiny">${n ? n * 25 + '%' : 'пусто'}</span></div>`; };
-const sc = (id, d) => { S.visit.after[id] = Math.max(0, S.visit.after[id] + d); render(true); };
-const vs = n => { S.visit.step = n; render(); };
-const ck = k => { S.visit.checks[k] = !S.visit.checks[k]; render(true); };
-const v_ = () => { S.visit.nozzleOk = !S.visit.nozzleOk; render(true); };
+const sc = (id, d) => { if (!S.visit) return; S.visit.after[id] = Math.max(0, S.visit.after[id] + d); render(true); };
+const vs = n => { if (!S.visit) return; S.visit.step = n; render(); };
+const ck = k => { if (!S.visit) return; S.visit.checks[k] = !S.visit.checks[k]; render(true); };
+const v_ = () => { if (!S.visit) return; S.visit.nozzleOk = !S.visit.nozzleOk; render(true); };
 function applyStock(v) {
   const p = pt(v.pid);
   p.units.forEach((u, k) => ING.forEach(g => {
@@ -1479,7 +1479,7 @@ function applyStock(v) {
   }));
   ING.forEach(g => { p.back[g.id] = Math.max(0, +(v.B[g.id] + broughtOf(v, g) - sumD(v, g)).toFixed(1)); });
 }
-function saveQuick() { applyStock(S.visit); S.visit = null; go({view:null, toast:S.role === 'mgr' ? 'Остатки исправлены' : 'Остатки обновлены, менеджер их видит'}); }
+function saveQuick() { if (!S.visit) return; applyStock(S.visit); S.visit = null; go({view:null, toast:S.role === 'mgr' ? 'Остатки исправлены' : 'Остатки обновлены, менеджер их видит'}); }
 function finishVisit() {
   const v = S.visit, p = pt(v.pid), item = L(S.me, TODAY).find(x => x.pid === v.pid);
   applyStock(v); p.last = 0; if (v.type >= 2) p.last2 = 0; if (v.type === 3) { p.deep = 0; p.deepAt = sNow(); }
@@ -2283,7 +2283,7 @@ function mgrScreen() {
   if (S.ph === 'arch') return archScreen();
   let h = topbar('Проверка фото', pendCount() ? 'Ждут подтверждения: ' + pendCount() : 'Всё проверено'); h += '<div class="body">' + phSeg();
   if (!pendCount()) h += rvEmpty();
-  reviews.filter(r => r.status !== 'ok').forEach((r, i) => {
+  reviews.filter(r => r && r.status !== 'ok' && pt(r.pid) && cr(r.cid)).forEach((r, i) => {
     const p = pt(r.pid);
     h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${esc(p.name)}${stB(p)}</div><div class="t2">${esc(cr(r.cid).name)} · ${r.when} · ${r.type === 3 ? 'генеральная уборка' : 'тип ' + r.type}</div></div>
       <span class="pill ${r.status === 'ok' ? 'ok' : r.status === 'redo' ? 'bad' : 'warn'}">${r.status === 'ok' ? 'принято' : r.status === 'redo' ? 'переснять' : 'ждёт'}</span></div>
@@ -2307,7 +2307,7 @@ const folderIc = z => `<svg width="${z}" height="${z}" viewBox="0 0 48 48" fill=
 function arItems() {
   const out = [];
   reviews.forEach(r => {
-    if (r.status !== 'ok' || !(r.id > 1e12)) return;
+    if (!r || r.status !== 'ok' || !(r.id > 1e12)) return;
     const st = r.photos && r.photos.length ? r.photos : (r.photo ? [r.photo] : []), nz = r.nozzles && r.nozzles.length ? r.nozzles : (r.nozzle ? [r.nozzle] : []);
     st.concat(nz).forEach((ph, i) => { if (ph && ph.svg) out.push({r, ph, noz: i >= st.length, unit: i >= st.length ? i - st.length : i, ts: r.id, cid: r.cid, pid: r.pid, dk: dKey(r.id), mk: dKey(r.id).slice(0, 7)}); });
   });
@@ -2760,8 +2760,8 @@ function stackRows(id, n) {
   if (rows && id === 'cup') { const w = 58 + (rows - 1) * 1.1, y = 290 - rows * rh; out.push(`<ellipse cx="75" cy="${y}" rx="${w / 2}" ry="4" fill="#2b1d12" stroke="#bdb6a8" stroke-width="1"/>`); }
   return out.join('');
 }
-const openLevel = id => { S.lvOrig = {id, u:S.visit.u, val:S.visit.after[id]}; go({sheet:'level', lv:id}); };
-const openTrash = () => { S.lvOrig = {id:'trash', val:S.visit.arrive.trash}; go({sheet:'trash', lv:'trash'}); };
+const openLevel = id => { if (!S.visit) return; S.lvOrig = {id, u:S.visit.u, val:S.visit.after[id]}; go({sheet:'level', lv:id}); };
+const openTrash = () => { if (!S.visit) return; S.lvOrig = {id:'trash', val:S.visit.arrive.trash}; go({sheet:'trash', lv:'trash'}); };
 function jugSVG(f) {
   const [yB, yT] = lvRange('water'), y = yB - f * (yB - yT), body = 'M14 134 Q14 118 30 118 H120 Q136 118 136 134 V274 Q136 292 118 292 H32 Q14 292 14 274 Z';
   const ticks = [.25, .5, .75].map(t => { const ty = yB - t * (yB - yT); return `<line x1="14" x2="30" y1="${ty}" y2="${ty}" stroke="#fff" stroke-opacity=".7" stroke-width="2"/><text x="139" y="${ty + 4}" font-size="10" fill="#9db" font-family="Arial">${t * 40}</text>`; }).join('');
@@ -2918,6 +2918,7 @@ const sigOf = () => Array.from($('app').querySelectorAll('.body .days button.on,
 function render(keep) {
   deepEnsure();
   if (INGX.length) ingEnsure();
+  if (!S.visit && (S.sheet === 'level' || S.sheet === 'trash')) S.sheet = null;   // окно уровней без визита закрывается: иначе его кнопки обращаются к несуществующему визиту
   if (keep && SWL.on) { SWL.pend = true; return; }
   saveSoon();
   const key0 = renderKey(), sameScreen = key0 === LASTKEY, body = document.querySelector('.body');
@@ -3331,6 +3332,7 @@ function cleanRev(v) {
 }
 function applyDoc(k, v, dele) {
   const p = k.split('/'), h = p[0];
+  if (h === 'rev' && !dele && !(v && typeof v === 'object' && v.pid !== undefined && v.cid !== undefined)) return;   // кривой документ визита пропускаем, чтобы не ломать экран
   if (h === 'cour') {
     if (!Array.isArray(v)) return;
     const old = COUR.slice(); replaceArr(COUR, v.map(c => Object.assign({}, old.find(o => o.id === c.id) || {}, c)));
@@ -3900,6 +3902,7 @@ function navAnimate(dir, snap) {
   const rt = app.querySelector(':scope > .tabs');
   snap.forEach(n => { if (rt && n.classList && n.classList.contains('tabs')) return; old.appendChild(n); });
   if (rt && snap.some(n => n.classList && n.classList.contains('tabs'))) old.style.bottom = rt.offsetHeight + 'px';
+  old.inert = true;   // копия прежнего экрана на время анимации «мёртвая»: её кнопки и поля не реагируют
   const dim = layer(dir > 0 ? 21 : 25, 'background:#000');
   if (old.style.bottom !== '0px' && old.style.bottom) dim.style.bottom = old.style.bottom;
   const saved = parts.map(p => [p, p.style.position, p.style.zIndex, p.style.background]);

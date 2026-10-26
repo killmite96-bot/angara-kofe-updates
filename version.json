@@ -1,9 +1,9 @@
 {
-    "content":  152,
+    "content":  155,
     "apk":  22,
-    "notes":  "Окна: при листании окно сразу разворачивается, не прокручиваясь под пальцем.",
+    "notes":  "Проверка на ошибки: исправлены сбои при кривых данных и повторных нажатиях.",
     "contentFile":  "index.html",
-    "contentSha256":  "69e90508f3e75d723236a0b214e4b78c59b0dee8754b43783030318778d89e32",
+    "contentSha256":  "9634eafb85ef1c6332918cbd18596ab467365ef65930dcdeb6ef3130817e9182",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
