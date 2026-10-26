@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 147;
+const APP_VERSION = 148;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -2380,7 +2380,7 @@ function sheet() {
   if (S.sheet === 'afpick' && S.ap) {
     const k = S.ap, cur = (S.af || {})[k] || '';
     const opts = k === 'cid' ? (() => { const m = {}; COUR.filter(c => c.active).forEach(c => { m[c.id] = c.name; }); arItems().forEach(it => { m[it.cid] = rvSender(it.r); }); return Object.keys(m).sort((x, y) => m[x].localeCompare(m[y], 'ru')).map(id => [id, m[id]]); })() : P.slice().sort((x, y) => x.name.localeCompare(y.name, 'ru')).map(p => [String(p.id), p.name]);
-    return `<h2>${k === 'cid' ? 'Отправитель' : 'Точка'}</h2><div style="max-height:52vh;overflow-y:auto;margin-top:6px">
+    return `<h2>${k === 'cid' ? 'Отправитель' : 'Точка'}</h2><div style="margin-top:6px">
       <button class="btn sec" style="margin-bottom:6px;text-align:left;${cur ? '' : 'border-color:var(--g);color:var(--g)'}" onclick="afSet('${k}','')">${k === 'cid' ? 'Все курьеры' : 'Все точки'}</button>
       ${opts.map(([id, n]) => `<button class="btn sec" style="margin-bottom:6px;text-align:left;${String(cur) === String(id) ? 'border-color:var(--g);color:var(--g)' : ''}" onclick="afSet('${k}','${id}')">${esc(n)}</button>`).join('')}</div>
       <button class="btn sec" style="margin-top:6px" onclick="go({sheet:null,ap:null})">Отмена</button>`;
@@ -4287,7 +4287,7 @@ function sheetExtras() {
   const sh = $('sheetmain'); if (!sh) { DET.name = null; return; }
   if (S.sheet === 'gsearch' && DET.name !== 'gsearch') setTimeout(() => { const i = $('gsq'); if (i) i.focus(); }, 380);
   if (DET.name !== S.sheet) { DET.name = S.sheet; DET.v = ['geoconsent'].includes(S.sheet) ? 'large' : 'med'; }   // окно согласия сразу высокое: кнопки видны без прокрутки
-  const H = $('app').clientHeight, grab = $('grab'), skip = ['level', 'trash', 'wheel'].includes(S.sheet);
+  const H = $('app').clientHeight, grab = $('grab'), skip = ['level', 'trash', 'wheel', 'afpick', 'dpick'].includes(S.sheet);   // у окон выбора нет положений «половина / весь экран»: они просто прокручиваются
   const tall = !skip && sh.scrollHeight > H * 0.64;
   if (!tall || !grab) return;
   grab.dataset.tall = '1'; sh.style.maxHeight = DET.v === 'large' ? '92%' : '58%';
