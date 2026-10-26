@@ -1,9 +1,9 @@
 {
-    "content":  139,
+    "content":  140,
     "apk":  22,
-    "notes":  "План: круги считаются по выбранному курьеру.",
+    "notes":  "Склад: количество и плашка «хватает» больше не слипаются.",
     "contentFile":  "index.html",
-    "contentSha256":  "8207f026767b8d5d87f4971a185bb448a0e5edb0644c81fd6a0844a9d9f898ac",
+    "contentSha256":  "fe8c622ea686e426bc223bba12413ebdd7f3143c879aae6ff4cd2e1a63b2e13e",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
