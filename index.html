@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 162;
+const APP_VERSION = 163;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1951,7 +1951,7 @@ function togglePt(id) {
 function whScreen() {
   const need = whNeed();
   let h = topbar('Склад', 'Количество ингредиентов и потребность недели');
-  h += `<div class="body"><div class="card"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(DEPOT.name)}</div><div class="t2">${esc(DEPOT.addr || 'Адрес базы не указан')}</div>
+  h += `<div class="body">${supCard()}<div class="card"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(DEPOT.name)}</div><div class="t2">${esc(DEPOT.addr || 'Адрес базы не указан')}</div>
     <div class="tiny">Сюда курьеры приезжают в начале смены за погрузкой</div></div><button class="btn sec sm" onclick="openBase()">Изменить</button></div></div>
     ${P.filter(p => p.water).map(p => `<div class="card"><div class="row"><div style="color:#4fb3ff">${ic('drop', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Заказ воды: ${esc(p.name)}</div><div class="t2">Получатель во ВКонтакте: ${waterSet(p.id).vk ? esc(waterSet(p.id).vk) : '<span style="color:var(--o)">не указан</span>'}</div></div><button class="btn sec sm" onclick="openWaterSet(${p.id})">Изменить</button></div></div>`).join('')}
     <div class="tiny" style="margin:4px 2px">Потребность считается по всем назначенным адресам до конца недели (с запасом 20%).</div>`;
@@ -1965,6 +1965,266 @@ function whScreen() {
   return h + '<div class="tiny">При подтверждении погрузки курьером нужное количество автоматически списывается со склада.</div></div>';
 }
 const whAdj = (id, d) => { const g = ING.find(x => x.id === id); WH[id] = Math.max(0, +(WH[id] + d * g.st).toFixed(1)); render(true); };
+/* ===================== ПОСТАВКИ НА СКЛАД: приёмка, история, загрузка из Excel ===================== */
+// Приёмка прибавляет количество к остатку склада и записывает поставку в историю (документ sup/<id>, видят и правят только менеджеры).
+// Загрузка из файла сначала показывает предпросмотр: остаток меняется только после подтверждения. Последнюю поставку можно отменить целиком.
+const SUP = [];   // {id, ts, date, by, byName, src:'hand'|'xlsx', file, hash, items:[{id, q}], note, undone:{ts, byName}}
+const SUP_MAX = 100000, SUP_ROWS = 500, SUP_FILE = 5 * 1024 * 1024;
+const SUPU = {'кг':['кг', 1], 'г':['кг', .001], 'л':['л', 1], 'мл':['л', .001], 'шт':['шт', 1], 'уп':['уп', 1], 'бут':['бут', 1]};   // единицы одного вида пересчитываются друг в друга
+const supP2 = n => (n < 10 ? '0' : '') + n;
+const supToday = () => { const d = new Date(); return d.getFullYear() + '-' + supP2(d.getMonth() + 1) + '-' + supP2(d.getDate()); };
+const supDMY = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || '')); return m ? m[3] + '.' + m[2] + '.' + m[1] : '—'; };
+const supNorm = s => String(s == null ? '' : s).toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]+/g, ' ').trim();
+function supQty(x) {
+  if (typeof x === 'number') return isFinite(x) && x > 0 ? x : NaN;
+  const t = String(x == null ? '' : x).trim().replace(/[\s ]/g, '').replace(',', '.');
+  if (!/^\d+(\.\d+)?$/.test(t)) return NaN;
+  const n = +t; return n > 0 ? n : NaN;
+}
+function supConv(q, from, g) {   // число в единицах позиции или null, если единицы несовместимы
+  const f = String(from == null ? '' : from).trim().toLowerCase().replace(/\./g, '');
+  if (!f) return q;
+  const a = SUPU[f], b = SUPU[g.u];
+  if (!a || !b) return f === String(g.u).toLowerCase() ? q : null;
+  if (a[0] !== b[0]) return null;
+  return +(q * a[1] / b[1]).toFixed(3);
+}
+function supMatch(name) {   // {id, sure}: точное совпадение по названию (текущему или исходному) или единственное похожее
+  const n = supNorm(name); if (!n) return {id: '', sure: false};
+  const ex = ING.filter(g => supNorm(g.n) === n || supNorm(g.dn) === n);
+  if (ex.length === 1) return {id: ex[0].id, sure: true};
+  if (n.length >= 4) { const like = ING.filter(g => { const a = supNorm(g.n), b = supNorm(g.dn); return a.includes(n) || n.includes(a) || b.includes(n) || n.includes(b); }); if (like.length === 1) return {id: like[0].id, sure: false}; }
+  return {id: '', sure: false};
+}
+function supParseDate(v) {   // из файла: серийный номер Excel, дд.мм.гггг или гггг-мм-дд; иначе пусто
+  if (typeof v === 'number' && v > 20000 && v < 80000) { const d = new Date(Math.round((v - 25569) * 86400000)); return d.getUTCFullYear() + '-' + supP2(d.getUTCMonth() + 1) + '-' + supP2(d.getUTCDate()); }
+  const s = String(v == null ? '' : v).trim(); let m;
+  if ((m = /^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/.exec(s))) return m[3] + '-' + supP2(+m[2]) + '-' + supP2(+m[1]);
+  if ((m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s))) return m[1] + '-' + m[2] + '-' + m[3];
+  return '';
+}
+function supRowEval(r) {   // проверяет строку и выставляет статус: ok / warn / err
+  r.st = 'ok'; r.msg = ''; r.qc = null;
+  if (r.skip) { r.st = 'skip'; r.msg = 'пропущена'; return r; }
+  const q = supQty(r.q);
+  if (isNaN(q)) { r.st = 'err'; r.msg = 'Количество не число или не больше нуля'; return r; }
+  if (q > SUP_MAX) { r.st = 'err'; r.msg = 'Слишком большое количество'; return r; }
+  const g = ING.find(x => x.id === r.pick);
+  if (!g) { r.st = 'err'; r.msg = r.name ? 'Позиция не найдена: выберите из списка или пропустите' : 'Нет названия позиции'; return r; }
+  const c = supConv(q, r.unit, g);
+  if (c === null) { r.st = 'err'; r.msg = 'Единица «' + r.unit + '» не подходит к «' + g.u + '»'; return r; }
+  if (c > SUP_MAX) { r.st = 'err'; r.msg = 'Слишком большое количество'; return r; }
+  r.qc = c;
+  if (!r.sure) { r.st = 'warn'; r.msg = 'Похоже на «' + g.n + '»: проверьте'; }
+  else if (r.unit && supConv(1, r.unit, g) !== 1) r.msg = q + ' ' + r.unit + ' = ' + c + ' ' + g.u;
+  return r;
+}
+function supRowsCheck(rows) {   // повтор позиции в файле: предупреждение (количества складываются)
+  rows.forEach(supRowEval);
+  const cnt = {}; rows.forEach(r => { if (r.qc !== null && r.pick) cnt[r.pick] = (cnt[r.pick] || 0) + 1; });
+  rows.forEach(r => { if (r.qc !== null && cnt[r.pick] > 1 && r.st === 'ok') { r.st = 'warn'; r.msg = 'Позиция есть в файле несколько раз: количества сложатся'; } });
+}
+function supApply(items, meta) {
+  const rec = Object.assign({id: 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ts: Date.now(), by: mkey(), byName: selfNm(), items}, meta);
+  items.forEach(it => { WH[it.id] = +((WH[it.id] || 0) + it.q).toFixed(2); });
+  SUP.unshift(rec); SUP.sort(byTsDesc);
+  return rec;
+}
+const supActive = () => SUP.filter(r => !r.undone);
+const supLastActive = () => supActive()[0] || null;
+const supLine = it => { const g = ING.find(x => x.id === it.id); return (g ? g.n : it.id) + ' +' + +it.q.toFixed(2) + ' ' + (g ? g.u : ''); };
+function supUndo(id) {
+  const r = SUP.find(x => sameId(x.id, id)); if (!r || r.undone || !supLastActive() || !sameId(supLastActive().id, id)) return go({sheet: null, su: null, toast: 'Отменить можно только последнюю поставку'});
+  r.items.forEach(it => { WH[it.id] = Math.max(0, +((WH[it.id] || 0) - it.q).toFixed(2)); });
+  r.undone = {ts: Date.now(), byName: selfNm()};
+  go({sheet: null, su: null, toast: 'Поставка от ' + supDMY(r.date) + ' отменена, остатки возвращены'});
+}
+const supCard = () => S.role !== 'mgr' ? '' : `<div class="card"><div class="row"><div style="color:var(--g)">${ic('box', 30)}</div><div class="grow"><div class="t1" style="font-size:14px">Поставки на склад</div><div class="t2">${supLastActive() ? 'Последняя: ' + supDMY(supLastActive().date) + ', ' + esc(supLastActive().byName || '') : 'Принятые поставки сохраняются в истории'}</div></div></div>
+  <div class="btns" style="margin:10px 0 0"><button class="btn sm" onclick="supOpen()">${ic('plus', 15)} Принять поставку</button><button class="btn sec sm" onclick="sxOpen()">${ic('clip', 15)} Из Excel</button><button class="btn sec sm" onclick="go({sheet:'suphist'})">История${SUP.length ? ' · ' + SUP.length : ''}</button></div></div>`;
+// ----- ручная приёмка -----
+function supOpen() { go({sheet: 'supin', si: {date: supToday(), note: '', q: {}, err: ''}}); }
+function supInSheet() {
+  const f = S.si;
+  return `<h2>Принять поставку</h2><div class="tiny" style="margin-bottom:8px">Впишите, сколько привезли. Пустые поля пропускаются, количество прибавится к остатку на складе.</div>
+    <div class="fbl">ДАТА ПОСТАВКИ</div><input type="date" value="${esc(f.date)}" max="${supToday()}" onchange="S.si.date=this.value" style="margin:4px 0 8px">
+    ${ING.map(g => `<div class="row" style="padding:5px 0"><div class="grow t1" style="font-size:14px">${esc(g.n)}<div class="tiny">на складе ${+(WH[g.id] || 0).toFixed(1)} ${g.u}</div></div><input type="text" inputmode="decimal" placeholder="0" value="${esc(f.q[g.id] || '')}" oninput="S.si.q['${g.id}']=this.value" style="width:84px;margin:0;text-align:right"><span class="t2" style="width:30px;margin-left:6px">${g.u}</span></div>`).join('')}
+    <div class="fbl">ПРИМЕЧАНИЕ (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="120" placeholder="Например: накладная №15" value="${esc(f.note)}" oninput="S.si.note=this.value" style="margin:4px 0">
+    ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${esc(f.err)}</div>` : ''}
+    <button class="btn" style="margin:8px 0" onclick="supSave()">Принять поставку</button><button class="btn sec" onclick="go({sheet:null,si:null})">Отмена</button>`;
+}
+function supSave() {
+  const f = S.si, items = [];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date) || f.date > supToday()) { f.err = 'Укажите дату поставки: не позже сегодняшней'; return render(true); }
+  for (const g of ING) {
+    const raw = String(f.q[g.id] == null ? '' : f.q[g.id]).trim(); if (!raw) continue;
+    const q = supQty(raw);
+    if (isNaN(q)) { f.err = 'Проверьте количество у «' + g.n + '»: нужно число больше нуля'; return render(true); }
+    if (q > SUP_MAX) { f.err = 'Слишком большое количество у «' + g.n + '»'; return render(true); }
+    items.push({id: g.id, q: +q.toFixed(2)});
+  }
+  if (!items.length) { f.err = 'Впишите количество хотя бы у одной позиции'; return render(true); }
+  const rec = supApply(items, {src: 'hand', date: f.date, note: f.note.trim().slice(0, 120)});
+  go({sheet: null, si: null, toast: 'Поставка принята: позиций ' + items.length});
+  undoPush('Поставка принята', () => supUndo(rec.id));
+}
+// ----- история -----
+function supHistSheet() {
+  const last = supLastActive();
+  let h = `<h2>История поставок</h2>`;
+  if (!SUP.length) return h + `<div class="card"><div class="t2">Поставок пока нет. Принятые вручную и из файла будут здесь.</div></div><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
+  h += SUP.slice(0, 40).map(r => `<div class="card" style="padding:10px 12px${r.undone ? ';opacity:.55' : ''}"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${supDMY(r.date)} · ${esc(r.byName || '')}</div><div class="t2">${esc(r.items.map(supLine).join(', '))}</div>${r.note ? `<div class="tiny">${esc(r.note)}</div>` : ''}${r.file ? `<div class="tiny">Файл: ${esc(r.file)}</div>` : ''}${r.undone ? `<div class="tiny" style="color:var(--o)">Отменена ${supDMY(new Date(r.undone.ts).toISOString().slice(0, 10))}, ${esc(r.undone.byName || '')}</div>` : ''}</div><span class="pill ${r.src === 'xlsx' ? 'blue' : ''}">${r.src === 'xlsx' ? 'Excel' : 'вручную'}</span></div>
+    ${last && sameId(last.id, r.id) ? `<button class="btn sec sm" style="margin-top:8px;color:#ffb0b0" onclick="go({sheet:'supundo',su:'${r.id}'})">Отменить эту поставку</button>` : ''}</div>`).join('');
+  return h + (SUP.length > 40 ? `<div class="tiny">Показаны последние 40 из ${SUP.length}</div>` : '') + `<div class="tiny" style="margin:8px 0">Отменить можно только последнюю поставку: остатки вернутся к прежним.</div><button class="btn sec" onclick="go({sheet:null})">Закрыть</button>`;
+}
+function supUndoSheet() {
+  const r = SUP.find(x => sameId(x.id, S.su)); if (!r) return `<h2>Поставка не найдена</h2><button class="btn sec" onclick="go({sheet:null,su:null})">Закрыть</button>`;
+  return `<h2>Отменить поставку?</h2><div class="card"><div class="t1" style="font-size:14px">${supDMY(r.date)} · ${esc(r.byName || '')}</div><div class="t2">${esc(r.items.map(supLine).join(', '))}</div></div>
+    <div class="tiny" style="margin:8px 0">Количество будет вычтено из остатка склада. Запись в истории останется с пометкой «отменена».</div>
+    <button class="btn" style="background:#4a1a1a;color:#ffb0b0" onclick="supUndo('${r.id}')">Отменить поставку</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:'suphist',su:null})">Назад</button>`;
+}
+// ----- загрузка из файла -----
+function sxOpen() { go({sheet: 'supx', sx: {stage: 'start', err: ''}}); }
+function sxFile() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv'; inp.style.display = 'none';
+  inp.onchange = () => { const f = inp.files && inp.files[0]; inp.remove(); if (f) sxRead(f); };
+  document.body.appendChild(inp); inp.click();
+}
+async function supHash(buf) {
+  try { if (window.crypto && crypto.subtle) return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf))).map(b => (b < 16 ? '0' : '') + b.toString(16)).join(''); } catch (e) {}
+  let h = 2166136261; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i++) { h ^= u[i]; h = Math.imul(h, 16777619) >>> 0; }
+  return 'f' + u.length + '-' + h.toString(16);
+}
+async function sxRead(file) {
+  const x = S.sx = {stage: 'start', err: '', busy: true}; render(true);
+  try {
+    if (file.size > SUP_FILE) throw new Error('Файл больше 5 МБ');
+    const name = String(file.name || 'файл'), buf = await file.arrayBuffer();
+    let grid;
+    if (/\.xlsx$/i.test(name)) grid = await supXlsx(buf);
+    else if (/\.xls$/i.test(name)) throw new Error('Старый формат .xls не поддерживается: сохраните файл как «Книга Excel (.xlsx)»');
+    else grid = supCsv(supDecode(buf));
+    const rows = supRows(grid);
+    x.file = name.slice(0, 80); x.hash = await supHash(buf); x.rows = rows.rows; x.empty = rows.empty; x.date = rows.date || supToday(); x.dateFile = !!rows.date; x.dateMixed = rows.mixed;
+    if (!x.rows.length) throw new Error('В файле нет строк с количеством. Заполните колонку «Количество» напротив позиций.');
+    if (x.rows.length > SUP_ROWS) throw new Error('В файле больше ' + SUP_ROWS + ' строк, разделите его на части');
+    supRowsCheck(x.rows);
+    x.dup = SUP.find(r => r.hash === x.hash && !r.undone) || null; x.okdup = false; x.stage = 'preview';
+  } catch (e) { x.err = e && e.message ? e.message : 'Не удалось прочитать файл'; x.stage = 'start'; }
+  x.busy = false; render(true);
+}
+function supDecode(buf) {
+  let t = new TextDecoder('utf-8').decode(buf);
+  if (t.indexOf('�') >= 0) { try { t = new TextDecoder('windows-1251').decode(buf); } catch (e) {} }
+  return t.replace(/^﻿/, '');
+}
+function supCsv(t) {
+  const first = t.split(/\r?\n/, 1)[0] || '', del = (first.match(/;/g) || []).length >= (first.match(/,/g) || []).length && first.indexOf(';') >= 0 ? ';' : first.indexOf('\t') >= 0 ? '\t' : ',';
+  const out = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < t.length && out.length < 5000; i++) {
+    const c = t[i];
+    if (q) { if (c === '"') { if (t[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === del) { row.push(cur); cur = ''; }
+    else if (c === '\n') { row.push(cur.replace(/\r$/, '')); out.push(row); row = []; cur = ''; }
+    else cur += c;
+  }
+  if (cur || row.length) { row.push(cur.replace(/\r$/, '')); out.push(row); }
+  return out;
+}
+// .xlsx — это zip-архив: читаем его встроенными средствами браузера, без библиотек
+function supZipDir(buf) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf); let e = u8.length - 22;
+  while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('Это не файл Excel (.xlsx)');
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const out = {};
+  for (let i = 0; i < n; i++) {
+    if (p + 46 > u8.length || dv.getUint32(p, true) !== 0x02014b50) throw new Error('Файл Excel повреждён');
+    const nl = dv.getUint16(p + 28, true), el = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+    out[new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl))] = {method: dv.getUint16(p + 10, true), csz: dv.getUint32(p + 20, true), usz: dv.getUint32(p + 24, true), lo: dv.getUint32(p + 42, true)};
+    p += 46 + nl + el + cl;
+  }
+  return out;
+}
+async function supZipRead(buf, ent) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf), nl = dv.getUint16(ent.lo + 26, true), el = dv.getUint16(ent.lo + 28, true), s = ent.lo + 30 + nl + el;
+  if (ent.usz > 30 * 1024 * 1024) throw new Error('Файл Excel слишком большой');
+  const data = u8.subarray(s, s + ent.csz);
+  if (ent.method === 0) return data;
+  if (ent.method !== 8 || typeof DecompressionStream === 'undefined') throw new Error('Этот телефон не умеет читать .xlsx: сохраните файл как .csv');
+  return new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+}
+async function supXlsx(buf) {
+  const dir = supZipDir(buf), txt = async n => dir[n] ? new TextDecoder().decode(await supZipRead(buf, dir[n])) : '', xml = s => new DOMParser().parseFromString(s, 'application/xml');
+  const sheetName = Object.keys(dir).filter(k => /^xl\/worksheets\/sheet\d+\.xml$/.test(k)).sort((a, b) => parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, '')))[0];
+  if (!sheetName) throw new Error('В файле нет листа с данными');
+  const sst = [], sd = xml(await txt('xl/sharedStrings.xml'));
+  Array.from(sd.getElementsByTagName('si')).forEach(si => sst.push(Array.from(si.getElementsByTagName('t')).map(t => t.textContent).join('')));
+  const doc = xml(await txt(sheetName)), grid = [];
+  const colN = ref => { let n = 0; for (const ch of (ref.match(/^[A-Z]+/) || [''])[0]) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
+  Array.from(doc.getElementsByTagName('row')).slice(0, 5000).forEach(r => {
+    const row = [];
+    Array.from(r.getElementsByTagName('c')).forEach(c => {
+      const ci = colN(c.getAttribute('r') || ''); if (ci < 0 || ci > 60) return;
+      const t = c.getAttribute('t'), v = c.getElementsByTagName('v')[0], is = c.getElementsByTagName('is')[0]; let val = '';
+      if (t === 's' && v) val = sst[+v.textContent] || ''; else if (t === 'inlineStr' && is) val = Array.from(is.getElementsByTagName('t')).map(x => x.textContent).join(''); else if (v) val = t === 'str' || t === 'b' || t === 'e' ? v.textContent : (isNaN(+v.textContent) ? v.textContent : +v.textContent);
+      row[ci] = val;
+    });
+    grid.push(Array.from(row, x => x === undefined ? '' : x));
+  });
+  return grid;
+}
+function supRows(grid) {   // таблица -> строки поставки: колонки находим по заголовкам
+  const key = {date: /^дат/, name: /(позиц|наимен|товар|ингред)/, qty: /(колич|кол во|qty)/, unit: /(едини|ед изм|^ед$)/, note: /(примеч|коммент)/};
+  let hi = -1, col = {};
+  for (let i = 0; i < Math.min(grid.length, 15) && hi < 0; i++) {
+    const c = {}; (grid[i] || []).forEach((v, j) => { const s = supNorm(v); Object.keys(key).forEach(k => { if (c[k] === undefined && s && key[k].test(s)) c[k] = j; }); });
+    if (c.name !== undefined && c.qty !== undefined) { hi = i; col = c; }
+  }
+  if (hi < 0) throw new Error('Не нашёл колонки «Позиция» и «Количество». Скачайте шаблон и заполните его');
+  const rows = [], dates = new Set(); let empty = 0;
+  for (let i = hi + 1; i < grid.length; i++) {
+    const g = grid[i] || [], name = String(g[col.name] == null ? '' : g[col.name]).trim(), q = g[col.qty], qs = String(q == null ? '' : q).trim();
+    if (!name && !qs) continue;
+    if (!qs) { empty++; continue; }   // строки шаблона без количества пропускаем
+    const d = col.date !== undefined ? supParseDate(g[col.date]) : ''; if (d) dates.add(d);
+    const m = supMatch(name);
+    rows.push({line: i + 1, name: name.slice(0, 80), q: typeof q === 'number' ? q : qs, unit: col.unit !== undefined ? String(g[col.unit] == null ? '' : g[col.unit]).trim().slice(0, 12) : '', note: col.note !== undefined ? String(g[col.note] || '').slice(0, 120) : '', pick: m.id, sure: m.sure, skip: false});
+  }
+  return {rows, empty, date: dates.size === 1 ? Array.from(dates)[0] : '', mixed: dates.size > 1};
+}
+function sxPick(i, v) { const r = S.sx.rows[i]; r.pick = v; r.sure = true; supRowsCheck(S.sx.rows); render(true); }
+function sxSkip(i) { const r = S.sx.rows[i]; r.skip = !r.skip; supRowsCheck(S.sx.rows); render(true); }
+function sxDone() {
+  const x = S.sx, ok = x.rows.filter(r => r.qc !== null && !r.skip && r.st !== 'err');
+  if (x.rows.some(r => r.st === 'err' && !r.skip)) { x.err = 'Исправьте строки с ошибкой или пропустите их'; return render(true); }
+  if (!ok.length) { x.err = 'Нет строк для приёма'; return render(true); }
+  if (x.dup && !x.okdup) { x.err = 'Этот файл уже загружался: отметьте, что загрузить его ещё раз'; return render(true); }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(x.date) || x.date > supToday()) { x.err = 'Укажите дату поставки: не позже сегодняшней'; return render(true); }
+  const agg = {}; ok.forEach(r => { agg[r.pick] = +((agg[r.pick] || 0) + r.qc).toFixed(2); });
+  const items = Object.keys(agg).map(id => ({id, q: agg[id]}));
+  const rec = supApply(items, {src: 'xlsx', date: x.date, file: x.file, hash: x.hash, note: ''});
+  go({sheet: null, sx: null, toast: 'Поставка из файла принята: позиций ' + items.length});
+  undoPush('Поставка принята', () => supUndo(rec.id));
+}
+function supXSheet() {
+  const x = S.sx;
+  if (x.stage !== 'preview') return `<h2>Поставка из Excel</h2><div class="card"><div class="t2" style="line-height:1.45">Загрузите файл с поставкой (.xlsx или .csv). Обязательные колонки: «Позиция» и «Количество». По желанию: «Дата», «Единица» (кг, г, л, мл, шт, уп, бут) и «Примечание».<br>Строки без количества пропускаются, поэтому в шаблоне можно заполнить только то, что привезли.</div></div>
+    ${x.err ? `<div style="color:var(--r);font-size:13px;margin:8px 0">${esc(x.err)}</div>` : ''}
+    <div class="btns" style="margin:10px 0 0"><button class="btn" ${x.busy ? 'disabled' : ''} onclick="sxFile()">${x.busy ? 'Читаем файл…' : 'Выбрать файл'}</button><button class="btn sec" onclick="supTemplate()">Скачать шаблон</button></div><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null,sx:null})">Отмена</button>`;
+  const n = x.rows.filter(r => r.st === 'ok' || r.st === 'warn').length, bad = x.rows.filter(r => r.st === 'err').length, warn = x.rows.filter(r => r.st === 'warn').length;
+  const opts = sel => `<option value="">— пропустить —</option>` + ING.map(g => `<option value="${g.id}"${g.id === sel ? ' selected' : ''}>${esc(g.n)} (${g.u})</option>`).join('');
+  return `<h2>Предпросмотр поставки</h2><div class="t2" style="margin-bottom:8px">${esc(x.file)} · строк: ${x.rows.length}${x.empty ? ' · пустых пропущено: ' + x.empty : ''}</div>
+    ${x.dup ? `<div class="card" style="border-color:var(--o)"><div class="t1" style="font-size:14px;color:var(--o)">Этот файл уже загружался ${supDMY(x.dup.date)}</div><div class="row" style="margin-top:6px;cursor:pointer" onclick="S.sx.okdup=!S.sx.okdup;render(true)"><div class="box${x.okdup ? ' on' : ''}" style="flex:none">${x.okdup ? ic('check', 16) : ''}</div><div class="grow t2" style="margin-left:8px">Всё равно загрузить ещё раз</div></div></div>` : ''}
+    <div class="fbl">ДАТА ПОСТАВКИ${x.dateFile ? ' (ИЗ ФАЙЛА)' : ''}</div><input type="date" value="${esc(x.date)}" max="${supToday()}" onchange="S.sx.date=this.value" style="margin:4px 0 6px">${x.dateMixed ? '<div class="tiny" style="color:var(--o);margin-bottom:6px">В файле несколько дат, поставка запишется одной датой: проверьте её</div>' : ''}
+    <div class="tiny" style="margin:6px 0">К приёму: ${n}${warn ? ' (проверить: ' + warn + ')' : ''}${bad ? ' · с ошибкой: ' + bad : ''}</div>
+    ${x.rows.map((r, i) => `<div class="card" style="padding:9px 12px${r.skip ? ';opacity:.5' : ''}"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${esc(r.name || '—')}</div><div class="t2">${esc(String(r.q))} ${esc(r.unit)}${r.qc !== null && r.pick ? ' → +' + +r.qc.toFixed(2) + ' ' + (ING.find(g => g.id === r.pick) || {}).u : ''}</div></div><span class="pill ${r.st === 'ok' ? 'ok' : r.st === 'warn' ? 'warn' : r.st === 'err' ? 'bad' : ''}">${r.st === 'ok' ? 'готово' : r.st === 'warn' ? 'проверьте' : r.st === 'err' ? 'ошибка' : 'пропуск'}</span></div>
+      ${r.msg ? `<div class="tiny" style="color:${r.st === 'err' ? 'var(--r)' : 'var(--o)'}">${esc(r.msg)}</div>` : ''}
+      <div class="row" style="margin-top:6px;gap:8px">${r.st === 'err' || r.st === 'warn' || !r.pick ? `<select onchange="sxPick(${i},this.value)" style="margin:0;flex:1">${opts(r.pick)}</select>` : ''}<button class="btn sec sm" onclick="sxSkip(${i})">${r.skip ? 'Вернуть' : 'Пропустить'}</button></div></div>`).join('')}
+    ${x.err ? `<div style="color:var(--r);font-size:13px;margin:8px 0">${esc(x.err)}</div>` : ''}
+    <button class="btn" style="margin:8px 0" onclick="sxDone()">Принять поставку: ${n}</button><button class="btn sec" onclick="go({sheet:null,sx:null})">Отмена</button>`;
+}
+function supTemplate() { openExternal(SRV + '/postavka_shablon.xlsx'); }
+
 
 /* ===================== ЧАТ ===================== */
 // Беседы: 'g' — общий чат всей команды, 'm:<id курьера>' — курьер и менеджер, 'd:<id курьера>' — личный чат курьер↔курьер (виден только им двоим)
@@ -2541,6 +2801,10 @@ function sheet() {
   if (S.sheet === 'diag') return diagSheet();
   if (S.sheet === 'fb' && S.fb) return fbSheet();
   if (S.sheet === 'fblist') return fbListSheet();
+  if (S.sheet === 'supin' && S.si) return supInSheet();
+  if (S.sheet === 'supx' && S.sx) return supXSheet();
+  if (S.sheet === 'suphist') return supHistSheet();
+  if (S.sheet === 'supundo' && S.su) return supUndoSheet();
   if (S.sheet === 'dpick' && S.dp) {
     const f = S.dp, cur = (S.af || {})[f.k] || '', first = (new Date(f.y, f.m, 1).getDay() + 6) % 7, dim = new Date(f.y, f.m + 1, 0).getDate(), tk = dKey(Date.now());
     let cells = ''; for (let i = 0; i < first; i++) cells += '<button class="e" disabled></button>';
@@ -3206,7 +3470,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, FB, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, AMORT, POL, ex2: 1,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, FB, SUP, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, AMORT, POL, ex2: 1,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -3216,7 +3480,7 @@ function restoreData(txt) {
   replaceArr(P, d.P); P.forEach(p => { p.units.forEach(u => { u.loc = p; }); const s = PTS_SRC[p.id - 1]; if (s && s[0] === p.name) { p.lat = s[5]; p.lon = s[6]; } });
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
-  replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(FB, d.FB || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
+  replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(FB, d.FB || []); replaceArr(SUP, d.SUP || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
   nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP); if (d.GSM) Object.assign(GSM, d.GSM); replaceArr(AMORT, d.AMORT || []); if (d.POL) Object.assign(POL, d.POL);
   if (d.NS) { Object.assign(NS, d.NS); } if (d.NST) Object.assign(NST, d.NST);
@@ -3364,6 +3628,7 @@ function docsFromState() {
   GCHAT.forEach(m => { d['gmsg/' + m.id] = m; });
   if (SY.role === 'mgr' && mkey() === 'mgr') FB.forEach(f => { d['fb/' + f.id] = f; });
   if (SY.role === 'mgr') MM.forEach(m => { d['mmsg/' + m.id] = m; });
+  if (SY.role === 'mgr') SUP.forEach(r => { d['sup/' + r.id] = r; });
   Object.keys(RD).forEach(k => Object.keys(RD[k]).forEach(u => { d['rd/' + k + '/' + u] = {ts:RD[k][u]}; }));
   Object.keys(RX).forEach(k => Object.keys(RX[k]).forEach(u => { d['rx/' + k + '/' + u] = {r:RX[k][u]}; }));
   Object.keys(TP).forEach(k => Object.keys(TP[k]).forEach(u => { d['tp/' + k + '/' + u] = {n:TP[k][u]}; }));
@@ -3456,6 +3721,8 @@ function applyDoc(k, v, dele) {
     upsert(NOTIFS, dele ? {id:p[2]} : v, dele, byTsDesc);
   } else if (h === 'fb') {
     upsert(FB, dele ? {id:p[1]} : v, dele, byTsDesc);
+  } else if (h === 'sup') {
+    upsert(SUP, dele ? {id:p[1]} : v, dele, byTsDesc);
   } else if (h === 'mmsg') {
     upsert(MM, dele ? {id:p[1]} : v, dele, byTsAsc);
   } else if (h === 'msg' || h === 'msgn') {
@@ -3494,7 +3761,7 @@ function applyDoc(k, v, dele) {
 function resetFromDocs(docs) { TP_LOADING = true; try { resetFromDocs0(docs); } finally { TP_LOADING = false; } }
 function resetFromDocs0(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
-  [CHAT, CHATN, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(MM, []); replaceArr(FB, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
+  [CHAT, CHATN, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(MM, []); replaceArr(FB, []); replaceArr(SUP, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
   NS.off = []; NS.q = {on: false, from: 22, to: 8}; NS.ld = false; GCS.me = null; GCS.all = {}; GCS.log = []; NST.s = {}; Object.keys(GSD).forEach(k => delete GSD[k]); Object.keys(OFF).forEach(k => delete OFF[k]);
   SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
@@ -5317,6 +5584,29 @@ function selfTest() {
       : [{sheet: 'ring', rg: 'today'}, {sheet: 'ring', rg: 'ok'}, {sheet: 'ring', rg: 'week'}];
     common.concat(own).forEach(sp => T(role + ': окно ' + (sp.sheet || 'уведомления'), () => go(Object.assign(home(), sp))));
     T(role + ': форма «Нашли ошибку» и «Предложение»', () => { fbOpen('bug'); render(); S.fb.areas.push('Кнопка'); S.fb.shots.push('data:image/jpeg;base64,/9j/4AAQ'); fbSet('freq', 'Иногда'); S.fb.t = 'idea'; render(); go(home()); });
+    if (role === 'mgr') {
+      const eq = (a, b, m) => { if (a !== b) throw new Error('поставки: ' + m + ' (' + a + ' ≠ ' + b + ')'); };
+      T('поставки: разбор количества и единиц', () => {
+        eq(supQty('2,5'), 2.5, 'запятая'); eq(supQty(' 1 000 '), 1000, 'пробелы'); eq(isNaN(supQty('-1')), true, 'минус'); eq(isNaN(supQty('abc')), true, 'текст'); eq(isNaN(supQty(0)), true, 'ноль');
+        const kg = ING.find(g => g.u === 'кг'), sht = ING.find(g => g.u === 'шт');
+        eq(supConv(2000, 'г', kg), 2, 'граммы в кг'); eq(supConv(1, 'шт', kg), null, 'несовместимые единицы'); eq(supConv(5, '', sht), 5, 'без единицы');
+        eq(supParseDate(45000), '2023-03-15', 'дата Excel'); eq(supParseDate('05.01.2026'), '2026-01-05', 'дата дд.мм.гггг');
+        eq(supMatch('кофе в зернах').id, 'coffee', 'название без ё'); eq(supMatch('Несуществующее').id, '', 'неизвестная позиция');
+      });
+      T('поставки: разбор файла и предпросмотр', () => {
+        const g = supRows(supCsv('Дата;Позиция;Количество;Единица\n05.01.2026;Сахар;2500;г\n;Стаканчики;500;шт\n;Кофе в зёрнах;;кг\n;Что-то;3;шт\n'));
+        eq(g.rows.length, 3, 'строки'); eq(g.empty, 1, 'пустые строки пропущены'); eq(g.date, '2026-01-05', 'дата из файла');
+        supRowsCheck(g.rows); eq(g.rows[0].qc, 2.5, 'граммы пересчитаны'); eq(g.rows[1].st, 'ok', 'штуки'); eq(g.rows[2].st, 'err', 'неизвестная позиция — ошибка');
+        let bad = ''; try { supRows(supCsv('a;b\n1;2')); } catch (e) { bad = e.message; } eq(/Позиция/.test(bad), true, 'нет нужных колонок');
+      });
+      T('поставки: приёмка и отмена', () => {
+        const id = ING[0].id, before = WH[id] || 0, n = SUP.length;
+        const rec = supApply([{id, q: 3}], {src: 'hand', date: supToday(), note: ''}); eq(+(WH[id] - before).toFixed(2), 3, 'остаток вырос');
+        supUndo(rec.id); eq(+(WH[id] - before).toFixed(2), 0, 'остаток вернулся'); eq(!!SUP.find(r => r.id === rec.id).undone, true, 'пометка «отменена»');
+        SUP.splice(SUP.findIndex(r => r.id === rec.id), 1); eq(SUP.length, n, 'тестовая запись убрана'); WH[id] = before; go({sheet: null});
+      });
+      [{sheet: 'supin', si: {date: supToday(), note: '', q: {}, err: ''}}, {sheet: 'supx', sx: {stage: 'start', err: ''}}, {sheet: 'suphist'}].forEach(sp => T('поставки: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'wh'}, sp))));
+    }
     T(role + ': окно обращений', () => { FB.push({id: 'selftest', ts: Date.now(), kind: 'bug', status: 'new', from: {name: 'Тест', role: 'cour'}, text: 'проверка', files: [], areas: ['Кнопка'], ctx: {ver: '1'}}); go(Object.assign(home(), {sheet: 'fblist', fbf: 'new'})); FB.length = 0; go(home()); });
     T(role + ': политика, согласие, диагностика, оператор, «нужно обновить»', () => { go(Object.assign(home(), {sheet: 'privacy'})); go(Object.assign(home(), {sheet: 'consent'})); go(Object.assign(home(), {sheet: 'polset', ps: {op: 'ИП Тест', contact: '123'}})); S.dg = {busy: false, groups: [{k: 'error', m: 'тест', n: 2, last: Date.now(), v: ['1'], who: ['a'], screen: ['plan'], st: 'a\nb'}]}; go(Object.assign(home(), {sheet: 'diag'})); S.dg = null; go(home()); const u = UPDREQ; UPDREQ = 0; go(Object.assign(home(), {sheet: 'updreq'})); UPDREQ = u; go(home()); });
     T(role + ': закрыть окна', () => go(home()));
