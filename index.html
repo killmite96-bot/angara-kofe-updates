@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 190;
+const APP_VERSION = 192;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1624,10 +1624,36 @@ function resSave() {
 // запись попадает в журнал погрузок (документ lh/<курьер>/<id>); менеджер видит расхождения и может отменить последнюю погрузку.
 const LOADS = [];   // {id, ts, cid, cname, key, items:[{id, plan, took}], undone:{ts, byName}}
 const ldPlan = c => { const tot = {}; L(c, TODAY).forEach(x => { if (!x.done && pt(x.pid)) ING.forEach(g => tot[g.id] = (tot[g.id] || 0) + needBase(pt(x.pid), g)); }); return tot; };
+// на базе ли курьер по геолокации: true / false / null (геолокация не работает: узнать нельзя, тогда не ограничиваем).
+// Телефон передаёт на сервер отметку «на базе», пока курьер в пределах 150 м от неё; она держится, пока курьер не начал визит на точке («на точке»/«в пути»).
+function atBase() {
+  if (S.role !== 'cour' || !geoActive()) return null;
+  const r = prMine(), lc = r && r.lc, sh = shMine();
+  if (lc && lc.k === 'base' && sNow() - (lc.ts || 0) < 90 * 60000) return true;
+  if (sh && sh.s && !sh.e && sNow() - sh.s < 90000 && !(lc && lc.k !== 'base' && (lc.ts || 0) > sh.s)) return true;   // только вошли на смену: первый сигнал ещё не дошёл
+  return false;
+}
+const ldRec = c => LOADS.find(r => r.key === c + ':' + TODAY && !r.undone) || null;
 function lqState(c) {
   const key = c + ':' + TODAY;
-  if (!S.lq || S.lq.key !== key) { const plan = ldPlan(c), v = {}; ING.forEach(g => { v[g.id] = +(plan[g.id] || 0).toFixed(1); }); S.lq = {key, v, all: false}; }
+  if (!S.lq || S.lq.key !== key) {
+    const plan = ldPlan(c), v = {}, rec = LOADED[key] ? ldRec(c) : null;
+    ING.forEach(g => { const it = rec && rec.items.find(x => x.id === g.id); v[g.id] = rec ? (it ? it.took : 0) : +(plan[g.id] || 0).toFixed(1); });   // подтверждённую погрузку правят от записанного, новую — от плана
+    S.lq = {key, v, all: false};
+  }
   return S.lq;
+}
+function passAskSheet() {
+  const names = passNeed(S.me).map(p => p.name);
+  return `<h2>Вы не отметили пропуск</h2><div class="card"><div class="row"><div style="color:var(--o)">${ic('pass', 34)}</div><div class="grow"><div class="t1" style="font-size:15px">Он у вас?</div><div class="t2">${names.length ? 'Сегодня в графике: ' + esc(names.join(', ')) + '. ' : ''}Без пропуска на точку не попасть.</div></div></div></div>
+    <button class="btn" style="margin-top:10px" onclick="passYes()">Да, пропуск у меня</button><button class="btn sec" style="margin-top:8px" onclick="passNo()">Нет</button>`;
+}
+function passYes() { PASS[S.me + ':' + TODAY] = true; go({sheet: 'load'}); confirmLoad(); }   // отмечаем пропуск и подтверждаем погрузку
+function passNo() { go({sheet: 'load', toast: 'Возьмите пропуск и отметьте его галочкой, затем подтвердите погрузку'}); }
+function loadOpen() {
+  const c = S.me, done = !!LOADED[c + ':' + TODAY];
+  if (!done && atBase() === false) return go({toast: 'Погрузка доступна на базе: подъедьте на базу, и кнопка станет активной'});
+  go({sheet: 'load'});
 }
 function lqAdj(gid, d) { const g = ING.find(x => x.id === gid), q = lqState(S.me); q.v[gid] = Math.max(0, +(((q.v[gid]) || 0) + d * stepFor(g)).toFixed(1)); render(true); }
 function lqSet(gid, val) { const n = supQty(val); lqState(S.me).v[gid] = isNaN(n) ? 0 : Math.min(100000, +n.toFixed(2)); }
@@ -1635,17 +1661,17 @@ const ingNm = id => { const g = ING.find(x => x.id === id); return g ? g.n.toLow
 function loadSheet() {
   const c = S.me, plan = ldPlan(c), q = lqState(c), key = c + ':' + TODAY, fmt = (g, n) => (g.t === 'count' ? n : +(+n).toFixed(1)) + ' ' + g.u;
   let t2 = 0; L(c, TODAY).forEach(x => { if (!x.done && x.type >= 2) t2++; });
-  const need = passNeed(c);
+  const need = passNeed(c), done = !!LOADED[key], ab = atBase(), edit = done && ab !== false, live = !done || edit;
   let h = '<h2>Погрузка со склада</h2>';
-  if (need.length) h += `<div class="card" style="border-color:var(--o)"><div class="row" onclick="PASS['${key}']=!PASS['${key}'];render(true)" style="cursor:pointer"><div style="color:var(--o)">${ic('pass', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Возьмите пропуск: ${esc(need.map(p => p.name).join(', '))}</div><div class="t2">Сегодня в вашем графике есть точка с пропуском. Отметьте, когда он у вас.</div></div><div class="box${PASS[key] ? ' on' : ''}" style="flex:none">${PASS[key] ? ic('check', 16) : ''}</div></div></div>`;
-  const done = !!LOADED[key], rows = ING.filter(g => plan[g.id] > 0 || q.all || (q.v[g.id] || 0) > 0);
-  h += `<div class="tiny" style="margin-bottom:6px">${done ? 'Погрузка подтверждена.' : 'Впишите, сколько реально взяли со склада: подставлено по плану (с запасом 20%). Если чего-то не взяли, поставьте 0 или меньше. После подтверждения склад обновится сразу.'}</div><div class="card" style="padding:2px 12px">`;
+  if (need.length && !done) h += `<div class="card" style="border-color:var(--o)"><div class="row" onclick="PASS['${key}']=!PASS['${key}'];render(true)" style="cursor:pointer"><div style="color:var(--o)">${ic('pass', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Возьмите пропуск: ${esc(need.map(p => p.name).join(', '))}</div><div class="t2">Сегодня в вашем графике есть точка с пропуском. Отметьте, когда он у вас.</div></div><div class="box${PASS[key] ? ' on' : ''}" style="flex:none">${PASS[key] ? ic('check', 16) : ''}</div></div></div>`;
+  const rows = ING.filter(g => plan[g.id] > 0 || q.all || (q.v[g.id] || 0) > 0);
+  h += `<div class="tiny" style="margin-bottom:6px">${!done ? 'Впишите, сколько реально взяли со склада: подставлено по плану (с запасом 20%). Если чего-то не взяли, поставьте 0 или меньше. После подтверждения склад обновится сразу.' : edit ? 'Погрузка подтверждена. Пока вы на базе, можно поправить: склад пересчитается на разницу.' : 'Погрузка подтверждена. Изменить её можно только на базе.'}</div><div class="card" style="padding:2px 12px">`;
   rows.forEach(g => {
     const pl = +(plan[g.id] || 0).toFixed(1), tk = q.v[g.id] || 0, diff = Math.abs(tk - pl) > 1e-6, low = !done && (WH[g.id] || 0) < tk;
-    h += `<div class="row supr"><div class="grow t1" style="font-size:14px">${esc(g.n)}<div class="tiny">${pl > 0 ? 'по плану ' + fmt(g, pl) : 'не по плану'}${low ? ' <span class="pill bad">на складе ' + fmt(g, WH[g.id] || 0) + '</span>' : ''}</div></div>${done ? `<b style="font-size:14px;color:${diff ? 'var(--o)' : 'var(--tx)'}">${fmt(g, tk)}</b>` : `<div class="step"><button onclick="lqAdj('${g.id}',-1)">−</button><input type="text" inputmode="decimal" value="${tk}" oninput="lqSet('${g.id}',this.value)" style="width:58px;margin:0;text-align:center;padding:6px 4px;color:${diff ? 'var(--o)' : 'inherit'}"><button onclick="lqAdj('${g.id}',1)">+</button></div><span class="t2 supu">${g.u}</span>`}</div>`;
+    h += `<div class="row supr"><div class="grow t1" style="font-size:14px">${esc(g.n)}<div class="tiny">${pl > 0 ? 'по плану ' + fmt(g, pl) : 'не по плану'}${low ? ' <span class="pill bad">на складе ' + fmt(g, WH[g.id] || 0) + '</span>' : ''}</div></div>${!live ? `<b style="font-size:14px;color:${diff ? 'var(--o)' : 'var(--tx)'}">${fmt(g, tk)}</b>` : `<div class="step"><button onclick="lqAdj('${g.id}',-1)">−</button><input type="text" inputmode="decimal" value="${tk}" oninput="lqSet('${g.id}',this.value)" style="width:58px;margin:0;text-align:center;padding:6px 4px;color:${diff ? 'var(--o)' : 'inherit'}"><button onclick="lqAdj('${g.id}',1)">+</button></div><span class="t2 supu">${g.u}</span>`}</div>`;
   });
   h += '</div>';
-  if (!done && !q.all && ING.some(g => !(plan[g.id] > 0) && !((q.v[g.id] || 0) > 0))) h += `<button class="btn sec sm" style="margin:2px 0 8px" onclick="S.lq.all=true;render(true)">Показать остальные позиции</button>`;
+  if (live && !q.all && ING.some(g => !(plan[g.id] > 0) && !((q.v[g.id] || 0) > 0))) h += `<button class="btn sec sm" style="margin:2px 0 8px" onclick="S.lq.all=true;render(true)">Показать остальные позиции</button>`;
   if (t2) h += `<div class="card"><div class="t1" style="font-size:14px">Для мойки (тип 2 × ${t2})</div><div class="t2">Моющее средство, чистящие таблетки, ветошь, перчатки, запасные комплекты деталей</div></div>`;
   const todo = legs(c).out;
   if (todo.length) {
@@ -1655,20 +1681,31 @@ function loadSheet() {
       h += `<div class="card" style="padding:10px 12px"><div class="row" onclick="ldOpen(${p.id})" style="cursor:pointer"><div class="badge ${bcls(o.x.type)}">${i + 1}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}${stB(p)}</div><div class="t2">${esc(p.addr)}</div></div><div class="t2">${open ? '▲' : '▼'}</div></div>${open ? `<div style="margin-top:8px">${stockRows(p)}</div>` : ''}</div>`;
     });
   }
-  h += done ? '<div class="pill ok" style="display:inline-block;margin-bottom:10px">Погрузка подтверждена, склад обновлён</div>' : `<button class="btn" style="margin-bottom:8px" onclick="confirmLoad()">Подтвердить погрузку</button>`;
+  h += !done ? `<button class="btn" style="margin-bottom:8px" onclick="confirmLoad()">Подтвердить погрузку</button>` : edit ? `<button class="btn" style="margin-bottom:8px" onclick="confirmLoad()">Сохранить изменения</button>` : '<div class="pill ok" style="display:inline-block;margin-bottom:10px">Погрузка подтверждена, склад обновлён</div>';
   return h + '<button class="btn sec" onclick="go({sheet:null,lq:null})">Закрыть</button>';
 }
 function confirmLoad() {
-  const c = S.me, q = lqState(c), plan = ldPlan(c), me = cr(c), key = c + ':' + TODAY;
+  const c = S.me, q = lqState(c), plan = ldPlan(c), me = cr(c), key = c + ':' + TODAY, old = LOADED[key] ? ldRec(c) : null;
+  if (atBase() === false) return go({toast: old ? 'Изменить погрузку можно только на базе' : 'Погрузка подтверждается на базе: подъедьте на базу'});
+  if (!old && passNeed(c).length && !PASS[key]) return go({sheet: 'passask'});   // на сегодня есть точка с пропуском, а он не отмечен: спрашиваем
   const items = ING.map(g => ({id: g.id, plan: +(plan[g.id] || 0).toFixed(1), took: +((q.v[g.id]) || 0).toFixed(2)})).filter(x => x.plan > 0 || x.took > 0);
-  const short = items.filter(x => x.took > (WH[x.id] || 0) + 1e-6), less = items.filter(x => x.took < x.plan - 1e-6);
-  items.forEach(it => { WH[it.id] = Math.max(0, +((WH[it.id] || 0) - it.took).toFixed(2)); });
-  const rec = {id: 'l' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ts: Date.now(), cid: c, cname: me.name, key, items};
-  LOADS.unshift(rec); LOADS.sort(byTsDesc); LOADED[key] = true;
+  const was = id => { const it = old && old.items.find(x => x.id === id); return it ? it.took : 0; };
+  const short = items.filter(x => x.took - was(x.id) > (WH[x.id] || 0) + 1e-6), less = items.filter(x => x.took < x.plan - 1e-6);
+  const ids = new Set(items.map(x => x.id).concat(old ? old.items.map(x => x.id) : []));
+  ids.forEach(id => { const now = (items.find(x => x.id === id) || {took: 0}).took; WH[id] = Math.max(0, +((WH[id] || 0) - (now - was(id))).toFixed(2)); });   // при правке склад меняется только на разницу
   const list = a => a.slice(0, 4).map(x => ingNm(x.id) + ' ' + x.took + (x.plan > 0 ? ' из ' + x.plan : '')).join(', ') + (a.length > 4 ? ' и ещё ' + (a.length - 4) : '');
-  if (less.length) notify('mgr', 'warn', me.name + ' взял меньше плана: ' + list(less));
+  if (old) {
+    const chg = items.filter(x => Math.abs(x.took - was(x.id)) > 1e-6);
+    old.items = items; old.edited = Date.now();
+    if (chg.length) notify('mgr', 'warn', me.name + ' изменил погрузку: ' + chg.slice(0, 4).map(x => ingNm(x.id) + ' ' + was(x.id) + ' → ' + x.took).join(', ') + (chg.length > 4 ? ' и ещё ' + (chg.length - 4) : ''));
+  } else {
+    const rec = {id: 'l' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ts: Date.now(), cid: c, cname: me.name, key, items};
+    LOADS.unshift(rec); LOADS.sort(byTsDesc); LOADED[key] = true;
+    if (less.length) notify('mgr', 'warn', me.name + ' взял меньше плана: ' + list(less));
+  }
   if (short.length) notify('mgr', 'warn', 'На складе не хватило при погрузке (' + me.name + '): ' + short.slice(0, 4).map(x => ingNm(x.id)).join(', ') + ': склад обнулён, проверьте остатки');
   S.lq = null;
+  if (old) return go({sheet: null, lq: null, toast: 'Погрузка изменена, склад пересчитан'});
   try { if (shActive()) lcSet('base', 0, ''); } catch (e) {}   // погрузку подтверждают на базе
   if (passNeed(c).length && !PASS[key]) go({toast: 'Погрузка подтверждена. Не забудьте пропуск: ' + passNeed(c).map(p => p.name).join(', ')}); else render(true);
 }
@@ -1686,14 +1723,16 @@ function loadHistSheet() {
   h += LOADS.slice(0, 30).map(r => { const d = new Date(r.ts), ds = supP2(d.getDate()) + '.' + supP2(d.getMonth() + 1) + ' ' + supP2(d.getHours()) + ':' + supP2(d.getMinutes());
     return `<div class="card" style="padding:10px 12px${r.undone ? ';opacity:.55' : ''}"><div class="t1" style="font-size:14px">${ds} · ${esc(r.cname || '')}</div>
       ${r.items.map(it => { const g = ING.find(x => x.id === it.id); if (!g) return ''; const diff = it.took < it.plan - 1e-6 ? 'less' : it.took > it.plan + 1e-6 ? 'more' : ''; return `<div class="kv" style="padding:5px 0"><span>${esc(g.n)}</span><span><b style="color:${diff === 'less' ? 'var(--r)' : diff === 'more' ? 'var(--o)' : 'var(--tx)'}">${fmt(g, it.took)}</b>${diff ? ` <span class="tiny">план ${fmt(g, it.plan)}</span>` : ''}</span></div>`; }).join('')}
-      ${r.undone ? `<div class="tiny" style="color:var(--o);margin-top:4px">Отменена, ${esc(r.undone.byName || '')}</div>` : ''}${last && sameId(last.id, r.id) ? `<button class="btn sec sm" style="margin-top:8px;color:#ffb0b0" onclick="ldUndo('${r.id}')">Отменить эту погрузку</button>` : ''}</div>`; }).join('');
+      ${r.edited ? `<div class="tiny" style="margin-top:4px">Изменена курьером в ${supP2(new Date(r.edited).getHours())}:${supP2(new Date(r.edited).getMinutes())}</div>` : ''}${r.undone ? `<div class="tiny" style="color:var(--o);margin-top:4px">Отменена, ${esc(r.undone.byName || '')}</div>` : ''}${last && sameId(last.id, r.id) ? `<button class="btn sec sm" style="margin-top:8px;color:#ffb0b0" onclick="ldUndo('${r.id}')">Отменить эту погрузку</button>` : ''}</div>`; }).join('');
   return h + `<div class="tiny" style="margin:8px 0">Красным выделено, где взято меньше плана, оранжевым — больше. Отменить можно только последнюю погрузку: остатки склада вернутся.</div><button class="btn sec" onclick="go({sheet:null})">Закрыть</button>`;
 }
 // крупная кнопка «Погрузка» на вкладке «Маршрут» курьера: пока не подтверждена — яркая, после подтверждения спокойная с отметкой
 function loadBtn(c, loaded) {
-  const plan = ldPlan(c), n = ING.filter(g => plan[g.id] > 0).length, rec = LOADS.find(r => r.key === c + ':' + TODAY && !r.undone), took = rec ? rec.items.filter(x => x.took > 0).length : 0;
+  const plan = ldPlan(c), n = ING.filter(g => plan[g.id] > 0).length, rec = ldRec(c), took = rec ? rec.items.filter(x => x.took > 0).length : 0, ab = atBase(), off = ab === false;
   const pos = k => k + (k % 10 === 1 && k % 100 !== 11 ? ' позиция' : k % 10 >= 2 && k % 10 <= 4 && (k % 100 < 10 || k % 100 >= 20) ? ' позиции' : ' позиций');
-  return `<button class="loadbtn${loaded ? ' done' : ''}" onclick="go({sheet:'load'})"><span class="lic">${ic(loaded ? 'check' : 'box', 30)}</span><span><b>Погрузка</b><small>${loaded ? 'Подтверждена' + (rec ? ' · взято ' + pos(took) : '') + '. Нажмите, чтобы посмотреть' : n ? 'Отметьте, сколько взяли на складе · по плану ' + pos(n) : 'Отметьте, сколько взяли на складе'}</small></span><span class="lgo">›</span></button>`;
+  const sub = loaded ? 'Подтверждена' + (rec ? ' · взято ' + pos(took) : '') + (off ? '. Изменить можно только на базе' : '. Нажмите, чтобы изменить')
+    : off ? 'Вы не на базе: погрузка доступна на базе' : n ? 'Отметьте, сколько взяли на складе · по плану ' + pos(n) : 'Отметьте, сколько взяли на складе';
+  return `<button class="loadbtn${loaded ? ' done' : ''}${off ? ' off' : ''}" onclick="loadOpen()"><span class="lic">${ic(loaded ? 'check' : 'box', 30)}</span><span><b>Погрузка</b><small>${sub}</small></span><span class="lgo">›</span></button>`;
 }
 function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, feat: '', notes: [], uex: [{feat: '', notes: [], cam: ''}], info: {}, err: ''}}); }
 function nwUnits(d) { const u = S.nw.units, n = Math.max(1, Math.min(PT_MAX_UNITS, u.length + d)); while (u.length < n) u.push(u[u.length - 1] || 'B'); u.length = n; S.nw.uex = S.nw.uex || []; while (S.nw.uex.length < n) S.nw.uex.push({feat: '', notes: []}); S.nw.uex.length = n; render(true); }
@@ -3203,6 +3242,7 @@ function rv(id, s, reason) {
 function sheet() {
   const c = S.me;
   if (S.sheet === 'load') return loadSheet();
+  if (S.sheet === 'passask') return passAskSheet();
   if (S.sheet === 'loadhist') return loadHistSheet();
   if (S.sheet === 'chatpt') {
     return `<h2>Привязать точку</h2><div class="tiny">Выберите точку: в сообщении появится метка, по которой собеседник сразу откроет её.</div>
@@ -5374,6 +5414,8 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 .loadbtn small{display:block;font-size:13px;font-weight:600;opacity:.8;margin-top:3px;line-height:1.25}
 .loadbtn .lgo{margin-left:auto;font-size:30px;font-weight:300;opacity:.65;line-height:1}
 .loadbtn.done{background:var(--card);color:var(--tx);box-shadow:none;border:1px solid rgba(93,255,160,.38);animation:none}
+.loadbtn.off{background:#252b27;color:#8b9a91;box-shadow:none;border:1px solid #333d37;animation:none}
+.loadbtn.off .lic{background:rgba(255,255,255,.06);color:#8b9a91}
 .loadbtn.done .lic{background:rgba(93,255,160,.14);color:var(--g)}
 @keyframes lpulse{0%,100%{box-shadow:0 10px 24px rgba(52,214,127,.22),inset 0 1px 0 rgba(255,255,255,.4)}50%{box-shadow:0 12px 30px rgba(52,214,127,.42),inset 0 1px 0 rgba(255,255,255,.4)}}
 .stnh{display:flex;align-items:center;gap:10px;margin:16px 0 8px;padding:10px 12px;border-radius:16px;background:rgba(93,255,160,.09);border:1px solid rgba(93,255,160,.32)}.stnt{font-size:17px;font-weight:800;letter-spacing:-.01em}.stnb{width:30px;height:30px;border-radius:50%;background:var(--g);color:#06210f;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none}
@@ -6162,14 +6204,24 @@ function selfTest() {
         const p = P[0]; openPtName(p.id); eq(sheetFam(), 'ptname', 'окно изменения точки'); go({sheet: 'ptunitdel', pu: {pid: p.id, i: 0}}); eq(sheetFam(), 'ptname', 'вложенное окно того же семейства'); go({sheet: null, pu: null, pn: null}); eq(sheetFam(), null, 'после закрытия семейства нет');
       });
       T('погрузка: курьер отмечает взятое, склад списывается, менеджер отменяет', () => {
-        const me0 = S.me, c = COUR[0].id; S.me = c; const key = c + ':' + TODAY, savedL = LOADED[key], day = sched[c][TODAY], it = {pid: P[0].id, type: 1, done: false, review: null}; day.push(it); delete LOADED[key]; S.lq = null;
+        const me0 = S.me, c = COUR[0].id; S.me = c; const key = c + ':' + TODAY, savedL = LOADED[key], savedP0 = PASS[key], day = sched[c][TODAY], it = {pid: P[0].id, type: 1, done: false, review: null}; day.push(it); delete LOADED[key]; PASS[key] = true; S.lq = null;   // пропуск отмечен: вопрос про него в этом тесте не нужен
         const plan = ldPlan(c), cup = ING.find(g => g.id === 'cup'), pl = plan.cup || 0; eq(pl > 0 || true, true, 'план считается');
         const q = lqState(c); eq(q.v.cup, +(plan.cup || 0).toFixed(1), 'по умолчанию «взял» равно плану'); q.v.cup = 20; q.v.lid = 7;
         const wh0 = {cup: WH.cup, lid: WH.lid}, n = LOADS.length, nt = NOTIFS.length; confirmLoad();
         eq(LOADS.length, n + 1, 'запись в журнале'); eq(+(wh0.cup - WH.cup).toFixed(2), 20, 'со склада списано взятое'); eq(+(wh0.lid - WH.lid).toFixed(2), 7, 'и по другой позиции'); eq(!!LOADED[key], true, 'погрузка подтверждена');
         const rec = LOADS[0]; eq(rec.items.find(x => x.id === 'cup').took, 20, 'в журнале взятое'); if (pl > 20) eq(NOTIFS.length > nt, true, 'менеджеру уведомление о расхождении');
-        eq(ldLast().id, rec.id, 'последняя погрузка'); S.me = 0; ldUndo(rec.id); eq(WH.cup, wh0.cup, 'после отмены склад вернулся'); eq(WH.lid, wh0.lid, 'и по другой позиции'); eq(!!LOADED[key], false, 'курьер может подтвердить заново'); eq(!!LOADS.find(x => x.id === rec.id).undone, true, 'пометка отмены');
-        LOADS.splice(LOADS.findIndex(x => x.id === rec.id), 1); day.splice(day.indexOf(it), 1); if (savedL) LOADED[key] = savedL; S.me = me0; S.lq = null; go({sheet: null});
+        eq(ldLast().id, rec.id, 'последняя погрузка');
+        eq(atBase(), null, 'без геолокации «на базе» неизвестно: не ограничиваем'); S.lq = null; const q2 = lqState(c); eq(q2.v.cup, 20, 'правка начинается с записанного'); q2.v.cup = 5; q2.v.lid = 9; const whE = {cup: WH.cup, lid: WH.lid}; confirmLoad();
+        eq(+(whE.cup - WH.cup).toFixed(2), -15, 'склад пересчитан на разницу (вернулось 15)'); eq(+(whE.lid - WH.lid).toFixed(2), 2, 'и по второй позиции списано ещё 2'); eq(LOADS.length, n + 1, 'запись одна, а не две'); eq(!!LOADS[0].edited, true, 'пометка об изменении'); eq(LOADS[0].items.find(x => x.id === 'cup').took, 5, 'в записи новое количество'); S.me = c;
+        S.me = 0; ldUndo(rec.id); eq(WH.cup, wh0.cup, 'после отмены склад вернулся'); eq(WH.lid, wh0.lid, 'и по другой позиции'); eq(!!LOADED[key], false, 'курьер может подтвердить заново'); eq(!!LOADS.find(x => x.id === rec.id).undone, true, 'пометка отмены');
+        LOADS.splice(LOADS.findIndex(x => x.id === rec.id), 1); day.splice(day.indexOf(it), 1); if (savedL) LOADED[key] = savedL; if (savedP0) PASS[key] = savedP0; else delete PASS[key]; S.me = me0; S.lq = null; go({sheet: null});
+      });
+      T('погрузка: вопрос про пропуск', () => {
+        const me0 = S.me, c = COUR[0].id; S.me = c; const key = c + ':' + TODAY, savedL = LOADED[key], savedP = PASS[key], day = sched[c][TODAY], ap = P.find(x => x.pass), it = {pid: ap.id, type: 1, done: false, review: null}; day.push(it); delete LOADED[key]; delete PASS[key]; S.lq = null;
+        const n = LOADS.length; confirmLoad(); eq(S.sheet, 'passask', 'вопрос про пропуск'); eq(!!LOADED[key], false, 'пока не отвечено, погрузка не подтверждена'); eq(LOADS.length, n, 'записи нет');
+        passNo(); eq(S.sheet, 'load', '«Нет»: возвращаемся к погрузке'); eq(!!LOADED[key], false, 'и погрузка не подтверждена');
+        S.lq = null; confirmLoad(); eq(S.sheet, 'passask', 'вопрос повторяется'); passYes(); eq(!!PASS[key], true, '«Да»: пропуск отмечен'); eq(!!LOADED[key], true, 'погрузка подтверждена'); eq(LOADS.length, n + 1, 'запись в журнале');
+        const rec = LOADS[0]; rec.items.forEach(x => { WH[x.id] = +((WH[x.id] || 0) + x.took).toFixed(2); }); LOADS.splice(0, 1); delete LOADED[key]; if (savedP) PASS[key] = savedP; else delete PASS[key]; if (savedL) LOADED[key] = savedL; day.splice(day.indexOf(it), 1); S.me = me0; S.lq = null; go({sheet: null});
       });
       [{sheet: 'loadhist'}].forEach(sp => T('погрузка: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'wh'}, sp))));
       T('резерв подтоварки: норма, «с базы» и визит', () => {

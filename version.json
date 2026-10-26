@@ -1,9 +1,9 @@
 {
-    "content":  190,
+    "content":  192,
     "apk":  22,
-    "notes":  "Маршрут курьера: сверху «Начало смены», затем круги, под ними «Погрузка».",
+    "notes":  "Погрузка: если не отмечен пропуск, приложение спрашивает «Он у вас?».",
     "contentFile":  "index.html",
-    "contentSha256":  "09d349f6ab680c2639e9242e149f2b8d978e1aa3e78e5e2f161bd1657abe2bb1",
+    "contentSha256":  "63dacedb6f0ae598da6e1ed7ba2739d89d3ba8035d98864f92ff9a123c83944e",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
