@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 160;
+const APP_VERSION = 161;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1344,15 +1344,15 @@ function pointCard(id) {
   h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Генеральная уборка</div><div class="t2">${deepText(p)}</div>${ddInfo(p) ? `<div class="t2">${ddInfo(p).text}</div>` : ''}</div>${(DEEP.on && deepLeft(p) <= 14) || (ddInfo(p) && ddInfo(p).show) ? `<span class="pill warn">${DEEP.on && deepLeft(p) < 0 ? 'пора' : 'скоро срок'}</span>` : ''}</div></div>`;
   const mg = S.role === 'mgr';
   // у менеджера значения правятся прямо в карточке кнопками − и +
-  const stp = (call, val) => `<div class="step"><button onclick="${call},-1)">−</button><span>${val}</span><button onclick="${call},1)">+</button></div>`;
-  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${gn(g, p)}${mg ? ` <span class="pen" onclick="openIng('${g.id}')" title="Изменить название">${ic('edit', 14)}</span>` : ''}</span><span>${mg ? stp(`mgBack(${p.id},'${g.id}'`, p.back[g.id] + ' ' + g.u) : `<b>${p.back[g.id]} ${g.u}</b>`}${nb > 0 ? ` <span class="pill warn">с базы ${nb}</span>` : ''}</span></div>`; }).join('') + '</div>';
+  const stp = (call, val, wk) => `<div class="step"><button onclick="${call},-1)">−</button><span${wk ? ` data-wk="${wk}"` : ''}>${val}</span><button onclick="${call},1)">+</button></div>`;
+  h += '<h3>Подтоварка на точке</h3><div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = needBase(p, g); return `<div class="kv"><span>${gn(g, p)}${mg ? ` <span class="pen" onclick="openIng('${g.id}')" title="Изменить название">${ic('edit', 14)}</span>` : ''}</span><span>${mg ? stp(`mgBack(${p.id},'${g.id}'`, p.back[g.id] + ' ' + g.u, `PB:${p.id}|${g.id}`) : `<b>${p.back[g.id]} ${g.u}</b>`}${nb > 0 ? ` <span class="pill warn">с базы ${nb}</span>` : ''}</span></div>`; }).join('') + '</div>';
   h += '<h3>Остатки на последний визит</h3>';
   p.units.forEach((u, i) => {
     if (p.units.length > 1) h += `<h3>Станция ${i + 1} · ${STN[u.st]}</h3>`;
     ING.forEach(g => {
       const f = frac(u, g), r = rec(u, g), c = f < .2 ? 'var(--r)' : f < .4 ? 'var(--y)' : 'var(--g)';
       h += `<div class="card" style="padding:9px 12px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${gn(g, p)}${/^s\d$/.test(g.id) ? ` <span class="pill blue" style="cursor:pointer" onclick="openSyr(${p.id},'${g.id}')">✎ вкус</span>` : ''}</div><div class="bar"><i style="width:${Math.round(f * 100)}%;background:${c}"></i></div></div>
-        <div style="text-align:right">${mg ? stp(`mgCur(${p.id},${i},'${g.id}'`, fmtCur(u, g)) : `<div class="t1" style="font-size:13px">${fmtCur(u, g)}</div>`}<div class="t2" style="color:var(--o)">${r > 0 ? 'взять ' + r + ' ' + g.u : '—'}</div></div></div></div>`;
+        <div style="text-align:right">${mg ? stp(`mgCur(${p.id},${i},'${g.id}'`, fmtCur(u, g), `PC:${p.id}|${i}|${g.id}`) : `<div class="t1" style="font-size:13px">${fmtCur(u, g)}</div>`}<div class="t2" style="color:var(--o)">${r > 0 ? 'взять ' + r + ' ' + g.u : '—'}</div></div></div></div>`;
     });
   });
   if (S.role === 'cour') {
@@ -4297,6 +4297,13 @@ function viewerExtras(el) {   // вызывается из bindViewer
 // ----- колесо выбора (барабан) для количества: нажмите на число между «−» и «+» -----
 function wheelSpec(kind, id) {
   if (kind === 'DEEPM') return {title: 'Генеральная уборка: раз в сколько месяцев', cur: DEEP.mo, st: 1, min: 1, max: 12, unit: 'мес.', set: x => { DEEP.mo = Math.max(1, Math.min(12, Math.round(x))); }};
+  if (kind === 'PB' || kind === 'PC') {   // карточка точки у менеджера: подтоварка и остатки на станции
+    const a = String(id).split('|'), p = pt(+a[0]), gid = a[a.length - 1], g = ING.find(x => x.id === gid); if (!p || !g) return null;
+    if (kind === 'PB') { const have = p.back[gid] || 0, st = stepFor(g); return {title: 'Подтоварка на точке: ' + gn(g, p), cur: have, st, max: Math.max(have * 2, st * 30, (g.cap || 0) * 3), unit: g.u, set: x => { p.back[gid] = x; }}; }
+    const u = p.units[+a[1]]; if (!u) return null;
+    if (g.t === 'count') return {title: 'Остаток на станции: ' + gn(g, p), cur: u.cur[gid], st: 10, max: Math.max(g.cap, u.cur[gid]), unit: g.u, set: x => { u.cur[gid] = x; }};
+    return {title: 'Остаток на станции: ' + gn(g, p), cur: Math.round(u.cur[gid] * 100), st: 25, max: 100, unit: '%', set: x => { u.cur[gid] = x / 100; }};
+  }
   const v = S.visit, g = ING.find(x => x.id === id);
   if (kind === 'WH' && g) { const have = WH[id] || 0; return {title: 'На складе: ' + g.n, cur: have, st: g.st, max: Math.max(have * 2, g.st * 30), unit: g.u, set: x => { WH[id] = x; }}; }
   if (!v || !g) return null;
