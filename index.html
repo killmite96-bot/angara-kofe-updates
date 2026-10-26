@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 179;
+const APP_VERSION = 180;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -445,8 +445,10 @@ const gn = (g, p) => { const fl = p && p.syr && p.syr[g.id]; return fl ? g.n + '
 const multiU = p => p.units.length > 1;
 const backOf = (p, k) => multiU(p) ? (p.units[k] && p.units[k].back) || (k === 0 ? p.back : {}) : p.back;
 function backSync(p) { if (!multiU(p)) return; const t = {}; ING.forEach(g => { t[g.id] = +p.units.reduce((a, u) => a + ((u.back || {})[g.id] || 0), 0).toFixed(1); }); p.back = t; }
-function backEnsure() {   // станциям без своей подтоварки: у первой остаётся всё, что лежало на точке, у остальных ноль
-  P.forEach(p => { if (!multiU(p)) return; let ch = false; p.units.forEach((u, k) => { if (!u.back) { u.back = {}; ING.forEach(g => { u.back[g.id] = k === 0 ? (p.back[g.id] || 0) : 0; }); ch = true; } ING.forEach(g => { if (u.back[g.id] === undefined) u.back[g.id] = 0; }); }); if (ch) backSync(p); });
+const arrOf = (p, k) => multiU(p) ? (p.units[k] && p.units[k].arr) || p.arr : p.arr;   // состояние при прибытии: у точки с несколькими станциями у каждой своё, p.arr хранит худшее для списков
+function arrSync(p) { if (!multiU(p)) return; p.arr = {clean: Math.max(...p.units.map(u => (u.arr || p.arr).clean)), trash: Math.max(...p.units.map(u => (u.arr || p.arr).trash))}; }
+function backEnsure() {   // станциям без своей подтоварки: у первой остаётся всё, что лежало на точке, у остальных ноль; без своего состояния при прибытии — копия прежнего
+  P.forEach(p => { if (!multiU(p)) return; p.units.forEach(u => { if (!u.arr) u.arr = {clean: p.arr.clean, trash: p.arr.trash}; }); let ch = false; p.units.forEach((u, k) => { if (!u.back) { u.back = {}; ING.forEach(g => { u.back[g.id] = k === 0 ? (p.back[g.id] || 0) : 0; }); ch = true; } ING.forEach(g => { if (u.back[g.id] === undefined) u.back[g.id] = 0; }); }); if (ch) backSync(p); });
 }
 function setBack(p, k, gid, val) { backEnsure(); backOf(p, k)[gid] = val; backSync(p); }
 const baseRound = (g, n) => g.t === 'count' ? Math.round(n / 10) * 10 : (g.u === 'бут' || g.u === 'уп' ? Math.ceil(n - .001) : Math.round(n * 2) / 2);
@@ -785,7 +787,7 @@ function popHTML() {
     if (r) {
       h += `<div class="row" style="margin-top:8px;align-items:flex-start"><div class="photo" style="width:64px;height:100px">${((r.photos && r.photos[0]) || r.photo) ? ((r.photos && r.photos[0]) || r.photo).svg : exHTML(pst(p))}</div>
         ${r.type >= 2 ? `<div class="photo" style="width:64px;height:86px">${((r.nozzles && r.nozzles[0]) || r.nozzle) ? ((r.nozzles && r.nozzles[0]) || r.nozzle).svg : nozzleSVG(false, true)}</div>` : ''}
-        <div class="grow tiny">${r.arrive ? 'Чистота: ' + CLEAN[r.arrive.clean] + '<br>Урна: ' + Math.round(r.arrive.trash * 100) + '%' : 'Тип визита: ' + tl(r.type)}</div></div>`;
+        <div class="grow tiny">${r.arrive ? arrTxt(r) : 'Тип визита: ' + tl(r.type)}</div></div>`;
       h += r.status === 'pending'
         ? `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="rv(${r.id},'ok')">Принять</button><button class="btn sec sm" onclick="askRedo(${r.id})">Переснять</button><button class="btn sec sm" onclick="askComment(${r.id})">${ic('chat', 15)} Комментарий</button><button class="btn sec sm" onclick="closeShade();go({tab:'mgr',view:null})">Открыть</button></div>`
         : `<div style="margin-top:8px"><span class="pill ${r.status === 'ok' ? 'ok' : 'bad'}">${r.status === 'ok' ? 'принято' : 'отправлено на пересъёмку'}</span></div>`;
@@ -1340,13 +1342,13 @@ function stockRows(p) {
 const PN_SHEETS = ['ptname', 'ptunit', 'ptunitdel', 'ptunotes', 'ptcoord', 'ptdel'];
 function openPtName(id) {
   const p = pt(id); if (S.role !== 'mgr' || !p) return;
-  const snap = JSON.parse(JSON.stringify({units: p.units, back: p.back, lat: p.lat, lon: p.lon, cset: p.cset, nocoord: p.nocoord}, (k, v) => k === 'loc' ? undefined : v));
+  const snap = JSON.parse(JSON.stringify({units: p.units, back: p.back, arr: p.arr, lat: p.lat, lon: p.lon, cset: p.cset, nocoord: p.nocoord}, (k, v) => k === 'loc' ? undefined : v));
   go({sheet:'ptname', pn:{id, name:p.name, addr:p.addr || '', err:'', snap}});
 }
 function ptNameRevert() {
   const f = S.pn, p = f && f.snap && pt(f.id); S.pn = null; if (!p) return;
   p.units = f.snap.units.map(u => Object.assign(u, {loc: p}));
-  p.lat = f.snap.lat; p.lon = f.snap.lon; p.back = f.snap.back;
+  p.lat = f.snap.lat; p.lon = f.snap.lon; p.back = f.snap.back; p.arr = f.snap.arr;
   ['cset', 'nocoord'].forEach(k => { if (f.snap[k] === undefined) delete p[k]; else p[k] = f.snap[k]; });
 }
 function ptNameCancel() { ptNameRevert(); go({sheet: null, pn: null}); }
@@ -1553,8 +1555,8 @@ function ptUOpen(pid, i) { const p = pt(pid), u = p && p.units[i]; if (!u || S.r
 function ptUSheet() {
   const f = S.pu2, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return `<h2>Станция не найдена</h2><button class="btn sec" onclick="go({sheet:${pnB()},pu2:null})">Закрыть</button>`;
   return `<h2>Станция ${f.i + 1}: особенности и задачи</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)} · ${esc(STN[u.st])}</div>
-    <div class="fbl">ОСОБЕННОСТИ СТАНЦИИ (КОММЕНТАРИЙ)</div><textarea class="fbta" rows="4" maxlength="1000" placeholder="Что нужно знать об этой станции" oninput="S.pu2.feat=this.value">${esc(f.feat)}</textarea>
-    <div class="fbl" style="margin-top:8px">ОСОБЫЕ ЗАДАЧИ СТАНЦИИ</div><div class="tiny">Курьер отметит каждую галочкой на визите.</div>${noteRows(f.notes, 'pu2')}
+    <div class="fbl">ОСОБЕННОСТИ ТОЧКИ (КОММЕНТАРИЙ)</div><textarea class="fbta" rows="4" maxlength="1000" placeholder="Что нужно знать об этой станции" oninput="S.pu2.feat=this.value">${esc(f.feat)}</textarea>
+    <div class="fbl" style="margin-top:8px">ОСОБЫЕ ЗАДАЧИ ТОЧКИ</div><div class="tiny">Курьер отметит каждую галочкой на визите.</div>${noteRows(f.notes, 'pu2')}
     <div class="fbl" style="margin-top:6px">КАМЕРА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="300" placeholder="Ссылка на камеру: https://..." value="${esc(f.cam || '')}" oninput="S.pu2.cam=this.value" style="margin:4px 0">
     ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${esc(f.err)}</div>` : ''}
     <button class="btn" style="margin:10px 0 8px" onclick="ptUSave()">Сохранить</button><button class="btn sec" onclick="go({sheet:${pnB()},pu2:null})">Отмена</button>`;
@@ -1565,6 +1567,21 @@ function ptUSave() {
   const cam = String(f.cam || '').trim().slice(0, 300); if (cam && !/^https?:\/\/\S+$/i.test(cam)) { f.err = 'Ссылка на камеру должна начинаться с http:// или https://'; return render(true); }
   u.feat = String(f.feat || '').trim().slice(0, 1000); u.notes = ptNotesClean(f.notes); if (cam) u.cam = cam; else delete u.cam; go({sheet: pnSh(), pu2: null, toast: 'Сохранено'});
 }
+
+// ----- блок станции: крупный заголовок, под ним свои особенности, задачи и состояние при прибытии -----
+const stnHead = (p, k) => { const u = p.units[k]; return `<div class="stnh"><div class="photo" style="width:34px;height:46px;flex:none">${exHTML(u.st)}</div><div class="grow"><div class="stnt">Станция ${k + 1}</div><div class="tiny">${esc(STN[u.st])}</div></div><span class="stnb">${k + 1}</span></div>`; };
+const arrCard = a => `<div class="card"><div class="t1" style="font-size:14px">При прибытии на последнем визите</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${CCOL[a.clean]}">Чистота: ${CLEAN[a.clean]}</span><span class="pill ${a.trash >= .75 ? 'warn' : ''}">Урна: ${Math.round(a.trash * 100)}% · ${trashStatus(a.trash)}</span></div></div>`;
+function stationBlocks(p) {
+  const mg = S.role === 'mgr';
+  return p.units.map((u, k) => {
+    const pen = t => mg ? `<span class="pen" onclick="ptUOpen(${p.id},${k})" title="${t}">${ic('edit', 18)}</span>` : '', nt = u.notes || [];
+    const feat = (u.feat || mg) ? `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особенности точки</div>${pen('Изменить особенности')}</div>${u.feat ? `<div class="t2" style="margin-top:6px;white-space:pre-wrap;color:var(--tx)">${esc(u.feat)}</div>` : '<div class="t2" style="margin-top:4px">Пока ничего не добавлено. Нажмите на карандаш.</div>'}</div>` : '';
+    const tasks = (nt.length || mg) ? `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особые задачи на визите</div>${pen('Изменить особые задачи')}</div>${nt.length ? nt.map(n => `<div class="t2" style="margin-top:4px">• ${esc(n)}</div>`).join('') : '<div class="t2" style="margin-top:4px">Пока нет. Нажмите на карандаш, чтобы добавить.</div>'}</div>` : '';
+    return stnHead(p, k) + feat + tasks + arrCard(arrOf(p, k));
+  }).join('');
+}
+const arrTxt = r => r.arriveU && r.arriveU.length > 1 ? r.arriveU.map((a, k) => 'Ст.' + (k + 1) + ': ' + CLEAN[a.clean] + ', урна ' + Math.round(a.trash * 100) + '%').join('<br>') : 'Чистота: ' + CLEAN[r.arrive.clean] + '<br>Урна: ' + Math.round(r.arrive.trash * 100) + '%';
+const arrPillsR = r => (r.arriveU && r.arriveU.length > 1 ? r.arriveU : [r.arrive]).map((a, k, all) => `<span class="pill ${CCOL[a.clean]}">${all.length > 1 ? 'Ст.' + (k + 1) + ': ' : 'По прибытии: '}${CLEAN[a.clean]}</span><span class="pill ${a.trash >= .75 ? 'warn' : ''}">Урна ${Math.round(a.trash * 100)}%</span>`).join('');
 function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, feat: '', notes: [], uex: [{feat: '', notes: [], cam: ''}], info: {}, err: ''}}); }
 function nwUnits(d) { const u = S.nw.units, n = Math.max(1, Math.min(PT_MAX_UNITS, u.length + d)); while (u.length < n) u.push(u[u.length - 1] || 'B'); u.length = n; S.nw.uex = S.nw.uex || []; while (S.nw.uex.length < n) S.nw.uex.push({feat: '', notes: []}); S.nw.uex.length = n; render(true); }
 function nwType(i, st) { S.nw.units[i] = st; render(true); }
@@ -1597,7 +1614,7 @@ function ptNewSave() {
   const p = {id, name, addr, win: f.win.trim().slice(0, 60), feat: f.units.length > 1 ? '' : String(((f.uex || [])[0] || {}).feat || '').trim().slice(0, 1000), notes: f.units.length > 1 ? [] : ptNotesClean(((f.uex || [])[0] || {}).notes || []), lat: has ? f.lat : DEPOT.lat, lon: has ? f.lon : DEPOT.lon, cset: has, nocoord: !has, arr: {clean: 0, trash: 0}, last: 0, last2: 0, nv: true, back: {}, deep: 0, water: null, pass: ''};
   ING.forEach(g => { p.back[g.id] = 0; }); if (!many && camOf(0)) p.cam = camOf(0);
   p.units = f.units.map((st, k) => Object.assign(newUnit(st, k), {loc: p}, f.units.length > 1 ? {feat: String(((f.uex || [])[k] || {}).feat || '').trim().slice(0, 1000), notes: ptNotesClean(((f.uex || [])[k] || {}).notes || [])} : {}));
-  if (many) p.units.forEach((u, k) => { if (camOf(k)) u.cam = camOf(k); u.back = {}; ING.forEach(g => { u.back[g.id] = 0; }); });
+  if (many) p.units.forEach((u, k) => { if (camOf(k)) u.cam = camOf(k); u.back = {}; ING.forEach(g => { u.back[g.id] = 0; }); u.arr = {clean: 0, trash: 0}; });
   P.push(p); P.sort((a, b) => a.id - b.id);
   const inf = f.info || {}, hasInf = k => inf[k] && (inf[k].imgs.length || (inf[k].steps || []).length || inf[k].text);
   if (hasInf('wet') || hasInf('park')) INFO[id] = {wet: hasInf('wet') ? inf.wet : undefined, park: hasInf('park') ? inf.park : undefined};
@@ -1615,6 +1632,7 @@ function ptAddUnit(pid) {
   const p = pt(pid); if (!p) return; if (ptBusy(pid)) return go({toast: 'Идёт визит на этой точке: изменить станции можно после него'});
   if (p.units.length >= PT_MAX_UNITS) return; p.units.push(Object.assign(newUnit(p.units[p.units.length - 1].st, p.units.length), {loc: p}));
   backEnsure();   // у станций появилась своя подтоварка: у первой всё, что лежало на точке, у новой ноль
+  p.units[p.units.length - 1].arr = {clean: 0, trash: 0}; arrSync(p);
   go({toast: 'Станция добавлена: заполните её подтоварку и остатки'});
 }
 function ptUnitSheet() {
@@ -1627,7 +1645,7 @@ function ptUnitDelSheet() {
   return `<h2>Убрать станцию ${f.i + 1}?</h2><div class="card"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(STN[u.st])}</div></div><div class="tiny" style="margin:8px 0">Остатки этой станции исчезнут из приложения. Фото прошлых визитов в архиве останутся.</div>
     <button class="btn" style="background:#4a1a1a;color:#ffb0b0" onclick="ptUnitDel()">Убрать станцию</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:${pnB()},pu:null})">Отмена</button>`;
 }
-function ptUnitDel() { const f = S.pu, p = pt(f.pid); if (!p || p.units.length < 2 || !p.units[f.i]) return go({sheet: pnSh(), pu: null}); if (ptBusy(f.pid)) return go({sheet: pnSh(), pu: null, toast: 'Идёт визит на этой точке'}); p.units.splice(f.i, 1); p.units.forEach((u, k) => { u.name = 'Станция ' + (k + 1); }); if (p.units.length === 1) { p.back = Object.assign({}, p.units[0].back || p.back); delete p.units[0].back; } else backSync(p); go({sheet: pnSh(), pu: null, toast: 'Станция убрана'}); }
+function ptUnitDel() { const f = S.pu, p = pt(f.pid); if (!p || p.units.length < 2 || !p.units[f.i]) return go({sheet: pnSh(), pu: null}); if (ptBusy(f.pid)) return go({sheet: pnSh(), pu: null, toast: 'Идёт визит на этой точке'}); p.units.splice(f.i, 1); p.units.forEach((u, k) => { u.name = 'Станция ' + (k + 1); }); if (p.units.length === 1) { p.back = Object.assign({}, p.units[0].back || p.back); p.arr = Object.assign({}, p.units[0].arr || p.arr); delete p.units[0].back; delete p.units[0].arr; } else { backSync(p); arrSync(p); } go({sheet: pnSh(), pu: null, toast: 'Станция убрана'}); }
 function ptDelSheet() {
   const p = pt(S.pd); if (!p) return `<h2>Точка не найдена</h2><button class="btn sec" onclick="go({sheet:${pnB()},pd:null})">Закрыть</button>`;
   const n = Object.keys(sched).reduce((a, c) => a + [0, 1, 2, 3, 4, 5, 6].reduce((b, d) => b + ((sched[c] && sched[c][d]) || []).filter(x => x.pid === p.id).length, 0), 0);
@@ -1652,10 +1670,10 @@ function pointCard(id) {
     <div class="grow"><div class="t1" style="font-size:14px">${p.units.length > 1 ? p.units.length + ' станции' : 'Станция'}</div>${p.units.map((u, i) => `<div class="t2">${p.units.length > 1 ? (i + 1) + '. ' : ''}${STN[u.st]}</div>`).join('')}<div class="t2">${p.nv ? 'Визитов ещё не было' : 'Визит: ' + ago(p.last) + ' · мойка (тип 2): ' + ago(p.last2)}</div>
     ${needT2(p) ? '<div style="margin-top:6px"><span class="pill warn">рекомендуем тип 2</span></div>' : ''}</div></div></div>`;
   if (p.water) h += waterPanel(p, S.role === 'cour');
-  if (p.win || p.feat || p.units.some(u => u.feat) || S.role === 'mgr') h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особенности точки</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptNotesOpen(${p.id})" title="Изменить особенности">${ic('edit', 18)}</span>` : ''}</div>${p.feat ? `<div class="t2" style="margin-top:6px;white-space:pre-wrap;color:var(--tx)">${esc(p.feat)}</div>` : ''}${uFeatHTML(p)}${p.win ? winLine(p, 'margin-top:6px') : ''}${!p.feat && !p.win && !uFeatHTML(p) ? '<div class="t2" style="margin-top:4px">Пока ничего не добавлено. Нажмите на карандаш.</div>' : ''}</div>`;
-  h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особые задачи на визите</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptTasksOpen(${p.id})" title="Изменить особые задачи">${ic('edit', 18)}</span>` : ''}</div><div class="tiny" style="margin-top:2px">Добавляются к основному чек-листу на этой точке</div>${p.notes.map(n => `<div class="t2" style="margin-top:4px">• ${esc(n)}</div>`).join('')}${uNotesHTML(p)}${clFor(p).length ? `<div class="tiny" style="margin-top:8px">Дополнительные чек-листы: ${clFor(p).map(c => esc(c.name)).join(', ')}</div>` : ''}${!p.notes.length && !uNotesHTML(p) && !clFor(p).length ? `<div class="t2" style="margin-top:4px">${S.role === 'mgr' ? 'Пока нет. Нажмите на карандаш, чтобы добавить.' : 'Особых задач нет.'}</div>` : ''}<button class="btn sec sm" style="margin-top:8px" onclick="go({sheet:'chkvisit',cv:{pid:${p.id}}})">Все пункты визита на этой точке</button></div>`;
-  h += toolBlock(p) + camBlock(p);
-  h += `<div class="card"><div class="t1" style="font-size:14px">При прибытии на последнем визите</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+  if (p.win || p.feat || S.role === 'mgr') h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особенности точки</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptNotesOpen(${p.id})" title="Изменить особенности">${ic('edit', 18)}</span>` : ''}</div>${p.feat ? `<div class="t2" style="margin-top:6px;white-space:pre-wrap;color:var(--tx)">${esc(p.feat)}</div>` : ''}${p.win ? winLine(p, 'margin-top:6px') : ''}${!p.feat && !p.win ? '<div class="t2" style="margin-top:4px">Пока ничего не добавлено. Нажмите на карандаш.</div>' : ''}</div>`;
+  h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особые задачи на визите</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptTasksOpen(${p.id})" title="Изменить особые задачи">${ic('edit', 18)}</span>` : ''}</div><div class="tiny" style="margin-top:2px">Добавляются к основному чек-листу на этой точке</div>${p.notes.map(n => `<div class="t2" style="margin-top:4px">• ${esc(n)}</div>`).join('')}${clFor(p).length ? `<div class="tiny" style="margin-top:8px">Дополнительные чек-листы: ${clFor(p).map(c => esc(c.name)).join(', ')}</div>` : ''}${!p.notes.length && !clFor(p).length ? `<div class="t2" style="margin-top:4px">${S.role === 'mgr' ? 'Пока нет. Нажмите на карандаш, чтобы добавить.' : 'Особых задач нет.'}</div>` : ''}<button class="btn sec sm" style="margin-top:8px" onclick="go({sheet:'chkvisit',cv:{pid:${p.id}}})">Все пункты визита на этой точке</button></div>`;
+  h += (multiU(p) ? stationBlocks(p) : '') + toolBlock(p) + camBlock(p);
+  if (!multiU(p)) h += `<div class="card"><div class="t1" style="font-size:14px">При прибытии на последнем визите</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
     <span class="pill ${CCOL[p.arr.clean]}">Чистота: ${CLEAN[p.arr.clean]}</span><span class="pill ${p.arr.trash >= .75 ? 'warn' : ''}">Урна: ${Math.round(p.arr.trash * 100)}% · ${trashStatus(p.arr.trash)}</span></div></div>`;
   h += `<div class="row" style="gap:10px;margin:10px 0"><button class="btn sec" style="flex:1 1 0;width:auto;margin:0" onclick="openInfo(${p.id},'wet')">${ic('drop', 16)} Мокрая точка</button><button class="btn sec" style="flex:1 1 0;width:auto;margin:0" onclick="openInfo(${p.id},'park')">${ic('pin', 16)} Парковка</button></div>`;
   h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Генеральная уборка</div><div class="t2">${deepText(p)}</div>${ddInfo(p) ? `<div class="t2">${ddInfo(p).text}</div>` : ''}</div>${(DEEP.on && deepLeft(p) <= 14) || (ddInfo(p) && ddInfo(p).show) ? `<span class="pill warn">${DEEP.on && deepLeft(p) < 0 ? 'пора' : 'скоро срок'}</span>` : ''}</div></div>`;
@@ -1663,10 +1681,10 @@ function pointCard(id) {
   // у менеджера значения правятся прямо в карточке кнопками − и +
   const stp = (call, val, wk) => `<div class="step"><button onclick="${call},-1)">−</button><span${wk ? ` data-wk="${wk}"` : ''}>${val}</span><button onclick="${call},1)">+</button></div>`;
   const backRows = k => '<div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = multiU(p) ? needBaseU(p, g, k) : needBase(p, g), have = backOf(p, k)[g.id] || 0; return `<div class="kv"><span>${gn(g, p)}${mg ? ` <span class="pen" onclick="openIng('${g.id}')" title="Изменить название">${ic('edit', 14)}</span>` : ''}${nb > 0 ? `<div style="margin-top:5px"><span class="pill warn">с базы ${nb}</span></div>` : ''}</span><span>${mg ? stp(`mgBackU(${p.id},'${g.id}',${k}`, have + ' ' + g.u, `PB:${p.id}|${k}|${g.id}`) : `<b>${have} ${g.u}</b>`}</span></div>`; }).join('') + '</div>';
-  h += '<h3>Подтоварка на точке</h3>' + (multiU(p) ? p.units.map((u, k) => `<div class="tiny" style="margin:8px 2px 4px;color:var(--g)">Станция ${k + 1} · ${esc(STN[u.st])}</div>` + backRows(k)).join('') : backRows(0));
+  h += '<h3>Подтоварка на точке</h3>' + (multiU(p) ? p.units.map((u, k) => stnHead(p, k) + backRows(k)).join('') : backRows(0));
   h += '<h3>Остатки на последний визит</h3>';
   p.units.forEach((u, i) => {
-    if (p.units.length > 1) h += `<h3>Станция ${i + 1} · ${STN[u.st]}</h3>`;
+    if (p.units.length > 1) h += stnHead(p, i);
     ING.forEach(g => {
       const f = frac(u, g), r = rec(u, g), c = f < .2 ? 'var(--r)' : f < .4 ? 'var(--y)' : 'var(--g)';
       h += `<div class="card" style="padding:9px 12px"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${gn(g, p)}${/^s\d$/.test(g.id) ? ` <span class="pill blue" style="cursor:pointer" onclick="openSyr(${p.id},'${g.id}')">✎ вкус</span>` : ''}</div><div class="bar"><i style="width:${Math.round(f * 100)}%;background:${c}"></i></div></div>
@@ -1689,11 +1707,12 @@ const CHKARR = {a: CHK1, b: CHK2, g: CHK3}, CHK_DEF = {a: CHK1.slice(), b: CHK2.
 function startVisit(id, quick) {
   backEnsure();
   const p = pt(id), item = L(S.me, TODAY).find(x => x.pid === id);
-  const v = {pid:id, quick, type:quick ? 0 : item.type, step:quick ? 1 : 0, u:0, arrive:{clean:null, trash:null}, checks:{}, A:[], D:[], NP:[], SP:[], NO:[], BA:p.units.map((u, k) => Object.assign({}, backOf(p, k), {water:0})), BRA:p.units.map(() => ({}))};
+  const v = {pid:id, quick, type:quick ? 0 : item.type, step:quick ? 1 : 0, u:0, ARR:p.units.map(() => ({clean:null, trash:null})), checks:{}, A:[], D:[], NP:[], SP:[], NO:[], BA:p.units.map((u, k) => Object.assign({}, backOf(p, k), {water:0})), BRA:p.units.map(() => ({}))};
   p.units.forEach(u => { const a = {}, d = {}; ING.forEach(g => { a[g.id] = u.cur[g.id]; d[g.id] = quick ? 0 : rec(u, g); }); v.A.push(a); v.D.push(d); });
   // для текущей станции (v.u) остатки и фото читаются как v.after / v.nozzlePhoto / v.stationPhoto
   Object.defineProperties(v, {
     after:{get() { return this.A[this.u]; }}, deliv:{get() { return this.D[this.u]; }},
+    arrive:{get() { return this.ARR[this.u]; }},   // чистота и урна — у текущей станции
     B:{get() { return this.BA[this.u]; }}, BR:{get() { return this.BRA[this.u]; }},   // подтоварка и привезённое — у текущей станции
     nozzlePhoto:{get() { return this.NP[this.u] || null; }, set(x) { this.NP[this.u] = x; }},
     stationPhoto:{get() { return this.SP[this.u] || null; }, set(x) { this.SP[this.u] = x; }},
@@ -1726,13 +1745,14 @@ function visitScreen() {
   if (!v.quick) h += `<div class="prog">${[0, 1, 2, 3, 4, 5].map(i => `<i class="${i <= v.step ? 'on' : ''}"></i>`).join('')}</div>`;
   h += '<div class="body">' + toolBlock(p, true);
   if (v.step === 0) {
-    const a = v.arrive, ok = a.clean !== null && a.trash !== null;
+    const a = v.arrive, ok = v.ARR.every(x => x.clean !== null && x.trash !== null);
     h += `<h3>По прибытии</h3><div class="tiny">Отметьте, в каком состоянии вы застали станцию, до уборки. Это видит менеджер.</div>
+      ${unitTabs(p, null)}
       <div class="card"><div class="t1" style="font-size:14px">Чистота станции</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">${CLEAN.map((c, i) => `<button class="btn sm ${a.clean === i ? '' : 'sec'}" style="width:100%" onclick="S.visit.arrive.clean=${i};render(true)">${ic(['smile', 'ok', 'sad', 'sick'][i], 18)} ${c}</button>`).join('')}</div></div>
       <div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Урна</div><div class="t2">${a.trash === null ? 'уровень мусора не отмечен' : Math.round(a.trash * 100) + '% · ' + trashStatus(a.trash)}</div></div>
       <button class="btn sec sm" onclick="openTrash()">${ic('trash', 15)} Отметить</button></div></div>
-      <button class="btn" style="margin-top:10px" ${ok ? '' : 'disabled'} onclick="vs(1)">${ok ? 'Далее: остатки ▸' : 'Отметьте чистоту и урну'}</button>`;
+      <button class="btn" style="margin-top:10px" ${ok ? '' : 'disabled'} onclick="vs(1)">${ok ? 'Далее: остатки ▸' : v.ARR.length > 1 ? 'Отметьте чистоту и урну у каждой станции' : 'Отметьте чистоту и урну'}</button>`;
   }
   if (v.step === 1) {
     h += `<h3>${v.quick ? 'Остатки на станции' : 'Шаг 1 · Остатки на станции'}</h3><div class="tiny">${v.quick ? 'Отметьте актуальные остатки на станции и в подтоварке: менеджер увидит их сразу.' : 'Отметьте, сколько осталось в ячейках. Сколько добавить на станцию подставлено по расчёту, поправьте, если отличается.'}</div>`;
@@ -1779,7 +1799,7 @@ function visitScreen() {
   }
   if (v.step === 5) {
     const okr = t => `<div class="chk"><div class="box on">✓</div><div class="grow t1" style="font-size:14px">${t}</div></div>`;
-    h += `<h3>Шаг 5 · Сдача точки</h3><div class="card"><div class="kv"><span>Чистота по прибытии</span><b>${CLEAN[v.arrive.clean]}</b></div><div class="kv"><span>Мусор в урне по прибытии</span><b>${Math.round(v.arrive.trash * 100)}%</b></div></div>
+    h += `<h3>Шаг 5 · Сдача точки</h3><div class="card">${v.ARR.map((a, k) => `<div class="kv"><span>${v.ARR.length > 1 ? 'Станция ' + (k + 1) + ': чистота' : 'Чистота по прибытии'}</span><b>${CLEAN[a.clean]}</b></div><div class="kv"><span>${v.ARR.length > 1 ? 'Станция ' + (k + 1) + ': мусор в урне' : 'Мусор в урне по прибытии'}</span><b>${Math.round(a.trash * 100)}%</b></div>`).join('')}</div>
       <div class="card">${okr('Остатки внесены')}${okr('Чек-лист выполнен')}${v.type >= 2 ? okr('Фото носиков приложено') : ''}${v.type === 3 ? okr('Генеральная уборка выполнена') : ''}${okr('Подтоварка пересчитана')}${okr('Фото станции приложено')}</div>
       <div class="tiny">Фото уйдут менеджеру на проверку. Если нужно переснять, придёт уведомление. Визит попадёт в расчёт зарплаты.</div>
       <button class="btn" style="margin-top:12px" onclick="finishVisit()">Сдать точку</button>`;
@@ -1810,9 +1830,9 @@ function saveQuick() { if (!S.visit) return; applyStock(S.visit); S.visit = null
 function finishVisit() {
   const v = S.visit, p = pt(v.pid), item = L(S.me, TODAY).find(x => x.pid === v.pid);
   applyStock(v); p.last = 0; delete p.nv; if (v.type >= 2) p.last2 = 0; if (v.type === 3) { p.deep = 0; p.deepAt = sNow(); }
-  p.arr = {clean:v.arrive.clean, trash:v.arrive.trash};
+  if (multiU(p)) { p.units.forEach((u, k) => { u.arr = {clean: v.ARR[k].clean, trash: v.ARR[k].trash}; }); arrSync(p); } else p.arr = {clean: v.ARR[0].clean, trash: v.ARR[0].trash};
   item.done = true; item.review = 'pending'; item.redo = false;
-  const rvObj = {id:Date.now(), cid:S.me, cname:cr(S.me).name, pid:v.pid, when:'только что', type:v.type, status:'pending', day:TODAY, arrive:v.arrive, photos:v.SP.slice(), nozzles:v.NP.slice()};
+  const rvObj = {id:Date.now(), cid:S.me, cname:cr(S.me).name, pid:v.pid, when:'только что', type:v.type, status:'pending', day:TODAY, arrive:{clean:p.arr.clean, trash:p.arr.trash}, arriveU:v.ARR.length > 1 ? v.ARR.map(a => ({clean:a.clean, trash:a.trash})) : undefined, photos:v.SP.slice(), nozzles:v.NP.slice()};
   reviews.unshift(rvObj);
   notify('mgr', 'photo', cr(S.me).name + ' сдал(а) точку «' + p.name + '»: подтвердите фото', {rvId:rvObj.id});
   const dayDone = L(S.me, TODAY).length > 0 && L(S.me, TODAY).every(x => x.done);
@@ -2948,7 +2968,7 @@ function mgrScreen() {
     const p = pt(r.pid);
     h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${esc(p.name)}${stB(p)}</div><div class="t2">${esc(cr(r.cid).name)} · ${r.when} · ${r.type === 3 ? 'генеральная уборка' : 'тип ' + r.type}</div></div>
       <span class="pill ${r.status === 'ok' ? 'ok' : r.status === 'redo' ? 'bad' : 'warn'}">${r.status === 'ok' ? 'принято' : r.status === 'redo' ? 'переснять' : 'ждёт'}</span></div>
-      ${r.arrive ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${CCOL[r.arrive.clean]}">По прибытии: ${CLEAN[r.arrive.clean]}</span><span class="pill ${r.arrive.trash >= .75 ? 'warn' : ''}">Урна ${Math.round(r.arrive.trash * 100)}%</span></div>` : ''}
+      ${r.arrive ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">${arrPillsR(r)}</div>` : ''}
       <div class="row" style="margin-top:10px;align-items:flex-start;flex-wrap:wrap"><div><div class="tiny">Пример</div><div class="photo" style="width:92px;height:146px">${exHTML(pst(p))}</div><button class="btn sec sm" style="margin-top:4px;padding:3px 8px;font-size:11px" onclick="exReplace('${pst(p)}')">Заменить</button></div>
       ${(r.photos && r.photos.length ? r.photos : [r.photo]).map((ph, k) => `<div><div class="tiny">Сейчас${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:146px">${ph ? ph.svg : exHTML(p.units[Math.min(k, p.units.length - 1)].st)}</div>${rvCap(r, 92, k)}</div>`).join('')}
       ${r.type >= 2 ? (r.nozzles && r.nozzles.length ? r.nozzles : [r.nozzle]).map((ph, k) => `<div><div class="tiny">Носики${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:122px">${ph ? ph.svg : nozzleSVG(false)}</div>${rvCap(r, 92, k)}</div>`).join('') : ''}</div>
@@ -5247,6 +5267,7 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 .cal i{font-style:normal;font-size:11px;color:var(--mut);text-align:center;padding:2px 0}
 .cal button{height:34px;border-radius:11px;border:1px solid transparent;background:var(--card2,#16221b);color:var(--tx);font-size:14px;cursor:pointer;padding:0}
 .cal button.on{background:var(--g);color:#06210f;font-weight:800}.cal button.td{border-color:rgba(93,255,160,.6)}.cal .e{visibility:hidden}
+.stnh{display:flex;align-items:center;gap:10px;margin:16px 0 8px;padding:10px 12px;border-radius:16px;background:rgba(93,255,160,.09);border:1px solid rgba(93,255,160,.32)}.stnt{font-size:17px;font-weight:800;letter-spacing:-.01em}.stnb{width:30px;height:30px;border-radius:50%;background:var(--g);color:#06210f;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none}
 .sttile{flex:1 1 0;min-width:0;border:1px solid var(--line);border-radius:12px;padding:6px;background:var(--card2,#16221b);cursor:pointer;text-align:center}.sttile.on{border-color:rgba(93,255,160,.7);background:rgba(93,255,160,.08)}.sttile .tiny{font-size:10.5px;line-height:1.15;margin-top:4px}.cal button:disabled{opacity:.28;cursor:default}
 .supr{padding:9px 0;border-bottom:1px solid var(--line)}.supr:last-child{border-bottom:0}
 .supq{width:96px !important;margin:0 !important;text-align:right;font-size:15px;font-weight:600;padding:8px 10px !important}.supq:focus{border-color:rgba(93,255,160,.55)}.supu{width:34px;margin-left:8px}
@@ -6004,6 +6025,18 @@ function selfTest() {
         ptNameCancel(); eq(p.units.length, n, 'после «Отмена» станций как было'); eq(p.units[0].st, st0, 'вид возвращён'); eq(p.lat, lat0, 'координаты возвращены'); eq(p.units[0].loc === p, true, 'связь станции с точкой цела'); eq(S.pn, null, 'состояние окна очищено');
         openPtName(p.id); ptAddUnit(p.id); go({sheet: null}); eq(p.units.length, n, 'закрытие окна без сохранения тоже возвращает');
         openPtName(p.id); ptAddUnit(p.id); savePtName(); eq(p.units.length, n + 1, 'после «Сохранить» станция остаётся'); S.pu = {pid: p.id, i: n}; ptUnitDel(); eq(p.units.length, n, 'тестовая станция убрана'); go({sheet: null, pn: null});
+      });
+      T('станции: чистота и урна у каждой, блоки в карточке', () => {
+        const n = P.length; S.nw = {name: 'Блоки станций', addr: 'Тестовая 8', win: '', units: ['A', 'B'], lat: null, lon: null, uex: [{feat: 'Про первую', notes: ['Задача 1']}, {feat: '', notes: []}], info: {}, err: ''};
+        ptNewSave(); const p = P[P.length - 1]; eq(typeof p.units[0].arr, 'object', 'у первой станции своё состояние'); eq(typeof p.units[1].arr, 'object', 'у второй станции своё состояние');
+        p.units[0].arr = {clean: 0, trash: 0}; p.units[1].arr = {clean: 2, trash: 0.75}; arrSync(p); eq(p.arr.clean, 2, 'худшее по чистоте для списков'); eq(p.arr.trash, 0.75, 'худшее по урне');
+        eq(arrOf(p, 0).clean, 0, 'станция 1'); eq(arrOf(p, 1).clean, 2, 'станция 2');
+        openPoint(p.id); const t = document.body.innerText; eq((t.match(/При прибытии на последнем визите/g) || []).length, 2, 'у каждой станции свой блок прибытия'); eq(/Про первую/.test(t), true, 'особенности станции 1 в карточке'); eq((t.match(/Особые задачи на визите/g) || []).length >= 3, true, 'особые задачи есть у каждой станции');
+        const me0 = S.me; S.me = COUR[0].id; const day = sched[S.me][TODAY], it = {pid: p.id, type: 1, done: false, review: null}; day.push(it); startVisit(p.id, false); const v = S.visit;
+        eq(v.ARR.length, 2, 'в визите чистота по станциям'); v.u = 1; v.arrive.clean = 3; eq(v.ARR[1].clean, 3, 'отмечена у второй станции'); eq(v.ARR[0].clean, null, 'первая станция не затронута');
+        S.visit = null; go({view: null, visit: null}); day.splice(day.indexOf(it), 1); S.me = me0;
+        S.pu = {pid: p.id, i: 1}; ptUnitDel(); eq(p.units.length, 1, 'станция убрана'); eq(p.units[0].arr, undefined, 'у одной станции состояние снова общее'); eq(p.arr.clean, 0, 'осталось состояние оставшейся станции');
+        S.pd = p.id; ptDel(); eq(P.length, n, 'тестовая точка удалена'); go({view: null, sheet: null, nw: null});
       });
       T('подтоварка у каждой станции', () => {
         const n = P.length; S.nw = {name: 'Подтоварка станций', addr: 'Тестовая 7', win: '', units: ['A', 'B'], lat: null, lon: null, uex: [{feat: '', notes: []}, {feat: '', notes: []}], info: {}, err: ''};
