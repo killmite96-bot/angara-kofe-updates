@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 141;
+const APP_VERSION = 142;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1516,10 +1516,11 @@ function shot() {
 
 /* ===================== КУРЬЕР / МЕНЕДЖЕР: ЗАРПЛАТА ===================== */
 function payScreen() {
+  if (S.pm === 'gsm') return gsmScreen();
   if (S.role === 'cour') {
     const c = cr(S.me), r = pay(S.me);
     let h = topbar('Моя зарплата', 'Неделя · автоматический расчёт');
-    h += `<div class="body"><div class="nav"><div class="tiny">Начислено за неделю</div><div class="big">${money(r.total)}</div>
+    h += `<div class="body">${paySeg()}<div class="nav"><div class="tiny">Начислено за неделю</div><div class="big">${money(r.total)}</div>
       <div class="t2">подтверждено ${money(r.ok)} · на проверке ${money(r.pend)}</div></div>
       <div class="card"><div class="kv"><span>Тип 1 × ${r.n1} (${money(c.r1)})</span><b>${money(r.n1 * c.r1)}</b></div>
       <div class="kv"><span>Тип 2 × ${r.n2} (${money(c.r2)})</span><b>${money(r.n2 * c.r2)}</b></div>
@@ -1530,7 +1531,7 @@ function payScreen() {
     return h;
   }
   let h = topbar('Зарплата', 'Автоматический расчёт за неделю'), sum = 0;
-  h += '<div class="body">';
+  h += '<div class="body">' + paySeg();
   COUR.forEach(c => {
     const r = pay(c.id); sum += r.total;
     h += `<div class="card"><div class="row"><div class="grow t1">${esc(c.name)}</div><div class="big" style="font-size:20px">${money(r.total)}</div></div>
@@ -1542,6 +1543,84 @@ function payScreen() {
   h += `<div class="nav"><div class="tiny">Итого к выплате за неделю</div><div class="big">${money(sum)}</div></div><div class="tiny">Расценки за тип 1 и тип 2 задаёт менеджер для каждого курьера. Сумма пересчитывается автоматически по сданным визитам.</div>` + histHTML(0) + '</div>';
   return h;
 }
+/* ===================== ГСМ: компенсация за километраж ===================== */
+// настройки задаёт менеджер: цена за километр, формула (её можно менять вручную) и считать ли возвращение на базу; хранятся в документе core
+const GSM_DEF = 'км * цена';
+const GSM = {price: 8, formula: GSM_DEF, back: true};
+const paySeg = () => `<div class="seg" style="margin:8px 0"><button class="${S.pm === 'gsm' ? '' : 'on'}" onclick="go({pm:'pay'})">Зарплата</button><button class="${S.pm === 'gsm' ? 'on' : ''}" onclick="go({pm:'gsm'})">ГСМ</button></div>`;
+// километры курьера за день: от базы по всем его точкам (порядок как в маршруте), при необходимости обратно на базу
+function gsmDay(cid, d) {
+  const l = L(cid, d) || []; if (!l.length) return {km: 0, n: 0};
+  let cur = DEPOT, t = 0;
+  optimize(l, DEPOT).forEach(x => { const q = x && pt(x.pid); if (!q) return; t += km(cur, q); cur = q; });
+  if (GSM.back) t += km(cur, DEPOT);
+  return {km: t, n: l.length};
+}
+function gsmWeek(cid) {
+  const days = []; let tk = 0, td = 0, tp = 0;
+  for (let d = 0; d < 7; d++) { const g = gsmDay(cid, d); days.push(g); tk += g.km; tp += g.n; if (g.n) td++; }
+  const r = gsmEval(GSM.formula, {'км': tk, 'цена': GSM.price, 'дней': td, 'точек': tp});
+  return {days, km: tk, nd: td, np: tp, sum: r.ok ? r.v : null, err: r.ok ? '' : r.err};
+}
+// безопасный расчёт формулы без eval: числа, + − * / ( ), переменные км, цена, дней, точек, функции мин(), макс(), окр()
+function gsmEval(src, vars) {
+  const t = String(src || '').toLowerCase().replace(/(\d),(\d)/g, '$1.$2'), tk = [];
+  const re = /\s*(\d+(?:\.\d+)?|[a-zа-яё_]+|[-+*/();,×÷−])/gy; let m, pos = 0;
+  while (pos < t.length && (m = re.exec(t))) { tk.push(m[1]); pos = re.lastIndex; }
+  if (t.slice(pos).trim()) return {ok: false, err: 'Непонятный символ: «' + t.slice(pos).trim()[0] + '»'};
+  if (!tk.length) return {ok: false, err: 'Формула пустая'};
+  let i = 0;
+  const F = {'мин': a => Math.min(...a), 'макс': a => Math.max(...a), 'окр': a => Math.round(a[0])};
+  const fail = m => { throw new Error(m); };
+  const expr = () => { let v = term(); while (tk[i] === '+' || tk[i] === '-' || tk[i] === '−') { const o = tk[i++], r = term(); v = o === '+' ? v + r : v - r; } return v; };
+  const term = () => { let v = fac(); while (tk[i] === '*' || tk[i] === '/' || tk[i] === '×' || tk[i] === '÷') { const o = tk[i++], r = fac(); v = (o === '*' || o === '×') ? v * r : v / r; } return v; };
+  const fac = () => {
+    const x = tk[i++]; if (x === undefined) fail('Формула оборвана');
+    if (x === '-' || x === '−') return -fac();
+    if (x === '+') return fac();
+    if (x === '(') { const v = expr(); if (tk[i++] !== ')') fail('Не хватает закрывающей скобки'); return v; }
+    if (/^\d/.test(x)) return parseFloat(x);
+    if (tk[i] === '(' && F[x]) { i++; const a = [expr()]; while (tk[i] === ';' || tk[i] === ',') { i++; a.push(expr()); } if (tk[i++] !== ')') fail('Не хватает закрывающей скобки'); return F[x](a); }
+    if (/^[-+*/();,×÷−]$/.test(x)) return fail('Пропущено число или слово перед «' + x + '»');
+    if (x in vars) return vars[x];
+    return fail('Неизвестное слово «' + x + '». Доступно: км, цена, дней, точек, мин(), макс(), окр()');
+  };
+  try { const v = expr(); if (i < tk.length) fail('Лишнее в формуле: «' + tk[i] + '»'); if (!isFinite(v)) fail('Результат не число (деление на ноль?)'); return {ok: true, v}; }
+  catch (e) { return {ok: false, err: e.message}; }
+}
+const gsmMoney = v => v === null ? '—' : money(Math.round(v));
+const gsmKm = v => (Math.round(v * 10) / 10).toLocaleString('ru-RU') + ' км';
+function gsmSet(k, v) { if (S.role !== 'mgr') return; if (k === 'price') GSM.price = Math.max(0, Math.min(1000, parseFloat(String(v).replace(',', '.')) || 0)); else if (k === 'formula') GSM.formula = String(v).slice(0, 200); else if (k === 'back') GSM.back = !!v; }
+function gsmIns(t) { const el = document.getElementById('gsmf'); if (!el) return; const a = el.selectionStart == null ? el.value.length : el.selectionStart; el.value = el.value.slice(0, a) + t + el.value.slice(el.selectionEnd == null ? a : el.selectionEnd); GSM.formula = el.value; render(true); }
+function gsmReset() { GSM.formula = GSM_DEF; render(true); }
+function gsmPrev() { const e = document.getElementById('gsmerr'); if (!e) return; const r = gsmEval(GSM.formula, {'км': 100, 'цена': GSM.price, 'дней': 5, 'точек': 30}); e.innerHTML = r.ok ? `<span style="color:var(--g)">Формула верна. Для примера: 100 км за 5 дней и 30 точек = ${gsmMoney(r.v)}</span>` : `<span style="color:var(--r)">${esc(r.err)}</span>`; }
+function gsmScreen() {
+  const mg = S.role === 'mgr';
+  let h = topbar('ГСМ', 'Компенсация за километраж на неделю'); h += '<div class="body">' + paySeg();
+  if (mg) {
+    const pr = gsmEval(GSM.formula, {'км': 100, 'цена': GSM.price, 'дней': 5, 'точек': 30});
+    h += `<div class="card"><div class="t1" style="font-size:14px">Расчёт компенсации</div>
+      <div class="tiny" style="margin-top:8px">Стоимость за 1 км, ₽</div>
+      <input type="text" inputmode="decimal" id="gsmp" value="${GSM.price}" oninput="gsmSet('price',this.value)" onchange="render(true)" style="margin:4px 0 8px">
+      <div class="tiny">Формула (меняется вручную)</div>
+      <input type="text" id="gsmf" autocomplete="off" autocapitalize="none" spellcheck="false" value="${esc(GSM.formula)}" oninput="gsmSet('formula',this.value);gsmPrev()" onchange="render(true)" style="margin:4px 0 6px">
+      <div class="chips" style="flex-wrap:wrap;margin:4px 0">${['км', 'цена', 'дней', 'точек', '*', '+', '-', '/', '(', ')'].map(x => `<button onmousedown="event.preventDefault()" onclick="gsmIns('${x.length > 1 ? ' ' + x + ' ' : ' ' + x + ' '}')">${x}</button>`).join('')}<button onclick="gsmReset()">Сбросить</button></div>
+      <div class="tiny" id="gsmerr">${pr.ok ? `<span style="color:var(--g)">Формула верна. Для примера: 100 км за 5 дней и 30 точек = ${gsmMoney(pr.v)}</span>` : `<span style="color:var(--r)">${esc(pr.err)}</span>`}</div>
+      <div class="tiny" style="margin-top:8px">км — маршрут курьера за неделю, цена — стоимость за 1 км, дней — рабочих дней, точек — всего визитов. Можно писать мин(…; …), макс(…; …), окр(…). Например: км * цена + 100 * дней.</div>
+      <div class="row" style="margin-top:10px;cursor:pointer" onclick="gsmSet('back',${!GSM.back});render(true)"><div class="grow" style="font-size:14px">Считать возвращение на базу</div>${swHTML(GSM.back)}</div></div>`;
+  } else h += `<div class="card"><div class="tiny">Компенсацию рассчитывает система по вашим точкам на неделю. Стоимость за 1 км: ${GSM.price} ₽${GSM.back ? '; возвращение на базу учитывается' : ''}.</div></div>`;
+  const list = mg ? COUR.filter(c => c.active) : [cr(S.me)].filter(Boolean);
+  let sum = 0, tkm = 0;
+  list.forEach(c => {
+    const w = gsmWeek(c.id); if (w.sum !== null) sum += w.sum; tkm += w.km;
+    h += `<div class="card"><div class="row"><div class="grow t1">${esc(c.name)}</div><div class="big" style="font-size:20px">${gsmMoney(w.sum)}</div></div>
+      <div class="t2">${gsmKm(w.km)} · ${w.nd} раб. дн. · ${w.np} точек</div>
+      ${w.days.map((g, i) => g.n ? `<div class="kv"><span>${WD[i]}${i === TODAY ? ' · сегодня' : ''} <span class="tiny">${g.n} ${g.n === 1 ? 'точка' : 'точек'}</span></span><b>${gsmKm(g.km)}</b></div>` : '').join('') || '<div class="t2" style="margin-top:6px">На неделю точек нет.</div>'}</div>`;
+  });
+  if (mg) h += `<div class="nav"><div class="tiny">Итого компенсация ГСМ за неделю</div><div class="big">${gsmMoney(sum)}</div><div class="t2">${gsmKm(tkm)} по всем курьерам</div></div>`;
+  return h + '<div class="tiny">Расстояние считается по точкам из графика на каждый день (маршрут от базы по ближайшим точкам, с запасом на изгибы дорог +30%), поэтому после изменения графика сумма обновляется сама.</div></div>';
+}
+
 const rate = (id, k, d) => { cr(id)[k] = Math.max(0, cr(id)[k] + d); render(true); };
 
 /* ===================== МЕНЕДЖЕР: ПЛАН ===================== */
@@ -2787,7 +2866,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, ex2: 1,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, ex2: 1,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -2799,7 +2878,7 @@ function restoreData(txt) {
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
-  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP);
+  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP); if (d.GSM) Object.assign(GSM, d.GSM);
   if (d.NS) { Object.assign(NS, d.NS); } if (d.NST) Object.assign(NST, d.NST);
   replaceObj(GSD, d.GSD || {}); replaceObj(OFF, d.OFF || {}); replaceObj(PR, d.PR || {});
   if (d.GCS) { GCS.me = d.GCS.me || null; GCS.all = d.GCS.all || {}; GCS.log = d.GCS.log || []; }
@@ -2924,7 +3003,7 @@ function api(path, body) {
   }), () => { throw new Error('Нет связи с сервером'); });
 }
 function docsFromState() {
-  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX, DEEP}}, ld = {};
+  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX, DEEP, GSM}}, ld = {};
   Object.keys(AV).forEach(k => { d['av/' + k] = AV[k]; });
   Object.keys(EX).forEach(k => { d['ex/' + k] = EX[k]; });
   Object.keys(INFO).forEach(k => { d['info/' + k] = INFO[k]; });
@@ -2999,7 +3078,7 @@ function applyDoc(k, v, dele) {
     COUR.forEach(c => ensureCour(c.id));
     if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
   } else if (h === 'core') {
-    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); if (v.DEEP && typeof v.DEEP === 'object') { DEEP.on = v.DEEP.on !== false; DEEP.mo = Math.max(1, Math.min(12, +v.DEEP.mo || 3)); } }
+    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); if (v.DEEP && typeof v.DEEP === 'object') { DEEP.on = v.DEEP.on !== false; DEEP.mo = Math.max(1, Math.min(12, +v.DEEP.mo || 3)); } if (v.GSM && typeof v.GSM === 'object') { GSM.price = Math.max(0, +v.GSM.price || 0); GSM.formula = String(v.GSM.formula || GSM_DEF).slice(0, 200); GSM.back = v.GSM.back !== false; } }
   } else if (h === 'av') {
     if (dele || !v) delete AV[p[1]]; else AV[p[1]] = v;
   } else if (h === 'ex') {
