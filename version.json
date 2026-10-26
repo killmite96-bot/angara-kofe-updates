@@ -1,9 +1,9 @@
 {
-    "content":  165,
+    "content":  166,
     "apk":  22,
-    "notes":  "Менеджер может добавлять новые точки, менять станции, вставлять координаты (с инструкцией) и удалять точки.",
+    "notes":  "Новая точка: особые задачи, мокрая точка и парковка при создании; особенности точки можно менять.",
     "contentFile":  "index.html",
-    "contentSha256":  "0d47867f4c010adaab6cae429d158f58b5160aac5ec31292a4b265e7ebb7c5f9",
+    "contentSha256":  "697dc37b43bf817faa8e059cc3fbaefd9959089c11da95c48c0b82a0b904892b",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
