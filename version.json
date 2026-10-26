@@ -1,9 +1,9 @@
 {
-    "content":  133,
+    "content":  135,
     "apk":  22,
-    "notes":  "Склад: можно переименовать ингредиент и добавить новый; смахнутые уведомления больше не возвращаются.",
+    "notes":  "План: блок «Сегодня на смене» без дублей и переносов слов.",
     "contentFile":  "index.html",
-    "contentSha256":  "18c3d84eab7655a0e6e00856d80b7a243cf8da8cf5d83d45819140644c3d7514",
+    "contentSha256":  "8354f44b573d96c53c806921b568488b4d1501b833b8db5291a56bead5871abd",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 133;
+const APP_VERSION = 135;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1837,7 +1837,8 @@ function shiftStatus(cid) {
   if (done === n) return {t:'Смена закончена', cls:'ok', n, done, info:'все точки сданы'};
   if (done) return {t:'В пути', cls:'blue', n, done, info:'последняя сдача: ' + pt(l.filter(x => x.done).pop().pid).name};
   const sh = (PR[String(cid)] || {}).sh, onShift = !!(sh && sh.s && !sh.e);   // «на базе» не пишем: где курьер, видно по геолокации, а погрузку он подтверждает сам
-  return loaded ? {t:'Загрузился', cls:'warn', n, done, info:'погрузка подтверждена'} : onShift ? {t:'На смене', cls:'blue', n, done, info:'погрузка не подтверждена'} : {t:'Смена не начата', cls:'bad', n, done, info:'ещё не вышел на смену'};
+  if (sh && sh.s && sh.e && new Date(sh.s).toDateString() === new Date(sNow()).toDateString()) return {t:'Смена завершена', cls:'', n, done, info:''};   // вышел и уже закончил смену: плашка не должна говорить «не начата»
+  return loaded ? {t:'Загрузился', cls:'warn', n, done, info:'погрузка подтверждена'} : onShift ? {t:'На смене', cls:'blue', n, done, info:'погрузка не подтверждена'} : {t:'Смена не начата', cls:'bad', n, done, info:''};
 }
 function shiftCard() {
   const act = COUR.filter(c => c.active), on = act.filter(c => L(c.id, TODAY).length), off = act.filter(c => !L(c.id, TODAY).length);
@@ -1846,8 +1847,9 @@ function shiftCard() {
   on.forEach(c => {
     const s = shiftStatus(c.id);
     h += `<div style="margin-top:10px"><div class="row">${avatar(c.id, c.name, 32)}
-      <div class="grow"><div class="t1" style="font-size:14px">${esc(c.name)}</div><div class="t2">${s.done} из ${s.n} точек · ${s.info}</div><div data-mgl="${c.id}">${mglInner(c.id)}</div></div>
+      <div class="grow"><div class="t1" style="font-size:14px">${esc(c.name)}</div><div class="t2">${s.done} из ${s.n} точек${s.info ? ' · ' + s.info : ''}</div></div>
       <span class="pill ${s.cls}">${s.t}</span><button class="btn sec sm" style="padding:5px 9px" onclick="go({tab:'chat',th:'${mkind()}:${c.id}'})">${ic('chat', 16)}</button></div>
+      <div data-mgl="${c.id}" style="margin:2px 0 0 42px">${mglInner(c.id)}</div>
       <div class="bar"><i style="width:${Math.round(s.done / s.n * 100)}%;background:var(--g)"></i></div></div>`;
   });
   if (off.length) h += `<div class="tiny" style="margin-top:10px">Выходной: ${esc(off.map(c => c.name).join(', '))}</div>`;
@@ -4300,9 +4302,9 @@ const prDotHTML = key => `<span class="pres ${prInfo(key).s}" data-prs="${key}" 
 function mglInner(cid) {
   const k = String(cid), r = PR[k], l = lcText(k), s = r && r.sh;
   let h = `<div style="margin-top:3px">${prHTML(k)}</div>`;
-  if (l) h += `<div class="t2" style="color:var(--g)">${ic('pin', 13)} ${esc(l)}</div>`;
+  if (l && !(s && s.e && l === 'Смена завершена')) h += `<div class="t2" style="color:var(--g)">${ic('pin', 13)} ${esc(l)}</div>`;   // «смена завершена» пишется в строке со временем
   { const gp = geoCardPill(k); if (gp && /pill ok/.test(gp)) h += `<div style="margin-top:3px">${gp}</div>`; }
-  if (s && new Date(s.s).toDateString() === new Date(sNow()).toDateString()) h += `<div class="tiny">${s.e ? 'Смена: ' + hm(s.s) + '–' + hm(s.e) + ' · ' + durTxt(Math.round((s.e - s.s) / 60000)) : 'На смене с ' + hm(s.s) + ' · ' + durTxt(Math.round((sNow() - s.s) / 60000))}</div>`;
+  if (s && new Date(s.s).toDateString() === new Date(sNow()).toDateString()) h += `<div class="tiny">${s.e ? 'Смена завершена' + (s.auto ? ' автоматически' : '') + ': ' + hm(s.s) + '–' + hm(s.e) + ' · ' + durTxt(Math.round((s.e - s.s) / 60000)) : 'На смене с ' + hm(s.s) + ' · ' + durTxt(Math.round((sNow() - s.s) / 60000))}</div>`;
   return h;
 }
 function prRefresh() {
