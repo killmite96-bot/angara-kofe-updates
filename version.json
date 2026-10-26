@@ -1,9 +1,9 @@
 {
-    "content":  149,
+    "content":  150,
     "apk":  22,
-    "notes":  "Архив фото: папки станций у точек с двумя станциями, картинка в пустых папках; плашка «2 станции» у названий точек.",
+    "notes":  "Убрана оранжевая подсветка у всех полей ввода.",
     "contentFile":  "index.html",
-    "contentSha256":  "6fdd8ad54f7b927b960df196cd80d25d53c3b7a57c622112c4facbe22735d9f6",
+    "contentSha256":  "f32c58c1bb53f8fc9ec379074387b7f384dd72cb275a5bf89b5eeb9969ec73f7",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
