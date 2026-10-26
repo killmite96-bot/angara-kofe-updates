@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 142;
+const APP_VERSION = 143;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1517,14 +1517,17 @@ function shot() {
 /* ===================== КУРЬЕР / МЕНЕДЖЕР: ЗАРПЛАТА ===================== */
 function payScreen() {
   if (S.pm === 'gsm') return gsmScreen();
+  if (S.pm === 'am') return amScreen();
   if (S.role === 'cour') {
     const c = cr(S.me), r = pay(S.me);
     let h = topbar('Моя зарплата', 'Неделя · автоматический расчёт');
-    h += `<div class="body">${paySeg()}<div class="nav"><div class="tiny">Начислено за неделю</div><div class="big">${money(r.total)}</div>
-      <div class="t2">подтверждено ${money(r.ok)} · на проверке ${money(r.pend)}</div></div>
+    const x = payExtra(S.me);
+    h += `<div class="body">${paySeg()}<div class="nav"><div class="tiny">Начислено за неделю</div><div class="big">${money(r.total + x.sum)}</div>
+      <div class="t2">подтверждено ${money(r.ok)} · на проверке ${money(r.pend)}${x.sum ? ' · ГСМ и амортизация ' + money(x.sum) : ''}</div></div>
       <div class="card"><div class="kv"><span>Тип 1 × ${r.n1} (${money(c.r1)})</span><b>${money(r.n1 * c.r1)}</b></div>
       <div class="kv"><span>Тип 2 × ${r.n2} (${money(c.r2)})</span><b>${money(r.n2 * c.r2)}</b></div>
       <div class="kv"><span>Генеральная уборка × ${r.n3} (${money(c.r3)})</span><b>${money(r.n3 * c.r3)}</b></div>
+      ${x.gsm ? `<div class="kv"><span>ГСМ (компенсация за километраж)</span><b>${money(Math.round(x.gsm))}</b></div>` : ''}${x.am ? `<div class="kv"><span>Амортизация</span><b>${money(Math.round(x.am))}</b></div>` : ''}
       <div class="kv"><span>Запланировано до конца недели</span><b style="color:var(--o)">${money(r.plan)}</b></div></div>
       <h3>По дням</h3><div class="card">${WD.map((d, i) => `<div class="kv"><span>${d}${i === TODAY ? ' · сегодня' : ''}</span><b>${money(r.byDay[i])}</b></div>`).join('')}</div>
       ${histHTML(S.me)}<div class="tiny">Визит считается, когда сдан. Если менеджер просит переснять фото, он выпадает из расчёта до повторной сдачи.</div></div>`;
@@ -1533,21 +1536,70 @@ function payScreen() {
   let h = topbar('Зарплата', 'Автоматический расчёт за неделю'), sum = 0;
   h += '<div class="body">' + paySeg();
   COUR.forEach(c => {
-    const r = pay(c.id); sum += r.total;
-    h += `<div class="card"><div class="row"><div class="grow t1">${esc(c.name)}</div><div class="big" style="font-size:20px">${money(r.total)}</div></div>
+    const r = pay(c.id), x = payExtra(c.id); sum += r.total + x.sum;
+    h += `<div class="card"><div class="row"><div class="grow t1">${esc(c.name)}</div><div class="big" style="font-size:20px">${money(Math.round(r.total + x.sum))}</div></div>
       <div class="t2">подтверждено ${money(r.ok)} · на проверке ${money(r.pend)} · план ${money(r.plan)}</div>
+      ${x.sum ? `<div class="t2">в сумме: ГСМ ${money(Math.round(x.gsm))} · амортизация ${money(Math.round(x.am))}</div>` : ''}
       <div class="kv" style="margin-top:8px"><span>Тип 1 × ${r.n1}</span><div class="step"><button onclick="rate(${c.id},'r1',-50)">−</button><span style="min-width:64px">${money(c.r1)}</span><button onclick="rate(${c.id},'r1',50)">+</button></div></div>
       <div class="kv"><span>Тип 2 × ${r.n2}</span><div class="step"><button onclick="rate(${c.id},'r2',-50)">−</button><span style="min-width:64px">${money(c.r2)}</span><button onclick="rate(${c.id},'r2',50)">+</button></div></div>
       <div class="kv"><span>Генеральная × ${r.n3}</span><div class="step"><button onclick="rate(${c.id},'r3',-100)">−</button><span style="min-width:64px">${money(c.r3)}</span><button onclick="rate(${c.id},'r3',100)">+</button></div></div></div>`;
   });
-  h += `<div class="nav"><div class="tiny">Итого к выплате за неделю</div><div class="big">${money(sum)}</div></div><div class="tiny">Расценки за тип 1 и тип 2 задаёт менеджер для каждого курьера. Сумма пересчитывается автоматически по сданным визитам.</div>` + histHTML(0) + '</div>';
+  h += `<div class="nav"><div class="tiny">Итого к выплате за неделю (с ГСМ и амортизацией)</div><div class="big">${money(Math.round(sum))}</div></div><div class="tiny">Расценки за тип 1 и тип 2 задаёт менеджер для каждого курьера. Сумма пересчитывается автоматически по сданным визитам.</div>` + histHTML(0) + '</div>';
   return h;
 }
+/* ===================== АМОРТИЗАЦИЯ ===================== */
+// статьи амортизации (название и стоимость за месяц); входят в выплату курьеру вместе с ГСМ. c: 'all' — каждому курьеру или номер курьера
+const AMORT = [];
+const amWeekly = m => m * 12 / 52;   // месячная сумма в недельную долю
+const amFor = (cid, a) => a.c === 'all' || String(a.c) === String(cid);
+const amWeek = cid => AMORT.filter(a => amFor(cid, a)).reduce((t, a) => t + amWeekly(a.m), 0);
+const payExtra = cid => { const g = gsmWeek(cid), gsm = g.sum || 0, am = amWeek(cid); return {gsm, am, sum: gsm + am}; };
+function amOpen(id) { const a = AMORT.find(x => x.id === id); S.amf = a ? {id, n: a.n, m: String(a.m), c: a.c, err: ''} : {id: null, n: '', m: '', c: 'all', err: ''}; render(true); }
+function amSave() {
+  const f = S.amf; if (!f || S.role !== 'mgr') return;
+  const n = f.n.trim().slice(0, 60), m = Math.round((parseFloat(String(f.m).replace(',', '.').replace(/\s/g, '')) || 0) * 100) / 100;
+  if (n.length < 2) { f.err = 'Введите название'; return render(true); }
+  if (!(m > 0) || m > 10000000) { f.err = 'Введите стоимость за месяц больше нуля'; return render(true); }
+  if (f.id) { const a = AMORT.find(x => x.id === f.id); if (a) { a.n = n; a.m = m; a.c = f.c; } }
+  else AMORT.push({id: 'a' + Date.now().toString(36).slice(-7), n, m, c: f.c});
+  S.amf = null; go({toast: f.id ? 'Сохранено' : 'Добавлено: ' + n});
+}
+function amDel(id) { const i = AMORT.findIndex(x => x.id === id); if (i < 0) return; const it = AMORT.splice(i, 1)[0]; S.amf = null; render(true); undoPush('Статья убрана', () => { AMORT.splice(Math.min(i, AMORT.length), 0, it); render(true); }); }
+function amScreen() {
+  const mg = S.role === 'mgr', f = S.amf;
+  let h = topbar('Амортизация', 'Месячные расходы, которые входят в выплату курьерам'); h += '<div class="body">' + paySeg();
+  if (mg) {
+    if (!f) h += `<button class="btn" style="margin:4px 0 8px" onclick="amOpen(null)">${ic('plus', 18)} Добавить статью</button>`;
+    else h += `<div class="card"><div class="t1" style="font-size:14px">${f.id ? 'Изменить статью' : 'Новая статья амортизации'}</div>
+      <div class="tiny" style="margin-top:8px">Название</div><input type="text" maxlength="60" id="amn" placeholder="Например: износ автомобиля" value="${esc(f.n)}" oninput="S.amf.n=this.value" style="margin:4px 0 8px">
+      <div class="tiny">Стоимость за месяц, ₽</div><input type="text" inputmode="decimal" id="amm" placeholder="3000" value="${esc(f.m)}" oninput="S.amf.m=this.value" style="margin:4px 0 8px">
+      <div class="tiny">Кому начислять</div>
+      <div class="chips" style="flex-wrap:wrap;margin:6px 0 10px"><button class="${f.c === 'all' ? 'on' : ''}" onclick="S.amf.c='all';render(true)">Всем</button>${COUR.filter(c => c.active).map(c => `<button class="${String(f.c) === String(c.id) ? 'on' : ''}" onclick="S.amf.c=${c.id};render(true)">${esc(c.name)}</button>`).join('')}</div>
+      ${f.err ? `<div style="color:var(--r);font-size:13px;margin:0 0 8px">${f.err}</div>` : ''}
+      <button class="btn" style="margin-bottom:8px" onclick="amSave()">${f.id ? 'Сохранить' : ic('plus', 18) + ' Добавить'}</button><button class="btn sec" onclick="S.amf=null;render(true)">Отмена</button></div>`;
+    const list = AMORT;
+    if (!list.length && !f) h += '<div class="card t2">Статей пока нет. Добавьте, например, износ автомобиля или обслуживание: сумма за месяц автоматически войдёт в недельную выплату.</div>';
+    list.forEach(a => {
+      h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${esc(a.n)}</div><div class="t2">${money(a.m)} в месяц · около ${money(Math.round(amWeekly(a.m)))} в неделю</div><div class="tiny">${a.c === 'all' ? 'Каждому курьеру' : esc((cr(+a.c) || {name: 'курьер удалён'}).name)}</div></div>
+        <button class="btn sec sm" onclick="amOpen('${a.id}')">${ic('edit', 15)}</button><button class="btn sec sm" style="color:#ffb0b0" onclick="amDel('${a.id}')">${ic('trash', 15)}</button></div></div>`;
+    });
+  }
+  const cl = mg ? COUR.filter(c => c.active) : [cr(S.me)].filter(Boolean);
+  let tot = 0;
+  if (cl.length) h += '<h3>В выплате за неделю</h3>';
+  cl.forEach(c => {
+    const items = AMORT.filter(a => amFor(c.id, a)), w = amWeek(c.id); tot += w;
+    h += `<div class="card"><div class="row"><div class="grow t1">${esc(c.name)}</div><div class="big" style="font-size:20px">${money(Math.round(w))}</div></div>${items.map(a => `<div class="kv"><span>${esc(a.n)} <span class="tiny">${money(a.m)}/мес.</span></span><b>${money(Math.round(amWeekly(a.m)))}</b></div>`).join('') || '<div class="t2" style="margin-top:6px">Статей нет.</div>'}</div>`;
+  });
+  if (mg && cl.length > 1) h += `<div class="nav"><div class="tiny">Амортизация за неделю, всем курьерам</div><div class="big">${money(Math.round(tot))}</div></div>`;
+  return h + '<div class="tiny">Месячная сумма делится на недели (×12 ÷ 52) и входит в недельную выплату вместе с ГСМ. Она начисляется независимо от числа рабочих дней.</div></div>';
+}
+
 /* ===================== ГСМ: компенсация за километраж ===================== */
 // настройки задаёт менеджер: цена за километр, формула (её можно менять вручную) и считать ли возвращение на базу; хранятся в документе core
 const GSM_DEF = 'км * цена';
 const GSM = {price: 8, formula: GSM_DEF, back: true};
-const paySeg = () => `<div class="seg" style="margin:8px 0"><button class="${S.pm === 'gsm' ? '' : 'on'}" onclick="go({pm:'pay'})">Зарплата</button><button class="${S.pm === 'gsm' ? 'on' : ''}" onclick="go({pm:'gsm'})">ГСМ</button></div>`;
+const paySeg = () => `<div class="seg" style="margin:8px 0"><button class="${S.pm === 'gsm' || S.pm === 'am' ? '' : 'on'}" onclick="go({pm:'pay'})">Зарплата</button><button class="${S.pm === 'gsm' ? 'on' : ''}" onclick="go({pm:'gsm'})">ГСМ</button><button class="${S.pm === 'am' ? 'on' : ''}" onclick="go({pm:'am'})">Амортизация</button></div>`;
 // километры курьера за день: от базы по всем его точкам (порядок как в маршруте), при необходимости обратно на базу
 function gsmDay(cid, d) {
   const l = L(cid, d) || []; if (!l.length) return {km: 0, n: 0};
@@ -2866,7 +2918,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, ex2: 1,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, AMORT, ex2: 1,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -2878,7 +2930,7 @@ function restoreData(txt) {
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
-  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP); if (d.GSM) Object.assign(GSM, d.GSM);
+  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP); if (d.GSM) Object.assign(GSM, d.GSM); replaceArr(AMORT, d.AMORT || []);
   if (d.NS) { Object.assign(NS, d.NS); } if (d.NST) Object.assign(NST, d.NST);
   replaceObj(GSD, d.GSD || {}); replaceObj(OFF, d.OFF || {}); replaceObj(PR, d.PR || {});
   if (d.GCS) { GCS.me = d.GCS.me || null; GCS.all = d.GCS.all || {}; GCS.log = d.GCS.log || []; }
@@ -3003,7 +3055,7 @@ function api(path, body) {
   }), () => { throw new Error('Нет связи с сервером'); });
 }
 function docsFromState() {
-  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX, DEEP, GSM}}, ld = {};
+  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX, DEEP, GSM, AMORT}}, ld = {};
   Object.keys(AV).forEach(k => { d['av/' + k] = AV[k]; });
   Object.keys(EX).forEach(k => { d['ex/' + k] = EX[k]; });
   Object.keys(INFO).forEach(k => { d['info/' + k] = INFO[k]; });
@@ -3078,7 +3130,7 @@ function applyDoc(k, v, dele) {
     COUR.forEach(c => ensureCour(c.id));
     if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
   } else if (h === 'core') {
-    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); if (v.DEEP && typeof v.DEEP === 'object') { DEEP.on = v.DEEP.on !== false; DEEP.mo = Math.max(1, Math.min(12, +v.DEEP.mo || 3)); } if (v.GSM && typeof v.GSM === 'object') { GSM.price = Math.max(0, +v.GSM.price || 0); GSM.formula = String(v.GSM.formula || GSM_DEF).slice(0, 200); GSM.back = v.GSM.back !== false; } }
+    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); if (v.DEEP && typeof v.DEEP === 'object') { DEEP.on = v.DEEP.on !== false; DEEP.mo = Math.max(1, Math.min(12, +v.DEEP.mo || 3)); } if (v.GSM && typeof v.GSM === 'object') { GSM.price = Math.max(0, +v.GSM.price || 0); GSM.formula = String(v.GSM.formula || GSM_DEF).slice(0, 200); GSM.back = v.GSM.back !== false; } if (Array.isArray(v.AMORT)) replaceArr(AMORT, v.AMORT.filter(a => a && typeof a.n === 'string' && a.m > 0).slice(0, 60)); }
   } else if (h === 'av') {
     if (dele || !v) delete AV[p[1]]; else AV[p[1]] = v;
   } else if (h === 'ex') {

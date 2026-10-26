@@ -1,9 +1,9 @@
 {
-    "content":  142,
+    "content":  143,
     "apk":  22,
-    "notes":  "Зарплата: подвкладка ГСМ с расчётом компенсации за километраж (формула и цена за км настраиваются).",
+    "notes":  "Зарплата: подвкладка «Амортизация»; ГСМ и амортизация входят в выплату.",
     "contentFile":  "index.html",
-    "contentSha256":  "750df20d6bde96b2e159c7d1283e390ba10c3a836ca55762d5b96a7231015a97",
+    "contentSha256":  "6e782d9aefa37ab972fd603b31ec8f85486e200aa0daf344dfa1baa886f3d466",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
