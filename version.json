@@ -1,9 +1,9 @@
 {
-    "content":  140,
+    "content":  141,
     "apk":  22,
-    "notes":  "Склад: количество и плашка «хватает» больше не слипаются.",
+    "notes":  "Менеджер может изменить название и адрес точки (карандаш в карточке точки).",
     "contentFile":  "index.html",
-    "contentSha256":  "fe8c622ea686e426bc223bba12413ebdd7f3143c879aae6ff4cd2e1a63b2e13e",
+    "contentSha256":  "2a2d70bae86b4f4415cf89c853e3a71bfffe7907ef41131936a850d2c2a66ef3",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 140;
+const APP_VERSION = 141;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1313,9 +1313,18 @@ function stockRows(p) {
   });
   return h + `<div class="tiny" style="margin-top:6px">Подтоварка на точке: ${ING.filter(g => g.id !== 'water' && p.back[g.id] > 0).map(g => gn(g, p) + ' ' + p.back[g.id] + ' ' + g.u).join(', ') || 'пусто'}</div>`;
 }
+// менеджер может переименовать точку и поправить адрес
+function openPtName(id) { const p = pt(id); if (S.role === 'mgr' && p) go({sheet:'ptname', pn:{id, name:p.name, addr:p.addr || '', err:''}}); }
+function savePtName() {
+  const f = S.pn, p = pt(f.id); if (!p) return go({sheet:null, pn:null});
+  const name = f.name.trim().slice(0, 60), addr = f.addr.trim().slice(0, 120);
+  if (name.length < 2) { f.err = 'Введите название'; return render(); }
+  if (P.some(x => x.id !== p.id && x.name.toLowerCase() === name.toLowerCase())) { f.err = 'Точка с таким названием уже есть'; return render(); }
+  p.name = name; p.addr = addr; go({sheet:null, pn:null, toast:'Сохранено: ' + name});
+}
 function pointCard(id) {
   const p = pt(id), item = S.role === 'cour' ? L(S.me, TODAY).find(x => x.pid === id) : null;
-  let h = `<div class="top"><button class="back" onclick="go({view:null})">‹ Назад</button><button class="shbtn" onclick="sharePoint(${p.id})">${ic('share', 19)}</button><h1>${esc(p.name)}</h1><div class="sub">${esc(p.addr)}</div></div><div class="body">`;
+  let h = `<div class="top"><button class="back" onclick="go({view:null})">‹ Назад</button><button class="shbtn" onclick="sharePoint(${p.id})">${ic('share', 19)}</button><h1>${esc(p.name)}${S.role === 'mgr' ? `<span class="pen" style="margin-left:8px" onclick="openPtName(${p.id})" title="Изменить название и адрес">${ic('edit', 18)}</span>` : ''}</h1><div class="sub">${esc(p.addr)}</div></div><div class="body">`;
   h += `<div class="card"><div class="row">${p.units.map(u => `<div style="width:56px;height:80px" class="photo">${exHTML(u.st)}</div>`).join('')}
     <div class="grow"><div class="t1" style="font-size:14px">${p.units.length > 1 ? p.units.length + ' станции' : 'Станция'}</div>${p.units.map((u, i) => `<div class="t2">${p.units.length > 1 ? (i + 1) + '. ' : ''}${STN[u.st]}</div>`).join('')}<div class="t2">Визит: ${ago(p.last)} · мойка (тип 2): ${ago(p.last2)}</div>
     ${needT2(p) ? '<div style="margin-top:6px"><span class="pill warn">рекомендуем тип 2</span></div>' : ''}</div></div></div>`;
@@ -2122,6 +2131,15 @@ function sheet() {
       <div class="chips" style="flex-wrap:wrap;margin:6px 0 12px">${WD.map((n, i) => `<button class="${f.day === i ? 'on' : ''}" onclick="S.da.day=${i};render(true)">${n}</button>`).join('')}</div>
       <button class="btn" style="margin-bottom:8px" onclick="deepAssign()">Назначить</button>
       <button class="btn sec" onclick="go({sheet:null,da:null})">Отмена</button>`;
+  }
+  if (S.sheet === 'ptname' && S.pn) {
+    const f = S.pn;
+    return `<h2>Название точки</h2><div class="tiny">Новое название и адрес увидят все: менеджеры и курьеры.</div>
+      <div class="tiny" style="margin-top:10px">Название</div><input type="text" maxlength="60" value="${esc(f.name)}" oninput="S.pn.name=this.value" style="margin:4px 0 8px">
+      <div class="tiny">Адрес</div><input type="text" maxlength="120" value="${esc(f.addr)}" oninput="S.pn.addr=this.value" style="margin:4px 0 8px">
+      ${f.err ? `<div style="color:var(--r);font-size:13px;margin:0 0 8px">${f.err}</div>` : ''}
+      <button class="btn" style="margin-bottom:8px" onclick="savePtName()">Сохранить</button>
+      <button class="btn sec" onclick="go({sheet:null,pn:null})">Отмена</button>`;
   }
   if (S.sheet === 'ingadd' && S.ia) {
     const f = S.ia;
