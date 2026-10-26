@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 132;
+const APP_VERSION = 133;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -255,6 +255,7 @@ const ICONS = {
   check:'<path d="M4.5 12.5l5 5 10-11"/>',
   warn:'<path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.4v.1"/>',
   x:'<path d="M5 5l14 14M19 5L5 19"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
   pass:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="11" r="2.2"/><path d="M5.5 16.5c.7-2.2 5.3-2.2 7 0M14.5 10h4M14.5 13.5h3"/>',
   cup:'<path d="M5.5 5h13L17 20.5H7z"/><path d="M6 9.5h12"/>',
   lid:'<path d="M3.5 12.5a8.5 3.2 0 0 1 17 0"/><path d="M3.5 12.5v1.8c0 1.8 3.8 3.2 8.5 3.2s8.5-1.4 8.5-3.2v-1.8"/><path d="M9 9.2V7.8c0-.9 1.3-1.6 3-1.6s3 .7 3 1.6v1.4"/>',
@@ -309,6 +310,18 @@ const ING = [
 ING.forEach(g => { g.dn = g.n; });
 // названия ингредиентов менеджер может поменять (карандаш рядом с названием); новое название видят все
 let INGN = {};
+let INGX = [];   // ингредиенты, которые менеджер добавил сам (синхронизируются в документе core)
+function ingExtraApply(a) {
+  INGX = Array.isArray(a) ? a.filter(x => x && /^x[a-z0-9]{3,12}$/.test(x.id) && typeof x.n === 'string').slice(0, 40) : [];
+  for (let i = ING.length - 1; i >= 0; i--) if (ING[i].custom && !INGX.some(x => x.id === ING[i].id)) ING.splice(i, 1);
+  INGX.forEach(x => { if (!ING.some(g => g.id === x.id)) ING.push({id:x.id, n:x.n, t:x.t === 'count' ? 'count' : 'level', u:String(x.u || 'шт').slice(0, 6), cap:+x.cap || 1, r:+x.r || 1, st:+x.st || 1, custom:true, dn:x.n}); });
+  ingApply(INGN); ingEnsure();
+}
+// у новой позиции есть остатки на каждой станции, подтоварка на каждой точке и запас на складе (сначала нули и «половина»)
+function ingEnsure() {
+  ING.forEach(g => { if (!g.custom) return; if (WH[g.id] === undefined) WH[g.id] = 0;
+    P.forEach(p => { if (p.back && p.back[g.id] === undefined) p.back[g.id] = 0; p.units.forEach(u => { if (u.cur[g.id] === undefined) u.cur[g.id] = g.t === 'count' ? g.cap / 2 : .5; if (u.rate[g.id] === undefined) u.rate[g.id] = .1; }); }); });
+}
 function ingApply(m) { INGN = m && typeof m === 'object' ? m : {}; ING.forEach(g => { g.n = INGN[g.id] || g.dn; }); }
 const WH = {straw:1500, cell:400, hold:900, coffee:18, cup:1400, lid:1300, sugar:14, milk:12, water:90, choc:6, raf:5, nap:18, stir:22, s1:6, s2:5, s3:7};
 const LV = ['пусто','¼','½','¾','полно'];
@@ -1594,10 +1607,11 @@ function whScreen() {
     <div class="tiny" style="margin:4px 2px">Потребность считается по всем назначенным адресам до конца недели (с запасом 20%).</div>`;
   ING.forEach(g => {
     const have = WH[g.id], nd = need[g.id] || 0, short = have - nd, ok = short >= 0;
-    h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${g.n}</div><div class="t2">нужно на неделю: ${+nd.toFixed(1)} ${g.u}</div></div>
+    h += `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">${esc(g.n)}<span class="pen" onclick="openIng('${g.id}')" title="Изменить название">${ic('edit', 14)}</span></div><div class="t2">нужно на неделю: ${+nd.toFixed(1)} ${g.u}</div></div>
       <div style="text-align:right"><div class="t1" onclick="wheelOpen('WH','${g.id}')" style="cursor:pointer;border-bottom:1px dashed var(--mut,#7f9488);display:inline-block" title="Нажмите, чтобы выбрать количество">${+have.toFixed(1)} ${g.u}</div><span class="pill ${ok ? 'ok' : 'bad'}">${ok ? 'хватает' : 'не хватает ' + (+(-short).toFixed(1))}</span></div></div>
       <div class="row" style="margin-top:8px;justify-content:flex-end"><div class="tiny">приход</div><div class="step"><button onclick="whAdj('${g.id}',-1)">−</button><span>${g.st}</span><button onclick="whAdj('${g.id}',1)">+</button></div></div></div>`;
   });
+  h += `<button class="btn sec" style="margin:4px 0 8px" onclick="go({sheet:'ingadd', ia:{name:'', u:'шт'}})">${ic('plus', 18)} Добавить ингредиент</button>`;
   return h + '<div class="tiny">При подтверждении погрузки курьером нужное количество автоматически списывается со склада.</div></div>';
 }
 const whAdj = (id, d) => { const g = ING.find(x => x.id === id); WH[id] = Math.max(0, +(WH[id] + d * g.st).toFixed(1)); render(true); };
@@ -1687,6 +1701,20 @@ function chatScreen() {
   h += `</div><div id="composer" style="position:relative;z-index:7;background:#111a15;border-top:1px solid var(--line);padding:8px 12px 10px">${ed ? `<div class="row" style="margin-bottom:6px;border-left:3px solid var(--g);padding:3px 8px;background:rgba(255,255,255,.06);border-radius:4px"><div class="grow tiny" style="color:var(--g);font-weight:700">${ic('edit', 13)} Редактирование сообщения</div><span style="cursor:pointer;padding:4px 8px" onclick="go({edit:null,chatDraft:''})">✕</span></div>` : ''}${rt ? `<div style="border-left:3px solid var(--g);padding:3px 8px;margin-bottom:6px;background:rgba(255,255,255,.06);border-radius:4px" class="row"><div class="grow"><div class="tiny" style="color:var(--g);font-weight:700">Ответ: ${esc(rt.name)}</div><div style="font-size:13px;line-height:1.3;color:#fff;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(rt.text)}</div>${rt.pid && pt(rt.pid) ? `<div><span style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:1px 8px;border-radius:8px;background:#2c5079;border:1px solid #467aae;color:#e3f0fc;font-size:12px;font-weight:500">${ic('pin', 12)} ${esc(pt(rt.pid).name)}</span></div>` : ''}</div><span style="cursor:pointer;padding:4px 8px" onclick="go({reTo:null})">✕</span></div>` : ''}${ctx ? `<div class="pill blue" style="margin-bottom:6px;display:inline-block">${ic('pin', 13)} Точка: ${esc(pt(ctx) ? pt(ctx).name : '')} <span style="cursor:pointer;margin-left:4px" onclick="go({ctxOff:true,chatPid:null})">✕</span></div>` : ''}
     <div class="row" style="gap:8px">${ed ? '' : `<button class="clipb" onclick="go({sheet:'attach'})" aria-label="Прикрепить">${ic('clip', 22)}</button>`}<input type="text" id="chatin" placeholder="Сообщение" value="${esc(S.chatDraft)}" oninput="S.chatDraft=this.value;composerSync();typingPing()" onkeydown="if(event.key==='Enter')sendChat()" style="margin:0"><button class="sendb${S.chatDraft.trim() || ed ? '' : ' mic'}" id="sendb" onclick="composerAct()">${S.chatDraft.trim() || ed ? ic('send', 18) : ic('mic', 20)}</button></div></div>`;
   return h;
+}
+const ING_UNITS = {'шт':{t:'count', cap:300, r:10, st:100}, 'кг':{t:'level', cap:2, r:.5, st:2}, 'л':{t:'level', cap:10, r:1, st:5}, 'уп':{t:'level', cap:4, r:1, st:5}, 'бут':{t:'level', cap:1, r:1, st:1}};
+function saveIngAdd() {
+  const f = S.ia, name = f.name.trim().slice(0, 40);
+  if (name.length < 2) { f.err = 'Введите название'; return render(); }
+  if (ING.some(g => g.n.toLowerCase() === name.toLowerCase())) { f.err = 'Такая позиция уже есть'; return render(); }
+  const id = 'x' + Date.now().toString(36).slice(-7);
+  INGX = INGX.concat([Object.assign({id, n:name, u:f.u}, ING_UNITS[f.u] || ING_UNITS['шт'])]);
+  ingExtraApply(INGX); go({sheet:null, ia:null, toast:'Добавлено: ' + name});
+}
+function ingDel() {
+  const f = S.ig; if (!f) return; const g = ING.find(x => x.id === f.id); if (!g || !g.custom) return;
+  const m = Object.assign({}, INGN); delete m[g.id];
+  INGX = INGX.filter(x => x.id !== g.id); ingExtraApply(INGX); ingApply(m); go({sheet:null, ig:null, toast:'Позиция удалена'});
 }
 function openIng(id) { if (S.role !== 'mgr') return; go({sheet:'ingn', ig:{id, text:(ING.find(x => x.id === id) || {}).n || ''}}); }
 function saveIng() {
@@ -2008,12 +2036,23 @@ function sheet() {
       <div id="chatptlist">${P.map(p => `<div class="card" data-s="${esc((p.name + ' ' + (p.addr || '')).toLowerCase())}" style="padding:10px 12px;cursor:pointer" onclick="go({sheet:null,chatPid:${p.id}})"><div class="row"><div style="color:var(--g)">${ic('pin', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(p.addr || '')}</div></div></div></div>`).join('')}</div>
       <button class="btn sec" style="margin-top:6px" onclick="go({sheet:null})">Отмена</button>`;
   }
+  if (S.sheet === 'ingadd' && S.ia) {
+    const f = S.ia;
+    return `<h2>Новый ингредиент</h2><div class="tiny">Название увидят все. Позиция появится на складе, в остатках станций и в подтоварке каждой точки.</div>
+      <input type="text" maxlength="40" placeholder="Название, например «Корица»" value="${esc(f.name)}" oninput="S.ia.name=this.value" style="margin:10px 0 8px">
+      <div class="tiny">Единица измерения</div>
+      <div class="chips" style="flex-wrap:wrap;margin:6px 0 10px">${Object.keys(ING_UNITS).map(u => `<button class="${f.u === u ? 'on' : ''}" onclick="S.ia.u='${u}';render(true)">${u}</button>`).join('')}</div>
+      ${f.err ? `<div style="color:var(--r);font-size:13px;margin:0 0 8px">${f.err}</div>` : ''}
+      <button class="btn" style="margin-bottom:8px" onclick="saveIngAdd()">${ic('plus', 18)} Добавить</button>
+      <button class="btn sec" onclick="go({sheet:null,ia:null})">Отмена</button>`;
+  }
   if (S.sheet === 'ingn' && S.ig) {
     const f = S.ig, g = ING.find(x => x.id === f.id);
     return `<h2>Название позиции</h2><div class="tiny">Было: ${esc(g.dn)}. Новое название увидят все: курьеры и менеджер.</div>
       <input type="text" maxlength="40" value="${esc(f.text)}" oninput="S.ig.text=this.value" style="margin:10px 0 8px">
       <button class="btn" style="margin-bottom:8px" onclick="saveIng()">Сохранить</button>
       ${INGN[g.id] ? '<button class="btn sec" style="margin-bottom:8px" onclick="S.ig.text=\'\';saveIng()">Вернуть прежнее название</button>' : ''}
+      ${g.custom ? `<button class="btn sec" style="margin-bottom:8px;color:#ffb0b0" onclick="ingDel()">${ic('trash', 16)} Удалить позицию</button>` : ''}
       <button class="btn sec" onclick="go({sheet:null,ig:null})">Отмена</button>`;
   }
   if (S.sheet === 'syr') {
@@ -2435,6 +2474,7 @@ let NAVDIR = 0, NAVSKIPPED = false;
 const SCROLLMEM = {};   // где был прокручен каждый экран: при возврате назад список остаётся на том же месте
 const sigOf = () => Array.from($('app').querySelectorAll('.body .days button.on, .body .chips button.on')).map(b => b.textContent.trim()).join('|');
 function render(keep) {
+  if (INGX.length) ingEnsure();
   if (keep && SWL.on) { SWL.pend = true; return; }
   saveSoon();
   const key0 = renderKey(), sameScreen = key0 === LASTKEY, body = document.querySelector('.body');
@@ -2641,7 +2681,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, ex2: 1,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, ex2: 1,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -2653,7 +2693,7 @@ function restoreData(txt) {
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
-  nid = d.nid; CITY = d.CITY;
+  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN);
   if (d.NS) { Object.assign(NS, d.NS); } if (d.NST) Object.assign(NST, d.NST);
   replaceObj(GSD, d.GSD || {}); replaceObj(OFF, d.OFF || {}); replaceObj(PR, d.PR || {});
   if (d.GCS) { GCS.me = d.GCS.me || null; GCS.all = d.GCS.all || {}; GCS.log = d.GCS.log || []; }
@@ -2778,7 +2818,7 @@ function api(path, body) {
   }), () => { throw new Error('Нет связи с сервером'); });
 }
 function docsFromState() {
-  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN}}, ld = {};
+  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX}}, ld = {};
   Object.keys(AV).forEach(k => { d['av/' + k] = AV[k]; });
   Object.keys(EX).forEach(k => { d['ex/' + k] = EX[k]; });
   Object.keys(INFO).forEach(k => { d['info/' + k] = INFO[k]; });
@@ -2852,7 +2892,7 @@ function applyDoc(k, v, dele) {
     COUR.forEach(c => ensureCour(c.id));
     if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
   } else if (h === 'core') {
-    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingApply(v.INGN); }
+    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); }
   } else if (h === 'av') {
     if (dele || !v) delete AV[p[1]]; else AV[p[1]] = v;
   } else if (h === 'ex') {

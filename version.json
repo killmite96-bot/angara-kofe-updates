@@ -1,9 +1,9 @@
 {
-    "content":  132,
+    "content":  133,
     "apk":  22,
-    "notes":  "Личный чат между двумя менеджерами.",
+    "notes":  "Склад: можно переименовать ингредиент и добавить новый; смахнутые уведомления больше не возвращаются.",
     "contentFile":  "index.html",
-    "contentSha256":  "dc56db3d12bb1ed8dee3aaacc8410d621596f6be59628baa2d4551c4817f913d",
+    "contentSha256":  "18c3d84eab7655a0e6e00856d80b7a243cf8da8cf5d83d45819140644c3d7514",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
