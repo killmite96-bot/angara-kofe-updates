@@ -222,7 +222,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 148;
+const APP_VERSION = 149;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -974,7 +974,7 @@ function routeScreen() {
     const p = pt(x.pid), d = km(prev, p); if (!x.done) { n++; prev = p; }
     h += `<div class="card" onclick="openPoint(${p.id})" style="${x.done ? 'opacity:.55' : ''}"><div class="row">
       <div class="badge ${bcls(x.type)}">${tl(x.type)}</div>
-      <div class="grow"><div class="t1">${esc(p.name)}</div><div class="t2">${esc(p.addr)}${p.units.length > 1 ? ' · ' + p.units.length + ' станции' : ''}${x.done ? '' : ' · ' + d.toFixed(1) + ' км'}</div>${x.done ? '' : winLine(p)}</div>
+      <div class="grow"><div class="t1">${esc(p.name)}${stB(p)}</div><div class="t2">${esc(p.addr)}${x.done ? '' : ' · ' + d.toFixed(1) + ' км'}</div>${x.done ? '' : winLine(p)}</div>
       ${x.done ? '<span class="pill ok">сдана</span>' : toolPill(p) + (x.redo ? '<span class="pill bad">переснять</span>' : `<span class="dot d${health(p)}"></span>`)}</div>
       ${!x.done ? `<div class="t2" style="margin-top:8px">${x.type === 3 ? 'Генеральная уборка · ' : x.type === 2 ? 'Промывка миксеров с разбором + носики · ' : ''}везти с базы: ${shortNeed(p)}</div>` : ''}</div>`;
   });
@@ -1076,7 +1076,7 @@ function scheduleScreen() {
   list.forEach((x, i) => {
     const p = pt(x.pid);
     h += `<div class="card" onclick="openPoint(${p.id})"${x.done ? '' : ` data-sw="Перенести|openMove(${p.id})|#2d5aa0"`}><div class="row"><div class="badge ${bcls(x.type)}">${tl(x.type)}</div>
-      <div class="grow"><div class="t1">${i + 1}. ${esc(p.name)}</div><div class="t2">${esc(p.addr)}</div>${winLine(p)}</div>${x.done ? '<span class="pill ok">выполнена</span>' : mvBtn(x)}</div>${mvNote(x)}</div>`;
+      <div class="grow"><div class="t1">${i + 1}. ${esc(p.name)}${stB(p)}</div><div class="t2">${esc(p.addr)}</div>${winLine(p)}</div>${x.done ? '<span class="pill ok">выполнена</span>' : mvBtn(x)}</div>${mvNote(x)}</div>`;
   });
   const cnt = t => list.filter(x => x.type === t).length;
   if (list.length) h += `<div class="tiny" style="margin-top:6px">Тип 1: ${cnt(1)} · Тип 2: ${cnt(2)}${cnt(3) ? ' · Генеральная: ' + cnt(3) : ''} · заработок за день: ${money(list.reduce((s, x) => s + rateOf(cr(c), x.type), 0))}</div>`;
@@ -1098,7 +1098,7 @@ function pointsScreen() {
     .forEach(p => {
       const low = []; p.units.forEach((u, i) => ING.forEach(g => { if (frac(u, g) < .4) low.push({g, u, i}); })); low.length = Math.min(low.length, 3);
       h += `<div class="card" onclick="openPoint(${p.id})"><div class="row"><span class="dot d${health(p)}"></span>
-        <div class="grow"><div class="t1">${esc(p.name)}</div><div class="t2">${esc(p.addr)}${p.units.length > 1 ? ' · ' + p.units.length + ' станции' : ''} · визит ${ago(p.last)}</div></div>${toolPill(p)}${needT2(p) ? '<span class="pill warn">тип 2</span>' : ''}</div>
+        <div class="grow"><div class="t1">${esc(p.name)}${stB(p)}</div><div class="t2">${esc(p.addr)} · визит ${ago(p.last)}</div></div>${toolPill(p)}${needT2(p) ? '<span class="pill warn">тип 2</span>' : ''}</div>
         ${(low.length || arrPills(p)) ? `<div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">${arrPills(p)}${low.map(o => `<span class="pill bad">${gn(o.g, p)}${unitLabel(p, o.i)}: ${fmtCur(o.u, o.g)}</span>`).join('')}</div>` : ''}</div>`;
     });
   return h + '</div>';
@@ -1324,7 +1324,7 @@ function savePtName() {
 }
 function pointCard(id) {
   const p = pt(id), item = S.role === 'cour' ? L(S.me, TODAY).find(x => x.pid === id) : null;
-  let h = `<div class="top"><button class="back" onclick="go({view:null})">‹ Назад</button><button class="shbtn" onclick="sharePoint(${p.id})">${ic('share', 19)}</button><h1>${esc(p.name)}${S.role === 'mgr' ? `<span class="pen" style="margin-left:8px" onclick="openPtName(${p.id})" title="Изменить название и адрес">${ic('edit', 18)}</span>` : ''}</h1><div class="sub">${esc(p.addr)}</div></div><div class="body">`;
+  let h = `<div class="top"><button class="back" onclick="go({view:null})">‹ Назад</button><button class="shbtn" onclick="sharePoint(${p.id})">${ic('share', 19)}</button><h1>${esc(p.name)}${stB(p)}${S.role === 'mgr' ? `<span class="pen" style="margin-left:8px" onclick="openPtName(${p.id})" title="Изменить название и адрес">${ic('edit', 18)}</span>` : ''}</h1><div class="sub">${esc(p.addr)}</div></div><div class="body">`;
   h += `<div class="card"><div class="row">${p.units.map(u => `<div style="width:56px;height:80px" class="photo">${exHTML(u.st)}</div>`).join('')}
     <div class="grow"><div class="t1" style="font-size:14px">${p.units.length > 1 ? p.units.length + ' станции' : 'Станция'}</div>${p.units.map((u, i) => `<div class="t2">${p.units.length > 1 ? (i + 1) + '. ' : ''}${STN[u.st]}</div>`).join('')}<div class="t2">Визит: ${ago(p.last)} · мойка (тип 2): ${ago(p.last2)}</div>
     ${needT2(p) ? '<div style="margin-top:6px"><span class="pill warn">рекомендуем тип 2</span></div>' : ''}</div></div></div>`;
@@ -1394,7 +1394,7 @@ function backroomHTML(v, quick) {
 }
 function visitScreen() {
   const v = S.visit, p = pt(v.pid);
-  let h = `<div class="top"><button class="back" onclick="go({view:{type:'point',id:${p.id}}})">‹ К точке</button><h1>${v.quick ? 'Обновление остатков' : v.type === 3 ? 'Генеральная уборка' : 'Визит · тип ' + v.type}</h1><div class="sub">${esc(p.name)}</div></div>`;
+  let h = `<div class="top"><button class="back" onclick="go({view:{type:'point',id:${p.id}}})">‹ К точке</button><h1>${v.quick ? 'Обновление остатков' : v.type === 3 ? 'Генеральная уборка' : 'Визит · тип ' + v.type}</h1><div class="sub">${esc(p.name)}${stB(p)}</div></div>`;
   if (!v.quick) h += `<div class="prog">${[0, 1, 2, 3, 4, 5].map(i => `<i class="${i <= v.step ? 'on' : ''}"></i>`).join('')}</div>`;
   h += '<div class="body">' + toolBlock(p, true);
   if (v.step === 0) {
@@ -1698,7 +1698,7 @@ function planScreen() {
   if (!list.length) h += '<div class="card t2">На этот день адресов нет. Добавьте точки.</div>';
   list.forEach((x, i) => {
     const p = pt(x.pid);
-    h += `<div class="card" data-ri="${i}" data-sw="Убрать|rmPt(${i})|#b83a3a"><div class="row"><div class="grow"><div class="t1">${i + 1}. ${esc(p.name)}</div><div class="t2">${esc(p.addr)} ${x.done ? '· выполнена' : ''}</div>${winLine(p)}</div>
+    h += `<div class="card" data-ri="${i}" data-sw="Убрать|rmPt(${i})|#b83a3a"><div class="row"><div class="grow"><div class="t1">${i + 1}. ${esc(p.name)}${stB(p)}</div><div class="t2">${esc(p.addr)} ${x.done ? '· выполнена' : ''}</div>${winLine(p)}</div>
       <div class="seg" style="margin:0;width:${x.type === 3 ? 112 : 76}px"><button class="${x.type === 1 ? 'on' : ''}" onclick="setType(${i},1)">1</button><button class="${x.type === 2 ? 'on' : ''}" onclick="setType(${i},2)">2</button>${x.type === 3 ? '<button class="on" onclick="go({toast:\'Генеральная уборка назначается во вкладке «Точки»\'})">Г</button>' : ''}</div>
       <div style="display:flex;flex-direction:column"><button class="step" style="background:none;border:0;color:var(--mut);cursor:pointer;font-size:12px" onclick="mv(${i},-1)">▲</button><button class="step" style="background:none;border:0;color:var(--mut);cursor:pointer;font-size:12px" onclick="mv(${i},1)">▼</button></div>
       <button style="background:none;border:0;color:var(--r);font-size:18px;cursor:pointer" onclick="rmPt(${i})">✕</button></div></div>`;
@@ -1731,7 +1731,7 @@ function deepCard() {
   const urg = r => Math.min(r.g === null ? 999 : r.g, r.i && r.i.show ? (r.i.late && !r.i.soon ? -r.i.since : r.i.days) : 999);
   rows.sort((a, b) => urg(a) - urg(b));
   let h = `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Генеральная уборка · напоминание</div><div class="t2">Подходит срок: ${rows.length} ${rows.length === 1 ? 'точка' : 'точек'}. Назначается во вкладке «Точки».</div></div><button class="btn sec sm" onclick="go({tab:'points',flt:'deep',view:null})">Открыть</button></div>`;
-  rows.slice(0, 6).forEach(r => { h += `<div style="margin-top:8px"><div class="t1" style="font-size:13px">${esc(r.p.name)}</div>${r.g !== null ? `<div class="t2" style="color:var(--o)">${genText(r.p)}</div>` : ''}${r.i && r.i.show ? `<div class="t2" style="color:var(--o)">${r.i.text}</div>` : ''}</div>`; });
+  rows.slice(0, 6).forEach(r => { h += `<div style="margin-top:8px"><div class="t1" style="font-size:13px">${esc(r.p.name)}${stB(r.p)}</div>${r.g !== null ? `<div class="t2" style="color:var(--o)">${genText(r.p)}</div>` : ''}${r.i && r.i.show ? `<div class="t2" style="color:var(--o)">${r.i.text}</div>` : ''}</div>`; });
   if (rows.length > 6) h += `<div class="tiny" style="margin-top:8px">И ещё ${rows.length - 6}: смотрите во вкладке «Точки»</div>`;
   return h + '</div>';
 }
@@ -1745,7 +1745,7 @@ function deepManage() {
   const list = P.map(p => ({p, i: ddInfo(p)})).sort((a, b) => Math.min(deepLeft(a.p), a.i ? a.i.days : 999) - Math.min(deepLeft(b.p), b.i ? b.i.days : 999));
   list.forEach(({p, i}) => {
     const col = (DEEP.on && deepLeft(p) <= 14) || (i && i.show) ? 'var(--o)' : 'var(--mut)';
-    h += `<div class="card"><div class="t1">${esc(p.name)}</div><div class="t2">Последняя: ${deepDays(p)} дн. назад</div>
+    h += `<div class="card"><div class="t1">${esc(p.name)}${stB(p)}</div><div class="t2">Последняя: ${deepDays(p)} дн. назад</div>
       ${DEEP.on ? `<div class="t2" style="color:${deepLeft(p) <= 14 ? 'var(--o)' : 'var(--mut)'}">${genText(p)}</div>` : ''}
       <div class="t2" style="color:${i && i.show ? 'var(--o)' : 'var(--mut)'}">${i ? i.text : 'Своя дата не задана'}</div>
       <div class="btns" style="margin-top:8px"><button class="btn sm" onclick="deepAsOpen(${p.id})">Назначить</button><button class="btn sec sm" onclick="deepDateOpen(${p.id})">${ic('edit', 15)} ${p.dd ? 'Изменить дату' : 'Своя дата'}</button></div></div>`;
@@ -2176,7 +2176,7 @@ function toggleCour(id) {
 
 /* ===================== МЕНЕДЖЕР: ПРОВЕРКА ФОТО ===================== */
 // пустая вкладка «Проверка фото»: полупрозрачная картинка в стиле приложения (камера с галочкой на зелёном свечении)
-const rvEmpty = () => `<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:34px 20px 26px;opacity:.55">
+const rvEmpty = t => `<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:34px 20px 26px;opacity:.55">
   <svg width="150" height="130" viewBox="0 0 150 130" fill="none" aria-hidden="true"><defs><radialGradient id="rvg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#5dffa0" stop-opacity=".28"/><stop offset="1" stop-color="#5dffa0" stop-opacity="0"/></radialGradient></defs>
     <circle cx="75" cy="64" r="62" fill="url(#rvg)"/>
     <rect x="30" y="38" width="90" height="62" rx="16" fill="#16241c" stroke="#5dffa0" stroke-width="3"/>
@@ -2185,23 +2185,24 @@ const rvEmpty = () => `<div style="display:flex;flex-direction:column;align-item
     <path d="M66 68.5l6.5 6.5L85 62" stroke="#5dffa0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="106" cy="52" r="3" fill="#5dffa0"/>
     <path d="M22 24l3 6 6 3-6 3-3 6-3-6-6-3 6-3zM128 18l2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill="#5dffa0" opacity=".7"/></svg>
-  <div class="t1" style="margin-top:12px;font-size:15px">Новых фото для проверки пока нет</div></div>`;
+  <div class="t1" style="margin-top:12px;font-size:15px">${esc(t || 'Новых фото для проверки пока нет')}</div></div>`;
 const phSeg = () => `<div class="seg" style="margin:8px 0"><button class="${S.ph === 'arch' ? '' : 'on'}" onclick="go({ph:'feed'})">Лента${pendCount() ? ' · ' + pendCount() : ''}</button><button class="${S.ph === 'arch' ? 'on' : ''}" onclick="go({ph:'arch'})">Архив</button></div>`;
 // подпись под фото: кто отправил, какая точка, во сколько
+const stB = p => p && p.units && p.units.length > 1 ? `<span class="stb">${ic('cup', 12)}${p.units.length} ${p.units.length < 5 ? 'станции' : 'станций'}</span>` : '';   // плашка у точек с несколькими станциями
 const rvSender = r => (cr(r.cid) && cr(r.cid).name) || r.cname || 'Курьер';
-const rvCap = (r, w) => `<div class="tiny" style="width:${w || 92}px;line-height:1.25;margin-top:3px"><b style="color:var(--tx)">${esc(rvSender(r))}</b><br>${esc(pt(r.pid) ? pt(r.pid).name : 'Точка')}${r.id > 1e12 ? ' · ' + hm(r.id) : ''}</div>`;
+const rvCap = (r, w, k) => `<div class="tiny" style="width:${w || 92}px;line-height:1.25;margin-top:3px"><b style="color:var(--tx)">${esc(rvSender(r))}</b><br>${esc(pt(r.pid) ? pt(r.pid).name : 'Точка')}${pt(r.pid) && pt(r.pid).units.length > 1 && k !== undefined ? ' · ст. ' + (k + 1) : ''}${r.id > 1e12 ? ' · ' + hm(r.id) : ''}</div>`;
 function mgrScreen() {
   if (S.ph === 'arch') return archScreen();
   let h = topbar('Проверка фото', pendCount() ? 'Ждут подтверждения: ' + pendCount() : 'Всё проверено'); h += '<div class="body">' + phSeg();
   if (!pendCount()) h += rvEmpty();
   reviews.filter(r => r.status !== 'ok').forEach((r, i) => {
     const p = pt(r.pid);
-    h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${esc(p.name)}</div><div class="t2">${esc(cr(r.cid).name)} · ${r.when} · ${r.type === 3 ? 'генеральная уборка' : 'тип ' + r.type}</div></div>
+    h += `<div class="card"><div class="row"><div class="grow"><div class="t1">${esc(p.name)}${stB(p)}</div><div class="t2">${esc(cr(r.cid).name)} · ${r.when} · ${r.type === 3 ? 'генеральная уборка' : 'тип ' + r.type}</div></div>
       <span class="pill ${r.status === 'ok' ? 'ok' : r.status === 'redo' ? 'bad' : 'warn'}">${r.status === 'ok' ? 'принято' : r.status === 'redo' ? 'переснять' : 'ждёт'}</span></div>
       ${r.arrive ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="pill ${CCOL[r.arrive.clean]}">По прибытии: ${CLEAN[r.arrive.clean]}</span><span class="pill ${r.arrive.trash >= .75 ? 'warn' : ''}">Урна ${Math.round(r.arrive.trash * 100)}%</span></div>` : ''}
       <div class="row" style="margin-top:10px;align-items:flex-start;flex-wrap:wrap"><div><div class="tiny">Пример</div><div class="photo" style="width:92px;height:146px">${exHTML(pst(p))}</div><button class="btn sec sm" style="margin-top:4px;padding:3px 8px;font-size:11px" onclick="exReplace('${pst(p)}')">Заменить</button></div>
-      ${(r.photos && r.photos.length ? r.photos : [r.photo]).map((ph, k) => `<div><div class="tiny">Сейчас${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:146px">${ph ? ph.svg : exHTML(p.units[Math.min(k, p.units.length - 1)].st)}</div>${rvCap(r)}</div>`).join('')}
-      ${r.type >= 2 ? (r.nozzles && r.nozzles.length ? r.nozzles : [r.nozzle]).map((ph, k) => `<div><div class="tiny">Носики${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:122px">${ph ? ph.svg : nozzleSVG(false)}</div>${rvCap(r)}</div>`).join('') : ''}</div>
+      ${(r.photos && r.photos.length ? r.photos : [r.photo]).map((ph, k) => `<div><div class="tiny">Сейчас${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:146px">${ph ? ph.svg : exHTML(p.units[Math.min(k, p.units.length - 1)].st)}</div>${rvCap(r, 92, k)}</div>`).join('')}
+      ${r.type >= 2 ? (r.nozzles && r.nozzles.length ? r.nozzles : [r.nozzle]).map((ph, k) => `<div><div class="tiny">Носики${p.units.length > 1 ? ' · ст. ' + (k + 1) : ''}</div><div class="photo" style="width:92px;height:122px">${ph ? ph.svg : nozzleSVG(false)}</div>${rvCap(r, 92, k)}</div>`).join('') : ''}</div>
       ${r.status === 'pending' ? `<div class="btns"><button class="btn sm" onclick="rv(${r.id},'ok')">Принять</button><button class="btn sec sm" onclick="askRedo(${r.id})">Переснять</button><button class="btn sec sm" onclick="askComment(${r.id})">${ic('chat', 15)} Комментарий</button></div>` : ''}
       ${r.status === 'redo' && r.reason ? `<div class="t2" style="color:#ff8f8f;margin-top:6px">Причина: ${esc(r.reason)}</div>` : ''}</div>`;
   });
@@ -2220,13 +2221,13 @@ function arItems() {
   reviews.forEach(r => {
     if (r.status !== 'ok' || !(r.id > 1e12)) return;
     const st = r.photos && r.photos.length ? r.photos : (r.photo ? [r.photo] : []), nz = r.nozzles && r.nozzles.length ? r.nozzles : (r.nozzle ? [r.nozzle] : []);
-    st.concat(nz).forEach((ph, i) => { if (ph && ph.svg) out.push({r, ph, noz: i >= st.length, ts: r.id, cid: r.cid, pid: r.pid, dk: dKey(r.id), mk: dKey(r.id).slice(0, 7)}); });
+    st.concat(nz).forEach((ph, i) => { if (ph && ph.svg) out.push({r, ph, noz: i >= st.length, unit: i >= st.length ? i - st.length : i, ts: r.id, cid: r.cid, pid: r.pid, dk: dKey(r.id), mk: dKey(r.id).slice(0, 7)}); });
   });
   return out.sort((a, b) => b.ts - a.ts);
 }
-const arCap = it => { const d = new Date(it.ts); return `<div class="tiny" style="margin-top:3px;line-height:1.3"><b style="color:var(--tx)">${esc(rvSender(it.r))}</b><br>${esc(pt(it.pid) ? pt(it.pid).name : 'Точка')}${it.noz ? ' · носики' : ''}<br>${d.getDate()} ${MN[d.getMonth()]}, ${hm(it.ts)}</div>`; };
+const arCap = it => { const d = new Date(it.ts); return `<div class="tiny" style="margin-top:3px;line-height:1.3"><b style="color:var(--tx)">${esc(rvSender(it.r))}</b><br>${esc(pt(it.pid) ? pt(it.pid).name : 'Точка')}${pt(it.pid) && pt(it.pid).units.length > 1 ? ' · ст. ' + (it.unit + 1) : ''}${it.noz ? ' · носики' : ''}<br>${d.getDate()} ${MN[d.getMonth()]}, ${hm(it.ts)}</div>`; };
 const arGrid = list => '<div style="display:flex;flex-wrap:wrap;gap:10px">' + list.map(it => `<div style="width:calc(50% - 5px)"><div class="photo" style="width:100%;height:200px;cursor:zoom-in" onclick="arView(this)">${it.ph.svg}</div>${arCap(it)}</div>`).join('') + '</div>';
-function arGo(k, v) { const o = ['m', 'c', 'd', 'p'], a = Object.assign({}, S.ar || {}), i = o.indexOf(k); o.forEach((x, j) => { if (j > i) delete a[x]; }); if (v === null) delete a[k]; else a[k] = v; go({ar: a}); }
+function arGo(k, v) { const o = ['m', 'c', 'd', 'p', 'u'], a = Object.assign({}, S.ar || {}), i = o.indexOf(k); o.forEach((x, j) => { if (j > i) delete a[x]; }); if (v === null) delete a[k]; else a[k] = v; go({ar: a}); }
 function arView(el) {
   const im = el.querySelector('img'), d = document.createElement('div'); d.id = 'mview';
   d.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:98;background:rgba(0,0,0,.95);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .25s';
@@ -2263,7 +2264,7 @@ function archScreen() {
     <div class="fgrid" style="margin-top:8px">${fld('users', 'Отправитель', f.cid ? senders[f.cid] || 'Курьер' : '', 'все курьеры', "go({sheet:'afpick',ap:'cid'})")}${fld('pin', 'Точка', f.pid ? (pt(+f.pid) ? pt(+f.pid).name : 'Точка') : '', 'все точки', "go({sheet:'afpick',ap:'pid'})")}</div></div>`;
   if (filtering) {
     const res = items.filter(it => (!f.from || it.dk >= f.from) && (!f.to || it.dk <= f.to) && (!f.cid || String(it.cid) === String(f.cid)) && (!f.pid || String(it.pid) === String(f.pid)));
-    h += `<h3>Найдено фото: ${res.length}</h3>` + (res.length ? arGrid(res.slice(0, 120)) + (res.length > 120 ? '<div class="tiny" style="margin-top:8px">Показаны первые 120: уточните фильтры</div>' : '') : '<div class="card t2">По этим фильтрам ничего нет.</div>');
+    h += `<h3>Найдено фото: ${res.length}</h3>` + (res.length ? arGrid(res.slice(0, 120)) + (res.length > 120 ? '<div class="tiny" style="margin-top:8px">Показаны первые 120: уточните фильтры</div>' : '') : rvEmpty('По этим фильтрам ничего нет'));
     return h + '</div>';
   }
   // путь по папкам
@@ -2272,7 +2273,8 @@ function archScreen() {
   if (a.m) crumbs.push(`<span style="cursor:pointer;color:var(--g)" onclick="arGo('c',null)">${mLabel(a.m)}</span>`);
   if (a.c) crumbs.push(`<span style="cursor:pointer;color:var(--g)" onclick="arGo('d',null)">${esc(senders[a.c] || 'Курьер')}</span>`);
   if (a.d) crumbs.push(`<span style="cursor:pointer;color:var(--g)" onclick="arGo('p',null)">${dLabel(a.d)}</span>`);
-  if (a.p) crumbs.push(esc(pt(+a.p) ? pt(+a.p).name : 'Точка'));
+  if (a.p) crumbs.push(a.u !== undefined ? `<span style="cursor:pointer;color:var(--g)" onclick="arGo('u',null)">${esc(pt(+a.p) ? pt(+a.p).name : 'Точка')}</span>` : esc(pt(+a.p) ? pt(+a.p).name : 'Точка'));
+  if (a.u !== undefined) crumbs.push('Станция ' + (+a.u + 1));
   h += `<div class="tiny" style="margin:6px 2px 8px;line-height:1.7">${crumbs.join(' › ')}</div>`;
   const row = (title, sub, click) => `<div class="card" style="cursor:pointer" onclick="${click}"><div class="row">${folderIc(40)}<div class="grow"><div class="t1">${title}</div><div class="t2">${sub}</div></div><span style="color:var(--mut);font-size:20px">›</span></div></div>`;
   const cnt = n => n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? 'фото' : 'фото');
@@ -2287,13 +2289,14 @@ function archScreen() {
     });
   } else if (!a.d) {
     const inC = items.filter(it => it.mk === a.m && String(it.cid) === String(a.c)), ds = Array.from(new Set(inC.map(it => it.dk))).sort().reverse();
-    h += ds.length ? ds.map(d => row(dLabel(d), cnt(inC.filter(it => it.dk === d).length), `arGo('d','${d}')`)).join('') : '<div class="card t2">В этой папке пока нет фото. Папка с датой появится, когда курьер отправит фото и вы их подтвердите.</div>';
+    h += ds.length ? ds.map(d => row(dLabel(d), cnt(inC.filter(it => it.dk === d).length), `arGo('d','${d}')`)).join('') : rvEmpty('В этой папке пока нет фото') + '<div class="tiny" style="text-align:center;margin-top:-8px">Папка с датой появится, когда курьер отправит фото и вы их подтвердите.</div>';
   } else if (!a.p) {
     const inD = items.filter(it => it.dk === a.d && String(it.cid) === String(a.c)), ps = Array.from(new Set(inD.map(it => it.pid)));
-    h += ps.map(pid => row(esc(pt(pid) ? pt(pid).name : 'Точка'), cnt(inD.filter(it => it.pid === pid).length), `arGo('p','${pid}')`)).join('');
+    h += ps.map(pid => row(esc(pt(pid) ? pt(pid).name : 'Точка') + stB(pt(pid)), cnt(inD.filter(it => it.pid === pid).length), `arGo('p','${pid}')`)).join('');
   } else {
-    const list = items.filter(it => it.dk === a.d && String(it.cid) === String(a.c) && String(it.pid) === String(a.p));
-    h += list.length ? arGrid(list) : '<div class="card t2">Здесь пока нет фото.</div>';
+    const pp = pt(+a.p), multi = !!(pp && pp.units.length > 1), inP = items.filter(it => it.dk === a.d && String(it.cid) === String(a.c) && String(it.pid) === String(a.p));
+    if (multi && a.u === undefined) h += pp.units.map((u, i) => row('Станция ' + (i + 1), cnt(inP.filter(it => it.unit === i).length) + ' · ' + esc(STN[u.st] || ''), `arGo('u',${i})`)).join('');   // у точки с несколькими станциями внутри папки по станциям
+    else { const list = multi ? inP.filter(it => it.unit === +a.u) : inP; h += list.length ? arGrid(list) : rvEmpty('Здесь пока нет фото'); }
   }
   return h + '</div>';
 }
@@ -2326,7 +2329,7 @@ function sheet() {
       h += '<h3>Точки на сегодня</h3><div class="tiny">Нажмите на адрес: покажем, сколько чего на точке сейчас и что туда взять.</div>';
       todo.forEach((o, i) => {
         const p = pt(o.x.pid), open = S.ldp === p.id;
-        h += `<div class="card" style="padding:10px 12px"><div class="row" onclick="ldOpen(${p.id})" style="cursor:pointer"><div class="badge ${bcls(o.x.type)}">${i + 1}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(p.addr)}</div></div><div class="t2">${open ? '▲' : '▼'}</div></div>${open ? `<div style="margin-top:8px">${stockRows(p)}</div>` : ''}</div>`;
+        h += `<div class="card" style="padding:10px 12px"><div class="row" onclick="ldOpen(${p.id})" style="cursor:pointer"><div class="badge ${bcls(o.x.type)}">${i + 1}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}${stB(p)}</div><div class="t2">${esc(p.addr)}</div></div><div class="t2">${open ? '▲' : '▼'}</div></div>${open ? `<div style="margin-top:8px">${stockRows(p)}</div>` : ''}</div>`;
       });
     }
     h += LOADED[key] ? '<div class="pill ok" style="display:inline-block;margin-bottom:10px">Погрузка подтверждена, склад обновлён</div>' : `<button class="btn" style="margin-bottom:8px" onclick="confirmLoad()">Подтвердить погрузку</button>`;
@@ -2335,7 +2338,7 @@ function sheet() {
   if (S.sheet === 'chatpt') {
     return `<h2>Привязать точку</h2><div class="tiny">Выберите точку: в сообщении появится метка, по которой собеседник сразу откроет её.</div>
       <input type="text" placeholder="Поиск по названию или адресу" autocomplete="off" oninput="chatPtFilter(this.value)" style="margin:10px 0 8px">
-      <div id="chatptlist">${P.map(p => `<div class="card" data-s="${esc((p.name + ' ' + (p.addr || '')).toLowerCase())}" style="padding:10px 12px;cursor:pointer" onclick="go({sheet:null,chatPid:${p.id}})"><div class="row"><div style="color:var(--g)">${ic('pin', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(p.addr || '')}</div></div></div></div>`).join('')}</div>
+      <div id="chatptlist">${P.map(p => `<div class="card" data-s="${esc((p.name + ' ' + (p.addr || '')).toLowerCase())}" style="padding:10px 12px;cursor:pointer" onclick="go({sheet:null,chatPid:${p.id}})"><div class="row"><div style="color:var(--g)">${ic('pin', 22)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}${stB(p)}</div><div class="t2">${esc(p.addr || '')}</div></div></div></div>`).join('')}</div>
       <button class="btn sec" style="margin-top:6px" onclick="go({sheet:null})">Отмена</button>`;
   }
   if (S.sheet === 'deepdate' && S.dd) {
@@ -2586,7 +2589,7 @@ function sheet() {
     let h = `<h2>${esc(cr(S.mc).name)}: добавить адреса на ${WD[S.day]}</h2>`;
     P.slice().sort((a, b) => ({r:0, y:1, g:2})[health(a)] - ({r:0, y:1, g:2})[health(b)]).forEach(p => {
       const by = takenBy(p.id, S.day), on = by === S.mc;
-      h += `<div class="chk ${by && !on ? 'dis' : ''}" onclick="togglePt(${p.id})"><div class="box ${on ? 'on' : ''}">${on ? '✓' : ''}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(p.addr)}${esc(by && !on ? ' · у ' + cr(by).name : '')}</div></div>
+      h += `<div class="chk ${by && !on ? 'dis' : ''}" onclick="togglePt(${p.id})"><div class="box ${on ? 'on' : ''}">${on ? '✓' : ''}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}${stB(p)}</div><div class="t2">${esc(p.addr)}${esc(by && !on ? ' · у ' + cr(by).name : '')}</div></div>
         <span class="dot d${health(p)}" style="margin-top:6px"></span>${needT2(p) ? '<span class="pill warn">тип 2</span>' : ''}</div>`;
     });
     return h + '<button class="btn" style="margin-top:10px" onclick="go({sheet:null})">Готово</button>';
@@ -4148,7 +4151,7 @@ function gsHTML(q) {
   const row = (icon, title, sub, js) => `<div class="card" style="padding:10px 12px;cursor:pointer" onclick="${js}"><div class="row"><div style="color:var(--g)">${ic(icon, 20)}</div><div class="grow"><div class="t1" style="font-size:14px">${title}</div>${sub ? `<div class="t2">${sub}</div>` : ''}</div></div></div>`;
   let h = '';
   const pts = P.filter(p => (p.name + ' ' + (p.addr || '')).toLowerCase().includes(ql)).slice(0, 6);
-  if (pts.length) h += '<h3>Точки</h3>' + pts.map(p => row('pin', esc(p.name), esc(p.addr || ''), `go({sheet:null});openPoint(${p.id})`)).join('');
+  if (pts.length) h += '<h3>Точки</h3>' + pts.map(p => row('pin', esc(p.name) + stB(p), esc(p.addr || ''), `go({sheet:null});openPoint(${p.id})`)).join('');
   const cs = COUR.filter(c => c.active && (c.name + ' ' + (c.login || '')).toLowerCase().includes(ql) && !(S.role === 'cour' && c.id === S.me)).slice(0, 5);
   if (cs.length) h += '<h3>Курьеры</h3>' + cs.map(c => row('user', esc(c.name), 'Открыть чат', `go({sheet:null});openTh('${S.role === 'mgr' ? mkind() + ':' : 'd:'}${c.id}')`)).join('');
   const ms = []; thList().forEach(th => thMsgs(th).forEach(m => { if (!m.del && String(m.text || '').toLowerCase().includes(ql)) ms.push({th, m}); }));
@@ -4384,6 +4387,7 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 #chatin:focus,#chatin:focus-visible{outline:none;box-shadow:none}
 .logout span{max-width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pen{display:inline-flex;vertical-align:-2px;margin-left:6px;color:var(--g);opacity:.85;cursor:pointer;padding:2px}.pen:active{opacity:.5}
+.stb{display:inline-flex;align-items:center;gap:4px;margin-left:7px;padding:2px 9px 2px 6px;border-radius:999px;background:linear-gradient(135deg,rgba(93,255,160,.24),rgba(31,122,69,.34));border:1px solid rgba(93,255,160,.5);color:#c4f7da;font-size:11px;font-weight:700;letter-spacing:.01em;white-space:nowrap;vertical-align:middle;line-height:1.5}.stb svg{flex:none}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .fld{display:flex;align-items:center;gap:8px;min-width:0;background:var(--card2,#16221b);border:1px solid var(--line);border-radius:12px;padding:9px 11px;cursor:pointer;transition:border-color .2s,background .2s}
 .fld:active{background:rgba(93,255,160,.08)}.fld.on{border-color:rgba(93,255,160,.55)}
