@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 184;
+const APP_VERSION = 186;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -455,8 +455,13 @@ function backEnsure() {
 }
 function setBack(p, k, gid, val) { backEnsure(); backOf(p, k)[gid] = val; backSync(p); }
 const baseRound = (g, n) => n <= 0 ? 0 : g.t === 'count' ? Math.ceil(n / 10 - .001) * 10 : (g.u === 'бут' || g.u === 'уп' ? Math.ceil(n - .001) : Math.ceil(n * 2 - .001) / 2);   // нужда есть — везём хотя бы минимальную порцию, а не округляем до нуля
-const needBaseU = (p, g, k) => baseRound(g, Math.max(0, rec(p.units[k], g) - (g.id === 'water' ? 0 : (backOf(p, k)[g.id] || 0))));
-const needBase = (p, g) => multiU(p) ? p.units.reduce((a, _, k) => a + needBaseU(p, g, k), 0) : baseRound(g, Math.max(0, recP(p, g) - (g.id === 'water' ? 0 : (p.back[g.id] || 0))));
+// подтоварка — запасной резерв на точке: станция сама из неё не тратит, курьер берёт оттуда только если что-то забыл привезти.
+// «С базы» = потребность станции (rec, всегда с базы) + пополнение резерва до нормы RES (норму по позициям задаёт менеджер на вкладке «Склад»)
+const RES = {};   // id позиции -> норма резерва на каждой станции
+const resNeedB = (g, back) => g.id === 'water' || !(RES[g.id] > 0) ? 0 : baseRound(g, Math.max(0, RES[g.id] - (back || 0)));
+const resNeedU = (p, g, k) => resNeedB(g, backOf(p, k)[g.id] || 0);
+const needBaseU = (p, g, k) => rec(p.units[k], g) + resNeedU(p, g, k);
+const needBase = (p, g) => { const n = p.units.reduce((a, _, k) => a + needBaseU(p, g, k), 0); return g.t === 'count' ? n : +n.toFixed(1); };
 const deepDays = p => p.deepAt ? Math.max(0, Math.floor((sNow() - p.deepAt) / 864e5)) : p.deep;   // сколько дней назад была генеральная уборка
 const deepLeft = p => DEEP.on ? Math.round(DEEP.mo * 30.4) - deepDays(p) : 9999;   // дней до общего срока (отрицательное — просрочено)
 function deepEnsure() { P.forEach(p => { if (p.deepAt === undefined && p.deep !== undefined) p.deepAt = Math.floor(sNow() / 864e5) * 864e5 - p.deep * 864e5; }); }
@@ -1593,8 +1598,26 @@ function stationBlocks(p) {
 }
 const arrTxt = r => r.arriveU && r.arriveU.length > 1 ? r.arriveU.map((a, k) => 'Ст.' + (k + 1) + ': ' + CLEAN[a.clean] + ', урна ' + Math.round(a.trash * 100) + '%').join('<br>') : 'Чистота: ' + CLEAN[r.arrive.clean] + '<br>Урна: ' + Math.round(r.arrive.trash * 100) + '%';
 const arrPillsR = r => (r.arriveU && r.arriveU.length > 1 ? r.arriveU : [r.arrive]).map((a, k, all) => `<span class="pill ${CCOL[a.clean]}">${all.length > 1 ? 'Ст.' + (k + 1) + ': ' : 'По прибытии: '}${CLEAN[a.clean]}</span><span class="pill ${a.trash >= .75 ? 'warn' : ''}">Урна ${Math.round(a.trash * 100)}%</span>`).join('');
-const baseSummary = (p, k) => { const l = ING.filter(g => g.id !== 'water').map(g => [g, needBaseU(p, g, k)]).filter(x => x[1] > 0), f = (g, n) => (g.t === 'count' ? n : +(+n).toFixed(1)) + ' ' + g.u;
-  return `<div class="tiny" style="margin:0 2px 6px">С базы для этой станции: ${l.length ? `<b style="color:var(--o)">${l.slice(0, 5).map(x => esc(gn(x[0], p).toLowerCase()) + ' ' + f(x[0], x[1])).join(', ')}${l.length > 5 ? ' и ещё ' + (l.length - 5) : ''}</b>` : '<b style="color:var(--g)">везти ничего не нужно</b>'}</div>`; };
+const baseSummary = (p, k) => { const l = ING.filter(g => g.id !== 'water').map(g => [g, +needBaseU(p, g, k).toFixed(1)]).filter(x => x[1] > 0), f = (g, n) => (g.t === 'count' ? n : +(+n).toFixed(1)) + ' ' + g.u;
+  return `<div class="tiny" style="margin:0 2px 6px">С базы для этой станции (потребность и довоз резерва до нормы): ${l.length ? `<b style="color:var(--o)">${l.slice(0, 5).map(x => esc(gn(x[0], p).toLowerCase()) + ' ' + f(x[0], x[1])).join(', ')}${l.length > 5 ? ' и ещё ' + (l.length - 5) : ''}</b>` : '<b style="color:var(--g)">везти ничего не нужно</b>'}</div>`; };
+
+// ----- нормы резерва подтоварки (менеджер) -----
+function resApply(v) { Object.keys(RES).forEach(k => delete RES[k]); if (v && typeof v === 'object') Object.keys(v).forEach(k => { const n = +v[k]; if (ING.some(g => g.id === k) && n > 0 && n <= 100000) RES[k] = +n.toFixed(2); }); }
+const resCard = () => { if (S.role !== 'mgr') return ''; const n = ING.filter(g => g.id !== 'water' && RES[g.id] > 0).length, m = ING.filter(g => g.id !== 'water').length;
+  return `<div class="card"><div class="row"><div class="grow"><div class="t1" style="font-size:14px">Резерв подтоварки</div><div class="t2">${n ? 'Норма задана у ' + n + ' из ' + m + ' позиций' : 'Нормы не заданы: подсказки «с базы» для резерва не показываются'}</div></div><button class="btn sec sm" onclick="resOpen()">Задать нормы</button></div></div>`; };
+function resOpen() { const q = {}; ING.forEach(g => { if (RES[g.id] > 0) q[g.id] = String(RES[g.id]); }); go({sheet: 'resnorm', rn: {q, err: ''}}); }
+function resSheet() {
+  const f = S.rn;
+  return `<h2>Норма резерва подтоварки</h2><div class="tiny" style="margin-bottom:8px">Подтоварка — запасной резерв на точке: курьер берёт из него, только если что-то забыл привезти. Укажите, сколько должно лежать на каждой станции. Пустое поле — резерв не нужен. «С базы» подскажет, сколько довезти до нормы.</div>
+    <div class="card" style="padding:2px 12px">${ING.filter(g => g.id !== 'water').map(g => `<div class="row supr"><div class="grow t1" style="font-size:14px">${esc(g.n)}</div><input class="supq" type="text" inputmode="decimal" placeholder="нет" value="${esc(f.q[g.id] || '')}" oninput="S.rn.q['${g.id}']=this.value"><span class="t2 supu">${g.u}</span></div>`).join('')}</div>
+    ${f.err ? `<div style="color:var(--r);font-size:13px;margin:8px 0">${esc(f.err)}</div>` : ''}
+    <button class="btn" style="margin:10px 0 8px" onclick="resSave()">Сохранить</button><button class="btn sec" onclick="go({sheet:null,rn:null})">Отмена</button>`;
+}
+function resSave() {
+  const f = S.rn, out = {};
+  for (const g of ING.filter(x => x.id !== 'water')) { const raw = String(f.q[g.id] == null ? '' : f.q[g.id]).trim(); if (!raw) continue; const n = supQty(raw); if (isNaN(n) || n > 100000) { f.err = 'Проверьте норму у «' + g.n + '»: нужно число больше нуля'; return render(true); } out[g.id] = n; }
+  resApply(out); go({sheet: null, rn: null, toast: 'Нормы резерва сохранены'});
+}
 function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, feat: '', notes: [], uex: [{feat: '', notes: [], cam: ''}], info: {}, err: ''}}); }
 function nwUnits(d) { const u = S.nw.units, n = Math.max(1, Math.min(PT_MAX_UNITS, u.length + d)); while (u.length < n) u.push(u[u.length - 1] || 'B'); u.length = n; S.nw.uex = S.nw.uex || []; while (S.nw.uex.length < n) S.nw.uex.push({feat: '', notes: []}); S.nw.uex.length = n; render(true); }
 function nwType(i, st) { S.nw.units[i] = st; render(true); }
@@ -1694,7 +1717,7 @@ function pointCard(id) {
   const mg = S.role === 'mgr';
   // у менеджера значения правятся прямо в карточке кнопками − и +
   const stp = (call, val, wk) => `<div class="step"><button onclick="${call},-1)">−</button><span${wk ? ` data-wk="${wk}"` : ''}>${val}</span><button onclick="${call},1)">+</button></div>`;
-  const backRows = k => '<div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = multiU(p) ? needBaseU(p, g, k) : needBase(p, g), have = backOf(p, k)[g.id] || 0; return `<div class="kv"><span>${gn(g, p)}${mg ? ` <span class="pen" onclick="openIng('${g.id}')" title="Изменить название">${ic('edit', 14)}</span>` : ''}${nb > 0 ? `<div style="margin-top:5px"><span class="pill warn">с базы ${nb}</span></div>` : ''}</span><span>${mg ? stp(`mgBackU(${p.id},'${g.id}',${k}`, have + ' ' + g.u, `PB:${p.id}|${k}|${g.id}`) : `<b>${have} ${g.u}</b>`}</span></div>`; }).join('') + '</div>';
+  const backRows = k => '<div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const have = backOf(p, k)[g.id] || 0, nb = resNeedB(g, have); return `<div class="kv"><span>${gn(g, p)}${mg ? ` <span class="pen" onclick="openIng('${g.id}')" title="Изменить название">${ic('edit', 14)}</span>` : ''}${nb > 0 ? `<div style="margin-top:5px"><span class="pill warn">с базы ${nb}</span></div>` : ''}</span><span>${mg ? stp(`mgBackU(${p.id},'${g.id}',${k}`, have + ' ' + g.u, `PB:${p.id}|${k}|${g.id}`) : `<b>${have} ${g.u}</b>`}</span></div>`; }).join('') + '</div>';
   h += '<h3>Остатки на последний визит</h3>';
   p.units.forEach((u, i) => {
     if (p.units.length > 1) h += stnHead(p, i);
@@ -1740,13 +1763,13 @@ function unitTabs(p, key) {
 }
 // подтоварка: B — сколько лежит на точке (по счёту курьера), привезённое с базы по умолчанию = недостающее после использования подтоварки
 const sumD = (v, g) => v.D[v.u][g.id];   // добавлено на текущую станцию
-const broughtOf = (v, g) => v.BR[g.id] !== undefined ? v.BR[g.id] : Math.max(0, +(sumD(v, g) - v.B[g.id]).toFixed(1));
+const broughtOf = (v, g) => v.BR[g.id] !== undefined ? v.BR[g.id] : +(sumD(v, g) + resNeedB(g, v.B[g.id])).toFixed(1);   // по умолчанию привозим всё нужное станции и довозим резерв до нормы: резерв сам не тратится
 function bdAdj(id, d) { if (!S.visit) return; const g = ING.find(x => x.id === id); S.visit.B[id] = Math.max(0, +(S.visit.B[id] + d * stepFor(g)).toFixed(1)); render(true); }
 function brAdj(id, d) { const v = S.visit, g = ING.find(x => x.id === id); v.BR[id] = Math.max(0, +(broughtOf(v, g) + d * stepFor(g)).toFixed(1)); render(true); }
 function backroomHTML(v, quick) {
   let h = '';
   ING.filter(g => g.id !== 'water').forEach(g => {
-    const added = sumD(v, g), fromBack = Math.min(v.B[g.id], added), br = broughtOf(v, g), left = Math.max(0, +(v.B[g.id] + br - added).toFixed(1));
+    const added = sumD(v, g), br = broughtOf(v, g), fromBack = Math.min(v.B[g.id], Math.max(0, +(added - br).toFixed(1))), left = Math.max(0, +(v.B[g.id] + br - added).toFixed(1));
     h += `<div class="card" style="padding:10px 12px"><div class="row"><div class="grow t1" style="font-size:14px">${gn(g, pt(v.pid))}</div><div class="tiny">лежит</div><div class="step"><button onclick="bdAdj('${g.id}',-1)">−</button><span data-wk="B:${g.id}">${v.B[g.id]}</span><button onclick="bdAdj('${g.id}',1)">+</button></div></div>`;
     if (!quick) h += `<div class="row" style="margin-top:6px"><div class="tiny grow">на станции добавлено ${+added.toFixed(1)} ${g.u}, из подтоварки ${+fromBack.toFixed(1)}<br>останется в подтоварке: ${left} ${g.u}</div><div class="tiny">привёз</div><div class="step"><button onclick="brAdj('${g.id}',-1)">−</button><span data-wk="BR:${g.id}">${br}</span><button onclick="brAdj('${g.id}',1)">+</button></div></div>`;
     h += '</div>';
@@ -1784,7 +1807,7 @@ function visitScreen() {
     h += v.quick ? `<button class="btn" style="margin-top:8px" onclick="saveQuick()">Сохранить остатки</button>` : `<button class="btn" style="margin-top:8px" onclick="vs(2)">Далее: подтоварка ▸</button>`;
   }
   if (v.step === 2) {
-    h += `<h3>Шаг 2 · Подтоварка на точке</h3><div class="tiny">Посчитайте, сколько товара лежит в подтоварке, и укажите, сколько привезли с базы. Недостающее считается с учётом подтоварки.</div>` + (p.water ? waterPanel(p, true) : '') + unitTabs(p) + backroomHTML(v, false);
+    h += `<h3>Шаг 2 · Подтоварка на точке</h3><div class="tiny">Подтоварка — запасной резерв на точке. Посчитайте, сколько в ней лежит, и укажите, сколько привезли с базы. Резерв тратится, только если привезли меньше, чем нужно станции.</div>` + (p.water ? waterPanel(p, true) : '') + unitTabs(p) + backroomHTML(v, false);
     h += `<button class="btn" style="margin-top:8px" onclick="vs(3)">Далее: чек-лист ▸</button>`;
   }
   if (v.step === 3) {
@@ -1839,7 +1862,7 @@ function applyStock(v) {
     u.cur[g.id] = g.t === 'count' ? Math.round(now) : Math.round(now / g.cap * 20) / 20;
   }));
   backEnsure();
-  p.units.forEach((u, k) => { const b = backOf(p, k); ING.forEach(g => { const brought = v.BRA[k][g.id] !== undefined ? v.BRA[k][g.id] : Math.max(0, +(v.D[k][g.id] - v.BA[k][g.id]).toFixed(1)); b[g.id] = Math.max(0, +(v.BA[k][g.id] + brought - v.D[k][g.id]).toFixed(1)); }); });
+  p.units.forEach((u, k) => { const b = backOf(p, k); ING.forEach(g => { const brought = v.BRA[k][g.id] !== undefined ? v.BRA[k][g.id] : +(v.D[k][g.id] + resNeedB(g, v.BA[k][g.id])).toFixed(1); b[g.id] = Math.max(0, +(v.BA[k][g.id] + brought - v.D[k][g.id]).toFixed(1)); }); });
   backSync(p);
 }
 function saveQuick() { if (!S.visit) return; applyStock(S.visit); S.visit = null; go({view:null, toast:S.role === 'mgr' ? 'Остатки исправлены' : 'Остатки обновлены, менеджер их видит'}); }
@@ -2312,7 +2335,7 @@ function togglePt(id) {
 function whScreen() {
   const need = whNeed();
   let h = topbar('Склад', 'Количество ингредиентов и потребность недели');
-  h += `<div class="body">${supCard()}<div class="card"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(DEPOT.name)}</div><div class="t2">${esc(DEPOT.addr || 'Адрес базы не указан')}</div>
+  h += `<div class="body">${supCard()}${resCard()}<div class="card"><div class="row"><div style="color:var(--g)">${ic('base', 32)}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(DEPOT.name)}</div><div class="t2">${esc(DEPOT.addr || 'Адрес базы не указан')}</div>
     <div class="tiny">Сюда курьеры приезжают в начале смены за погрузкой</div></div><button class="btn sec sm" onclick="openBase()">Изменить</button></div></div>
     ${P.filter(p => p.water).map(p => `<div class="card"><div class="row"><div style="color:#4fb3ff">${ic('drop', 28)}</div><div class="grow"><div class="t1" style="font-size:14px">Заказ воды: ${esc(p.name)}</div><div class="t2">Получатель во ВКонтакте: ${waterSet(p.id).vk ? esc(waterSet(p.id).vk) : '<span style="color:var(--o)">не указан</span>'}</div></div><button class="btn sec sm" onclick="openWaterSet(${p.id})">Изменить</button></div></div>`).join('')}
     <div class="tiny" style="margin:4px 2px">Потребность считается по всем назначенным адресам до конца недели (с запасом 20%).</div>`;
@@ -3168,6 +3191,7 @@ function sheet() {
   if (S.sheet === 'diag') return diagSheet();
   if (S.sheet === 'fb' && S.fb) return fbSheet();
   if (S.sheet === 'fblist') return fbListSheet();
+  if (S.sheet === 'resnorm' && S.rn) return resSheet();
   if (S.sheet === 'ptnew' && S.nw) return ptNewSheet();
   if (S.sheet === 'ptcoord' && S.cd) return ptCdSheet();
   if (S.sheet === 'ptnotes' && S.pe) return ptNotesSheet();
@@ -3278,13 +3302,16 @@ function sheet() {
   if (S.sheet === 'take') {
     // по прибытии на точку: что именно нужно взять для наполнения этой точки
     const p = pt(S.tk), item = L(c, TODAY).find(x => x.pid === p.id), fmt = (g, n) => (g.t === 'count' ? n : +(+n).toFixed(1)) + ' ' + g.u;
-    const rows = ING.map(g => ({g, need:recP(p, g), nb:needBase(p, g)})).filter(r => r.need > 0);
+    const rows = ING.map(g => ({g, need:recP(p, g), nb:needBase(p, g)})).filter(r => r.need > 0 || r.nb > 0);
     let h = `<h2>Что взять для точки</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)} · ${esc(p.addr)}</div>`;
-    const takeRow = (g, need, back, nb) => `<div class="kv"><span>${gn(g, p)}</span><span><b>${fmt(g, need)}</b>${back > 0 ? ` <span class="tiny">из подтоварки ${fmt(g, Math.min(back, need))}</span>` : ''}${nb > 0 ? ` <span class="pill warn">с базы ${fmt(g, nb)}</span>` : ''}</span></div>`;
-    if (multiU(p)) {   // несколько станций: у каждой своя подтоварка, поэтому и «с базы» считается по каждой
-      h += '<div class="tiny">Нужно для наполнения каждой станции (с запасом 20%). Подтоварка этой станции уже учтена.</div>';
-      p.units.forEach((u, k) => { const ur = ING.map(g => ({g, need: rec(u, g), back: backOf(p, k)[g.id] || 0, nb: needBaseU(p, g, k)})).filter(r => r.need > 0); h += stnHead(p, k) + (ur.length ? '<div class="card">' + ur.map(r => takeRow(r.g, r.need, r.back, r.nb)).join('') + '</div>' : '<div class="card t2">Эту станцию пополнять не нужно: остатков хватает.</div>'); });
-    } else h += rows.length ? '<div class="tiny">Нужно для наполнения станции (с запасом 20%). Подтоварка на точке уже учтена.</div><div class="card">' + rows.map(r => `<div class="kv"><span>${gn(r.g, p)}</span><span><b>${fmt(r.g, r.need)}</b>${p.back[r.g.id] > 0 ? ` <span class="tiny">из подтоварки ${fmt(r.g, Math.min(p.back[r.g.id], r.need))}</span>` : ''}${r.nb > 0 ? ` <span class="pill warn">с базы ${fmt(r.g, r.nb)}</span>` : ''}</span></div>`).join('') + '</div>' : '<div class="card t2">Пополнение не требуется: остатков хватает.</div>';
+    const takeRow = (g, need, res) => `<div class="kv"><span>${gn(g, p)}</span><span>${need > 0 ? `<b>${fmt(g, need)}</b>` : ''}${res > 0 ? ` <span class="tiny">${need > 0 ? '+ ' : ''}в резерв ${fmt(g, res)}</span>` : ''} <span class="pill warn">с базы ${fmt(g, +(need + res).toFixed(1))}</span></span></div>`;
+    if (multiU(p)) {   // несколько станций: у каждой свой резерв, поэтому и «с базы» считается по каждой
+      h += '<div class="tiny">Нужно для наполнения каждой станции (с запасом 20%). Резерв подтоварки (запас на случай, если что-то забыли) довозится до нормы.</div>';
+      p.units.forEach((u, k) => { const ur = ING.map(g => ({g, need: rec(u, g), res: resNeedU(p, g, k)})).filter(r => r.need > 0 || r.res > 0); h += stnHead(p, k) + (ur.length ? '<div class="card">' + ur.map(r => takeRow(r.g, r.need, r.res)).join('') + '</div>' : '<div class="card t2">Эту станцию пополнять не нужно: остатков хватает.</div>'); });
+    } else {
+      const tr = ING.map(g => ({g, need: recP(p, g), res: resNeedU(p, g, 0)})).filter(r => r.need > 0 || r.res > 0);
+      h += tr.length ? '<div class="tiny">Нужно для наполнения станции (с запасом 20%). Резерв подтоварки (запас на случай, если что-то забыли) довозится до нормы.</div><div class="card">' + tr.map(r => takeRow(r.g, r.need, r.res)).join('') + '</div>' : '<div class="card t2">Пополнение не требуется: остатков хватает.</div>';
+    }
     if (item && item.type >= 2) h += `<div class="card"><div class="t1" style="font-size:14px">Для мойки (${item.type === 3 ? 'генеральная уборка' : 'тип 2'})</div><div class="t2">Моющее средство, чистящие таблетки, ветошь, перчатки, запасные комплекты деталей</div></div>`;
     return h + `<button class="btn" style="margin-top:8px" onclick="go({sheet:null});startVisit(${p.id},false)">Начать визит ▸</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
   }
@@ -3854,7 +3881,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, FB, SUP, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, AMORT, POL, CL, CHKX: chkxOut(), ex2: 1,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, FB, SUP, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, AMORT, POL, CL, CHKX: chkxOut(), RES, ex2: 1,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -3866,7 +3893,7 @@ function restoreData(txt) {
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
   replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(FB, d.FB || []); replaceArr(SUP, d.SUP || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
-  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP); if (d.GSM) Object.assign(GSM, d.GSM); replaceArr(AMORT, d.AMORT || []); replaceArr(CL, (d.CL || []).filter(clOk)); chkxApply(d.CHKX); if (d.POL) Object.assign(POL, d.POL);
+  nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP); if (d.GSM) Object.assign(GSM, d.GSM); replaceArr(AMORT, d.AMORT || []); replaceArr(CL, (d.CL || []).filter(clOk)); chkxApply(d.CHKX); resApply(d.RES); if (d.POL) Object.assign(POL, d.POL);
   if (d.NS) { Object.assign(NS, d.NS); } if (d.NST) Object.assign(NST, d.NST);
   replaceObj(GSD, d.GSD || {}); replaceObj(OFF, d.OFF || {}); replaceObj(PR, d.PR || {});
   if (d.GCS) { GCS.me = d.GCS.me || null; GCS.all = d.GCS.all || {}; GCS.log = d.GCS.log || []; }
@@ -3993,7 +4020,7 @@ function api(path, body) {
   }), () => { throw new Error('Нет связи с сервером'); });
 }
 function docsFromState() {
-  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX, DEEP, GSM, AMORT, POL, CL, CHKX: chkxOut()}}, ld = {};
+  const d = {wh:WH, core:{CITY, DEPOT, WATER, MGRNAME:MGR.name, MGR2NAME:MGR2.name, LSEED, INGN, INGX, DEEP, GSM, AMORT, POL, CL, CHKX: chkxOut(), RES}}, ld = {};
   Object.keys(AV).forEach(k => { d['av/' + k] = AV[k]; });
   Object.keys(EX).forEach(k => { d['ex/' + k] = EX[k]; });
   Object.keys(INFO).forEach(k => { d['info/' + k] = INFO[k]; });
@@ -4072,7 +4099,7 @@ function applyDoc(k, v, dele) {
     COUR.forEach(c => ensureCour(c.id));
     if (!cr(S.mc) && COUR.length) S.mc = COUR[0].id;
   } else if (h === 'core') {
-    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); if (v.DEEP && typeof v.DEEP === 'object') { DEEP.on = v.DEEP.on !== false; DEEP.mo = Math.max(1, Math.min(12, +v.DEEP.mo || 3)); } if (v.GSM && typeof v.GSM === 'object') { GSM.price = Math.max(0, +v.GSM.price || 0); GSM.formula = String(v.GSM.formula || GSM_DEF).slice(0, 200); GSM.back = v.GSM.back !== false; } if (Array.isArray(v.AMORT)) replaceArr(AMORT, v.AMORT.filter(a => a && typeof a.n === 'string' && a.m > 0).slice(0, 60)); if (Array.isArray(v.CL)) replaceArr(CL, v.CL.filter(clOk).slice(0, CL_MAX)); chkxApply(v.CHKX); if (v.POL && typeof v.POL === 'object') { POL.op = String(v.POL.op || '').slice(0, 120); POL.contact = String(v.POL.contact || '').slice(0, 120); } }
+    if (v) { CITY = v.CITY || ''; Object.assign(DEPOT, v.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, v.WATER); if (v.MGRNAME) MGR.name = v.MGRNAME; if (v.MGR2NAME) MGR2.name = v.MGR2NAME; if (v.LSEED) LSEED = true; ingExtraApply(v.INGX); ingApply(v.INGN); if (v.DEEP && typeof v.DEEP === 'object') { DEEP.on = v.DEEP.on !== false; DEEP.mo = Math.max(1, Math.min(12, +v.DEEP.mo || 3)); } if (v.GSM && typeof v.GSM === 'object') { GSM.price = Math.max(0, +v.GSM.price || 0); GSM.formula = String(v.GSM.formula || GSM_DEF).slice(0, 200); GSM.back = v.GSM.back !== false; } if (Array.isArray(v.AMORT)) replaceArr(AMORT, v.AMORT.filter(a => a && typeof a.n === 'string' && a.m > 0).slice(0, 60)); if (Array.isArray(v.CL)) replaceArr(CL, v.CL.filter(clOk).slice(0, CL_MAX)); chkxApply(v.CHKX); resApply(v.RES); if (v.POL && typeof v.POL === 'object') { POL.op = String(v.POL.op || '').slice(0, 120); POL.contact = String(v.POL.contact || '').slice(0, 120); } }
   } else if (h === 'av') {
     if (dele || !v) delete AV[p[1]]; else AV[p[1]] = v;
   } else if (h === 'ex') {
@@ -4145,7 +4172,7 @@ function applyDoc(k, v, dele) {
 function resetFromDocs(docs) { TP_LOADING = true; try { resetFromDocs0(docs); } finally { TP_LOADING = false; } }
 function resetFromDocs0(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
-  [CHAT, CHATN, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(MM, []); replaceArr(FB, []); replaceArr(SUP, []); replaceArr(CL, []); chkxApply(null); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
+  [CHAT, CHATN, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(MM, []); replaceArr(FB, []); replaceArr(SUP, []); replaceArr(CL, []); chkxApply(null); resApply(null); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
   NS.off = []; NS.q = {on: false, from: 22, to: 8}; NS.ld = false; GCS.me = null; GCS.all = {}; GCS.log = []; NST.s = {}; Object.keys(GSD).forEach(k => delete GSD[k]); Object.keys(OFF).forEach(k => delete OFF[k]);
   SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
@@ -6072,6 +6099,17 @@ function selfTest() {
         const cof = ING.find(g => g.id === 'coffee'), cup = ING.find(g => g.id === 'cup'), mlk = ING.find(g => g.id === 'milk');
         eq(baseRound(cof, 0.2), 0.5, 'мелкая нужда в килограммах не пропадает'); eq(baseRound(cup, 4), 10, 'мелкая нужда в штуках не пропадает'); eq(baseRound(mlk, 0), 0, 'нет нужды — нет подписи'); eq(baseRound(cof, 0.5), 0.5, 'ровно полкило'); const eu = newUnit('A', 0); eu.loc = P[0]; eq(rec(eu, cof) > 0, true, 'у пустой позиции всегда есть рекомендация'); eq(rec(eu, cup) > 0, true, 'у пустых стаканчиков тоже'); eq(baseRound(cup, 20), 20, 'ровно 20 штук');
         const p = P[0]; openPtName(p.id); eq(sheetFam(), 'ptname', 'окно изменения точки'); go({sheet: 'ptunitdel', pu: {pid: p.id, i: 0}}); eq(sheetFam(), 'ptname', 'вложенное окно того же семейства'); go({sheet: null, pu: null, pn: null}); eq(sheetFam(), null, 'после закрытия семейства нет');
+      });
+      T('резерв подтоварки: норма, «с базы» и визит', () => {
+        const cup = ING.find(g => g.id === 'cup'), p = P[0]; backEnsure(); const u = p.units[0], saveCur = u.cur.cup, saveBack = backOf(p, 0).cup, saveRes = JSON.stringify(RES);
+        resApply({}); u.cur.cup = cup.cap; backOf(p, 0).cup = 0; eq(needBaseU(p, cup, 0), 0, 'станция полная, нормы нет: везти нечего');
+        resApply({cup: 100}); eq(needBaseU(p, cup, 0), 100, 'станция полная, резерв 0: довезти до нормы');
+        backOf(p, 0).cup = 40; eq(needBaseU(p, cup, 0), 60, 'в резерве 40: довезти 60'); backOf(p, 0).cup = 150; eq(needBaseU(p, cup, 0), 0, 'резерв больше нормы: везти нечего'); eq(resNeedB(cup, 150), 0, 'пополнение резерва не нужно');
+        u.cur.cup = 0; backOf(p, 0).cup = 150; eq(needBaseU(p, cup, 0) > 0, true, 'пустая станция: потребность берётся с базы, резерв её не покрывает');
+        const v = {pid: p.id, A: p.units.map(x => Object.assign({}, x.cur)), D: p.units.map(() => { const d = {}; ING.forEach(g => { d[g.id] = 0; }); return d; }), BA: p.units.map((x, k) => Object.assign({}, backOf(p, k), {water: 0})), BRA: p.units.map(() => ({}))};
+        v.D[0].cup = 50; v.BA[0].cup = 30; applyStock(v); eq(backOf(p, 0).cup, 100, 'привезено по умолчанию станции 50 и довоз резерва 70: в резерве норма');
+        resApply({}); u.cur.cup = saveCur; backOf(p, 0).cup = saveBack; backSync(p); resApply(JSON.parse(saveRes));
+        S.rn = {q: {}, err: ''}; go({sheet: 'resnorm', rn: {q: {cup: '100'}, err: ''}}); resSave(); eq(RES.cup, 100, 'норма сохранена'); go({sheet: 'resnorm', rn: {q: {cup: 'abc'}, err: ''}}); resSave(); eq(!!S.rn.err, true, 'неверная норма отклонена'); eq(RES.cup, 100, 'прежняя норма цела'); resApply(JSON.parse(saveRes)); go({sheet: null, rn: null});
       });
       T('подтоварка у каждой станции', () => {
         const n = P.length; S.nw = {name: 'Подтоварка станций', addr: 'Тестовая 7', win: '', units: ['A', 'B'], lat: null, lon: null, uex: [{feat: '', notes: []}, {feat: '', notes: []}], info: {}, err: ''};
