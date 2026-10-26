@@ -1,9 +1,9 @@
 {
-    "content":  150,
+    "content":  151,
     "apk":  22,
-    "notes":  "Убрана оранжевая подсветка у всех полей ввода.",
+    "notes":  "Кнопка с жучком: «Нашли ошибку» и «Предложение» для Техподдержки; окно профиля не прыгает после «Проверить обновления».",
     "contentFile":  "index.html",
-    "contentSha256":  "f32c58c1bb53f8fc9ec379074387b7f384dd72cb275a5bf89b5eeb9969ec73f7",
+    "contentSha256":  "87a331005b9335701690ed6d2dd1005f99643bca8188e43d2caaab6fd3abcfb2",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

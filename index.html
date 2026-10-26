@@ -225,7 +225,7 @@ input[type=text],input[type=password]{border-radius:12px;border-color:rgba(255,2
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 150;
+const APP_VERSION = 151;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -282,6 +282,7 @@ const ICONS = {
   search:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
   share:'<path d="M12 15V3.5M8 7.5l4-4 4 4"/><path d="M5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12"/>',
   edit:'<path d="M4 20l1-4.2L16.3 4.5a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.2 19z"/><path d="M14.5 6.3l3.2 3.2"/>',
+  bug:'<path d="M9 8.6a3 3 0 0 1 6 0"/><rect x="7" y="8.6" width="10" height="10.6" rx="5"/><path d="M12 9.2v10M7 13.2H3.4M17 13.2h3.6M7.7 10.4 5 8.6M16.3 10.4 19 8.6M7.7 17.2 5 19M16.3 17.2l2.7 1.8M10.2 4.4 9 2.8M13.8 4.4 15 2.8"/>',
   rxup:'<path d="M3.5 11h3.2v9H3.5z"/><path d="M6.7 11.5l3.6-7c1.5-.2 2.6.8 2.6 2.2V9.5h5.6a1.9 1.9 0 0 1 1.9 2.2l-1.2 6.7a2.2 2.2 0 0 1-2.1 1.8H6.7"/>',
   rxdown:'<g transform="rotate(180 12 12)"><path d="M3.5 11h3.2v9H3.5z"/><path d="M6.7 11.5l3.6-7c1.5-.2 2.6.8 2.6 2.2V9.5h5.6a1.9 1.9 0 0 1 1.9 2.2l-1.2 6.7a2.2 2.2 0 0 1-2.1 1.8H6.7"/></g>',
   rxsmile:'<circle cx="12" cy="12" r="9"/><path d="M7.4 12.6h9.2a4.6 4.6 0 0 1-9.2 0z" fill="currentColor" fill-opacity=".25"/><path d="M7.8 9.6c.5-.9 1.4-.9 1.9 0M14.3 9.6c.5-.9 1.4-.9 1.9 0"/>',
@@ -753,7 +754,7 @@ function popRead(id) { const n = NOTIFS.find(x => sameId(x.id, id)); if (n) n.re
 function popHTML() {
   const n = POP !== null && NOTIFS.find(x => sameId(x.id, POP));
   if (!n || n.read || S.shade || !S.role) return '';
-  const chat = n.kind === 'chat', ico = n.kind === 'photo' ? 'camera' : n.kind === 'ok' ? 'check' : chat ? 'chat' : n.kind === 'loc' ? 'pin' : n.kind === 'water' ? 'drop' : n.kind === 'move' ? 'move' : 'warn';
+  const chat = n.kind === 'chat', ico = n.kind === 'photo' ? 'camera' : n.kind === 'ok' ? 'check' : chat ? 'chat' : n.kind === 'loc' ? 'pin' : n.kind === 'water' ? 'drop' : n.kind === 'move' ? 'move' : n.kind === 'fb' ? 'bug' : 'warn';
   return `<div id="pop" style="position:absolute;left:10px;right:10px;top:calc(8px + env(safe-area-inset-top));z-index:12;background:#16231c;border:1px solid var(--g);border-radius:16px;padding:10px 12px;box-shadow:0 8px 28px rgba(0,0,0,.55)">
     <div class="row" style="align-items:flex-start"><div style="color:var(--g)">${ic(ico, 22)}</div><div class="grow" onclick="popHide();${chat ? `openTh('${n.th || 'm:' + n.cid}')` : 'go({shade:true})'}" style="cursor:pointer"><div class="t1" style="font-size:14px">${esc(n.text)}</div></div><button class="btn sec sm" style="padding:4px 8px" onclick="popHide()">${ic('x', 14)}</button></div>
     ${chat && n.md && mdOk(n.md) ? `<div style="margin-top:8px">${mdHTML({md: n.md})}</div>` : ''}
@@ -767,7 +768,7 @@ function popHTML() {
   else h += '<div class="tiny" style="margin-bottom:6px">Смахните уведомление в сторону, чтобы убрать его.</div>';
   list.forEach(n => {
     const r = n.rvId ? reviews.find(x => x.id === n.rvId) : null, p = r ? pt(r.pid) : null;
-    h += `<div class="card ncard" data-id="${n.id}" style="touch-action:pan-y;${n.read ? '' : 'border-color:var(--g)'}"><div class="row" style="align-items:flex-start"><div style="color:${n.kind === 'redo' ? 'var(--o)' : 'var(--g)'}">${ic(n.kind === 'photo' ? 'camera' : n.kind === 'ok' ? 'check' : n.kind === 'chat' ? 'chat' : n.kind === 'loc' ? 'pin' : n.kind === 'water' ? 'drop' : n.kind === 'move' ? 'move' : 'warn', 24)}</div>
+    h += `<div class="card ncard" data-id="${n.id}" style="touch-action:pan-y;${n.read ? '' : 'border-color:var(--g)'}"><div class="row" style="align-items:flex-start"><div style="color:${n.kind === 'redo' ? 'var(--o)' : 'var(--g)'}">${ic(n.kind === 'photo' ? 'camera' : n.kind === 'ok' ? 'check' : n.kind === 'chat' ? 'chat' : n.kind === 'loc' ? 'pin' : n.kind === 'water' ? 'drop' : n.kind === 'move' ? 'move' : n.kind === 'fb' ? 'bug' : 'warn', 24)}</div>
       <div class="grow"><div class="t1" style="font-size:14px">${esc(n.text)}</div><div class="t2">${n.t}${n.read ? '' : ` · <span style="color:var(--g);cursor:pointer" onclick="markRead('${n.id}')">Прочитано</span>`}</div></div></div>`;
     if (r) {
       h += `<div class="row" style="margin-top:8px;align-items:flex-start"><div class="photo" style="width:64px;height:100px">${((r.photos && r.photos[0]) || r.photo) ? ((r.photos && r.photos[0]) || r.photo).svg : exHTML(pst(p))}</div>
@@ -777,11 +778,12 @@ function popHTML() {
         ? `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="rv(${r.id},'ok')">Принять</button><button class="btn sec sm" onclick="askRedo(${r.id})">Переснять</button><button class="btn sec sm" onclick="askComment(${r.id})">${ic('chat', 15)} Комментарий</button><button class="btn sec sm" onclick="closeShade();go({tab:'mgr',view:null})">Открыть</button></div>`
         : `<div style="margin-top:8px"><span class="pill ${r.status === 'ok' ? 'ok' : 'bad'}">${r.status === 'ok' ? 'принято' : 'отправлено на пересъёмку'}</span></div>`;
     }
+    if (n.kind === 'fb' && fbSupport()) h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="closeShade();go({sheet:'fblist',fbf:'new'})">Открыть обращения</button></div>`;
     if (n.kind === 'redo') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="closeShade();openPoint(${n.pid})">Открыть точку</button></div>`;
     if (n.kind === 'chat' && n.md && mdOk(n.md)) h += `<div style="margin-top:8px">${mdHTML({md: n.md})}</div>`;
     if (n.kind === 'chat') h += `<div class="row" style="margin-top:8px"><input type="text" id="nr${n.id}" placeholder="Быстрый ответ" autocomplete="off" value="${esc(S.nr && sameId(S.nr.id, n.id) ? S.nr.text : '')}" oninput="S.nr={id:'${n.id}',text:this.value}" onkeydown="if(event.key==='Enter')replyNotif('${n.id}')" style="margin:0"><button class="btn sm" onclick="replyNotif('${n.id}')">${ic('send', 17)}</button></div><div class="btns" style="margin:8px 0 0"><button class="btn sec sm" onclick="openTh('${n.th || 'm:' + n.cid}')">Открыть чат</button>${n.read ? '' : `<button class="btn sec sm" onclick="markRead('${n.id}')">${ic('check', 15)} Отметить прочитанным</button>`}</div>`;
     if (n.kind === 'move' && n.mvId) { const m = MV.find(x => x.id === n.mvId); if (m && m.status === 'pending' && S.role === 'mgr') h += `<div class="btns" style="margin-bottom:0"><button class="btn sm" onclick="mvApprove('${m.id}')">Принять</button><button class="btn sec sm" onclick="mvDecline('${m.id}')">Отклонить</button></div>`; else if (m && m.status !== 'pending') h += `<div style="margin-top:8px"><span class="pill ${m.status === 'ok' ? 'ok' : 'bad'}">${m.status === 'ok' ? 'принято' : 'отклонено'}</span></div>`; }
-    if (!n.read && ['loc', 'warn', 'ok', 'water'].includes(n.kind)) h += `<div class="btns" style="margin:8px 0 0"><button class="btn sec sm" onclick="markRead('${n.id}')">${ic('check', 15)} Отметить прочитанным</button></div>`;
+    if (!n.read && ['loc', 'warn', 'ok', 'water', 'fb'].includes(n.kind)) h += `<div class="btns" style="margin:8px 0 0"><button class="btn sec sm" onclick="markRead('${n.id}')">${ic('check', 15)} Отметить прочитанным</button></div>`;
     h += '</div>';
   });
   return h + '<div class="grab up" id="grabup"><i></i></div></div></div>';
@@ -1598,6 +1600,89 @@ function amScreen() {
   return h + '<div class="tiny">Месячная сумма делится на недели (×12 ÷ 52) и входит в недельную выплату вместе с ГСМ. Она начисляется независимо от числа рабочих дней.</div></div>';
 }
 
+/* ===================== ОБРАЩЕНИЯ В ТЕХПОДДЕРЖКУ: «Нашли ошибку» и «Предложение» ===================== */
+// получает их только основной менеджер (Техподдержка); остальные только отправляют
+const FB = [];
+const fbSupport = () => S.role === 'mgr' && mkey() === 'mgr';
+const FB_AREAS = ['Кнопка', 'Окно', 'Список', 'Поле ввода', 'Фото и камера', 'Карта и навигатор', 'Уведомления', 'Текст', 'Анимация', 'Прокрутка', 'Другое'];
+const fbTabs = () => (TABS[S.role] || []).map(t => t[2]).concat(['Профиль', 'Вход', 'Другое']);
+function fbOpen(t) {
+  const cur = (TABS[S.role] || []).find(x => x[0] === S.tab), pn = S.view && S.view.type === 'point' && pt(S.view.id) ? pt(S.view.id).name : '';
+  go({sheet: 'fb', fb: {t: t === 'idea' ? 'idea' : 'bug', tab: cur ? cur[2] : '', areas: [], where: '', text: '', expect: '', freq: '', sev: '', title: '', why: '', who: '', imp: '', type: '', shots: [], busy: false, err: '', org: {screen: S.view ? S.view.type : S.tab, obj: pn}}});
+}
+const fbSet = (k, v) => { if (!S.fb) return; S.fb[k] = S.fb[k] === v ? '' : v; render(true); };
+const fbArea = a => { const f = S.fb; if (!f) return; const i = f.areas.indexOf(a); if (i >= 0) f.areas.splice(i, 1); else f.areas.push(a); render(true); };
+const fbShot = () => { const f = S.fb; if (f && f.shots.length < 3) pickImage(1000, d => { f.shots.push(d); render(true); }); };
+const fbUnshot = i => { S.fb.shots.splice(i, 1); render(true); };
+function fbDev() { const u = navigator.userAgent; return (/Android/.test(u) ? 'Android' : /iPhone|iPad|iPod/.test(u) ? 'iOS' : 'компьютер') + (window.AndroidBridge ? ' · приложение' : ' · браузер'); }
+async function fbSend() {
+  const f = S.fb; if (!f || f.busy) return;
+  if (f.t === 'bug' && f.text.trim().length < 10) { f.err = 'Опишите, что случилось: хотя бы пару предложений'; return render(true); }
+  if (f.t === 'idea' && (f.title.trim().length < 3 || f.text.trim().length < 10)) { f.err = 'Напишите название идеи и коротко опишите её'; return render(true); }
+  if (!SRV || !SY.token) { f.err = 'Отправка работает при подключении к серверу'; return render(true); }
+  f.busy = true; f.err = ''; render(true);
+  try {
+    const files = [];
+    for (const d of f.shots) { const b = await (await fetch(d)).blob(); files.push(await uploadMedia(b, 'image/jpeg')); }
+    await api('/api/feedback', {kind: f.t, tab: f.tab, areas: f.areas, where: f.where, text: f.text, expect: f.expect, freq: f.freq, sev: f.sev, title: f.title, why: f.why, who: f.who, imp: f.imp, type: f.type, files, ctx: {ver: String(APP_VERSION), screen: f.org.screen, obj: f.org.obj, dev: fbDev()}});
+    go({sheet: null, fb: null, toast: 'Спасибо! Сообщение отправлено в Техподдержку'});
+  } catch (e) { f.busy = false; f.err = e.message || 'Не удалось отправить'; render(true); }
+}
+function fbBlock() {
+  const n = FB.filter(x => x.status !== 'done').length;
+  return `<h3>Связь с Техподдержкой</h3><div class="card fbcard"><div class="row"><div class="fbic">${ic('bug', 26)}</div><div class="grow"><div class="t1" style="font-size:14px">Нашли ошибку или есть идея?</div><div class="t2">Расскажите: сообщение получит только Техподдержка</div></div></div>
+    <div class="btns" style="margin:12px 0 0"><button class="btn sm" onclick="fbOpen('bug')">${ic('bug', 15)} Нашли ошибку</button><button class="btn sec sm" onclick="fbOpen('idea')">${ic('chat', 15)} Предложение</button>${fbSupport() ? `<button class="btn sec sm" onclick="go({sheet:'fblist',fbf:'new'})">Обращения${n ? ' · ' + n : ''}</button>` : ''}</div></div>`;
+}
+function fbSheet() {
+  const f = S.fb, bug = f.t === 'bug', chip = (l, on, c) => `<button class="${on ? 'on' : ''}" onclick="${c}">${esc(l)}</button>`, row = (arr, key) => `<div class="chips" style="flex-wrap:wrap;margin:4px 0">${arr.map(x => chip(x, f[key] === x, `fbSet('${key}','${x}')`)).join('')}</div>`;
+  let h = `<div class="fbh"><div class="fbic">${ic('bug', 26)}</div><div class="grow"><h2 style="margin:0">${bug ? 'Нашли ошибку' : 'Предложение'}</h2><div class="tiny">Сообщение получит только Техподдержка</div></div></div>
+    <div class="seg" style="margin:10px 0 4px"><button class="${bug ? 'on' : ''}" onclick="S.fb.t='bug';render(true)">Нашли ошибку</button><button class="${bug ? '' : 'on'}" onclick="S.fb.t='idea';render(true)">Предложение</button></div>`;
+  h += `<div class="fbl">${bug ? 'ГДЕ ЭТО ПРОИЗОШЛО' : 'К ЧЕМУ ОТНОСИТСЯ'}</div><div class="chips" style="flex-wrap:wrap;margin:4px 0">${fbTabs().concat(bug ? [] : ['Новый раздел']).map(x => chip(x, f.tab === x, `fbSet('tab','${x}')`)).join('')}</div>`;
+  if (bug) {
+    h += `<div class="fbl">ЧТО ИМЕННО (МОЖНО НЕСКОЛЬКО)</div><div class="chips" style="flex-wrap:wrap;margin:4px 0">${FB_AREAS.map(x => chip(x, f.areas.includes(x), `fbArea('${x}')`)).join('')}</div>
+      <div class="fbl">НАЗВАНИЕ КНОПКИ ИЛИ ОКНА</div><input type="text" maxlength="120" placeholder="Например: кнопка «Принять» или окно «Профиль»" value="${esc(f.where)}" oninput="S.fb.where=this.value" style="margin:4px 0">
+      <div class="fbl">ЧТО СЛУЧИЛОСЬ</div><textarea class="fbta" rows="4" maxlength="4000" placeholder="Что нажали и что произошло. Чем подробнее, тем быстрее исправим" oninput="S.fb.text=this.value">${esc(f.text)}</textarea>
+      <div class="fbl">КАК ДОЛЖНО БЫТЬ</div><textarea class="fbta" rows="2" maxlength="2000" placeholder="Что вы ожидали увидеть (необязательно)" oninput="S.fb.expect=this.value">${esc(f.expect)}</textarea>
+      <div class="fbl">КАК ЧАСТО</div>${row(['Каждый раз', 'Иногда', 'Один раз'], 'freq')}
+      <div class="fbl">НАСКОЛЬКО МЕШАЕТ</div>${row(['Мелочь', 'Мешает работать', 'Работать нельзя'], 'sev')}`;
+  } else {
+    h += `<div class="fbl">ЧТО ПРЕДЛАГАЕТЕ</div>${row(['Новая функция', 'Улучшить имеющееся', 'Внешний вид', 'Другое'], 'type')}
+      <div class="fbl">НАЗВАНИЕ ИДЕИ</div><input type="text" maxlength="120" placeholder="Коротко: например, «Светлая тема»" value="${esc(f.title)}" oninput="S.fb.title=this.value" style="margin:4px 0">
+      <div class="fbl">ОПИСАНИЕ</div><textarea class="fbta" rows="4" maxlength="4000" placeholder="Как это должно работать, где находиться, какие кнопки нужны" oninput="S.fb.text=this.value">${esc(f.text)}</textarea>
+      <div class="fbl">ЗАЧЕМ ЭТО НУЖНО</div><textarea class="fbta" rows="2" maxlength="2000" placeholder="Какую проблему решит (необязательно)" oninput="S.fb.why=this.value">${esc(f.why)}</textarea>
+      <div class="fbl">КОМУ ПОЛЕЗНО</div>${row(['Курьерам', 'Менеджерам', 'Всем'], 'who')}
+      <div class="fbl">НАСКОЛЬКО ВАЖНО</div>${row(['Было бы здорово', 'Нужно', 'Очень нужно'], 'imp')}`;
+  }
+  h += `<div class="fbl">СКРИНШОТ (ДО 3 ШТУК, НЕОБЯЗАТЕЛЬНО)</div><div class="row" style="gap:8px;align-items:flex-start;flex-wrap:wrap">${f.shots.map((d, i) => `<div class="fbsh"><img src="${d}" alt=""><b onclick="fbUnshot(${i})">×</b></div>`).join('')}${f.shots.length < 3 ? `<button class="btn sec sm" style="height:92px;width:64px;padding:0;flex-direction:column;display:flex;align-items:center;justify-content:center;gap:4px" onclick="fbShot()">${ic('plus', 20)}<span style="font-size:11px">Фото</span></button>` : ''}</div>
+    <div class="tiny" style="margin:12px 0 8px">Вместе с сообщением уйдут ваше имя, версия приложения (${APP_VERSION}), устройство и экран, с которого вы открыли форму.</div>
+    ${f.err ? `<div style="color:var(--r);font-size:13px;margin:0 0 8px">${esc(f.err)}</div>` : ''}
+    <button class="btn" style="margin-bottom:8px" ${f.busy ? 'disabled' : ''} onclick="fbSend()">${f.busy ? 'Отправляем…' : 'Отправить Техподдержке'}</button><button class="btn sec" onclick="go({sheet:null,fb:null})">Отмена</button>`;
+  return h;
+}
+const fbDone = id => { const f = FB.find(x => sameId(x.id, id)); if (f) { f.status = f.status === 'done' ? 'new' : 'done'; render(true); } };
+function fbDel(id) { const i = FB.findIndex(x => sameId(x.id, id)); if (i < 0) return; const it = FB.splice(i, 1)[0]; render(true); undoPush('Обращение удалено', () => { FB.splice(Math.min(i, FB.length), 0, it); render(true); }); }
+function fbListSheet() {
+  if (!fbSupport()) return '<h2>Обращения</h2><div class="card t2">Обращения видит только Техподдержка.</div><button class="btn sec" onclick="go({sheet:null})">Закрыть</button>';
+  const all = FB.slice().sort((a, b) => b.ts - a.ts), nw = all.filter(x => x.status !== 'done'), list = S.fbf === 'all' ? all : nw;
+  let h = `<div class="fbh"><div class="fbic">${ic('bug', 26)}</div><div class="grow"><h2 style="margin:0">Обращения</h2><div class="tiny">Ошибки и предложения от курьеров и менеджеров</div></div></div>
+    <div class="seg" style="margin:10px 0"><button class="${S.fbf === 'all' ? '' : 'on'}" onclick="go({fbf:'new'})">Новые · ${nw.length}</button><button class="${S.fbf === 'all' ? 'on' : ''}" onclick="go({fbf:'all'})">Все · ${all.length}</button></div>`;
+  if (!list.length) h += rvEmpty(S.fbf === 'all' ? 'Обращений пока нет' : 'Новых обращений нет');
+  list.forEach(x => {
+    const bug = x.kind === 'bug', fr = x.from || {}, d = new Date(x.ts), c = x.ctx || {};
+    const pills = [x.tab, ...(x.areas || []), x.freq, x.sev, x.type, x.who && 'Для: ' + x.who, x.imp].filter(Boolean).map(t => `<span class="pill" style="background:#1d2b23">${esc(t)}</span>`).join(' ');
+    h += `<div class="card" style="${x.status === 'done' ? 'opacity:.6' : 'border-color:rgba(93,255,160,.35)'}"><div class="row"><span class="pill ${bug ? 'bad' : 'blue'}">${bug ? 'Ошибка' : 'Предложение'}</span><div class="grow tiny" style="text-align:right">${d.getDate()} ${MN[d.getMonth()]}, ${hm(x.ts)}</div></div>
+      <div class="t1" style="font-size:14px;margin-top:8px">${esc(fr.name || 'Пользователь')} <span class="tiny">${fr.role === 'mgr' ? 'менеджер' : 'курьер'}</span></div>
+      ${x.title ? `<div class="t1" style="font-size:15px;margin-top:4px">${esc(x.title)}</div>` : ''}${x.where ? `<div class="t2">${esc(x.where)}</div>` : ''}
+      ${pills ? `<div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">${pills}</div>` : ''}
+      <div style="white-space:pre-wrap;font-size:14px;margin-top:8px">${esc(x.text)}</div>
+      ${x.expect ? `<div class="tiny" style="margin-top:8px">Как должно быть</div><div style="white-space:pre-wrap;font-size:13px">${esc(x.expect)}</div>` : ''}${x.why ? `<div class="tiny" style="margin-top:8px">Зачем нужно</div><div style="white-space:pre-wrap;font-size:13px">${esc(x.why)}</div>` : ''}
+      ${(x.files || []).length ? `<div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap">${x.files.map(f => `<div class="mph" data-mf="${esc(f)}" data-mk="photo" style="width:96px;aspect-ratio:.7;border-radius:12px" onclick="mediaView('${esc(f)}','photo')"><span class="tiny" style="opacity:.6">Загрузка…</span></div>`).join('')}</div>` : ''}
+      <div class="tiny" style="margin-top:8px">${[c.ver && 'версия ' + c.ver, c.dev, c.screen && 'экран: ' + c.screen, c.obj].filter(Boolean).map(esc).join(' · ')}</div>
+      <div class="btns" style="margin:10px 0 0"><button class="btn sm" onclick="fbDone('${x.id}')">${x.status === 'done' ? 'Вернуть в новые' : ic('check', 15) + ' Решено'}</button><button class="btn sec sm" style="color:#ffb0b0" onclick="fbDel('${x.id}')">${ic('trash', 15)} Удалить</button></div></div>`;
+  });
+  return h + '<button class="btn sec" style="margin-top:6px" onclick="go({sheet:null})">Закрыть</button><div class="tiny" style="margin-top:8px">Скриншоты хранятся 30 дней, текст обращений полгода.</div>';
+}
+
 /* ===================== ГСМ: компенсация за километраж ===================== */
 // настройки задаёт менеджер: цена за километр, формула (её можно менять вручную) и считать ли возвращение на базу; хранятся в документе core
 const GSM_DEF = 'км * цена';
@@ -2374,6 +2459,8 @@ function sheet() {
       <button class="btn" style="margin-bottom:8px" onclick="savePtName()">Сохранить</button>
       <button class="btn sec" onclick="go({sheet:null,pn:null})">Отмена</button>`;
   }
+  if (S.sheet === 'fb' && S.fb) return fbSheet();
+  if (S.sheet === 'fblist') return fbListSheet();
   if (S.sheet === 'dpick' && S.dp) {
     const f = S.dp, cur = (S.af || {})[f.k] || '', first = (new Date(f.y, f.m, 1).getDay() + 6) % 7, dim = new Date(f.y, f.m + 1, 0).getDate(), tk = dKey(Date.now());
     let cells = ''; for (let i = 0; i < first; i++) cells += '<button class="e" disabled></button>';
@@ -2492,7 +2579,7 @@ function sheet() {
       <input type="password" placeholder="Повторите новый пароль" autocomplete="off" value="${esc(f.n2)}" oninput="S.pw.n2=this.value">
       ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${f.err}</div>` : ''}
       <button class="btn sec" style="margin:8px 0" onclick="changePass()">Сменить пароль</button>`;
-    h += (mgr ? nsBlock() : '') + fxBlock() + pushBlock() + geoBlock() + tipsBlock() + updBlock();
+    h += (mgr ? nsBlock() : '') + fxBlock() + pushBlock() + geoBlock() + tipsBlock() + fbBlock() + updBlock();
     return h + `<button class="btn" style="background:#4a1a1a;color:#ffb0b0;margin-top:12px" onclick="doLogout()">Выйти из профиля</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null})">Закрыть</button>`;
   }
   if (S.sheet === 'water') {
@@ -2838,7 +2925,7 @@ function render(keep) {
   const navD0 = navDepth(), navChanged = LASTDEPTH !== null && navD0 !== LASTDEPTH, isPop = navChanged && navD0 < LASTDEPTH;
   const nearBottom = body ? body.scrollHeight - body.scrollTop - body.clientHeight < 90 : true;
   const sc0 = (keep || sameScreen) && body ? body.scrollTop : (isPop ? (SCROLLMEM[key0] || 0) : 0);
-  const shM = $('sheetmain'), shS = $('sheetshade'), scM = (keep || S.sheet === SHEETSEEN) && shM ? shM.scrollTop : 0, scS = (keep || S.shade === SHADESEEN) && shS ? shS.scrollTop : 0;   // прокрутка внутри окон тоже сохраняется
+  const shM = $('sheetmain'), shS = $('sheetshade'), scM = (keep || S.sheet === SHEETSEEN) && shM ? shM.scrollTop : 0, scS = (keep || S.shade === SHADESEEN) && shS ? shS.scrollTop : 0; SCM_KEEP = scM;   // прокрутка внутри окон тоже сохраняется
   const ae = document.activeElement;
   // поле «Сообщение» теряет фокус (клавиатура закрывается и снимается подсветка), когда вы уходите из беседы, открываете окно или выбираете сообщения; после отправки и «Ответить» фокус остаётся
   const dropFocus = !!(ae && ae.id === 'chatin' && (!sameScreen || S.sheet || S.shade || S.sel) && !S.focusChat);
@@ -3037,7 +3124,7 @@ const replaceObj = (t, s) => { Object.keys(t).forEach(k => delete t[k]); Object.
 const replaceArr = (t, s) => { t.length = 0; s.forEach(x => t.push(x)); };
 function snapshotData() {
   return JSON.stringify({
-    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, AMORT, ex2: 1,
+    v:DATA_VER, nid, CITY, P, sched, TEMPLATE, COUR, MGR, WH, DEPOT, WATER, CHAT, CHATN, MM, FB, GCHAT, DMS, RD, RX, LOADED, PASS, reviews, NOTIFS, AV, EX, INFO, LESSONS, PROG, LSEED, MV, WK, NS, NST, GSD, OFF, GCS, PR, INGN, INGX, DEEP, GSM, AMORT, ex2: 1,
     sess:{role:S.role, me:S.me, mc:S.mc, tab:S.tab, day:S.day, flt:S.flt}, sy:SY.token ? {seq:SY.seq, mirror:SY.mirror, base:SY.base} : null
   }, (k, v) => k === 'loc' ? undefined : v);
 }
@@ -3047,7 +3134,7 @@ function restoreData(txt) {
   replaceArr(P, d.P); P.forEach(p => { p.units.forEach(u => { u.loc = p; }); const s = PTS_SRC[p.id - 1]; if (s && s[0] === p.name) { p.lat = s[5]; p.lon = s[6]; } });
   replaceObj(sched, d.sched); replaceObj(TEMPLATE, d.TEMPLATE); replaceArr(COUR, d.COUR);
   Object.assign(MGR, d.MGR); replaceObj(WH, d.WH); Object.assign(DEPOT, d.DEPOT, {lat:DEPOT_LL[0], lon:DEPOT_LL[1]}); Object.assign(WATER, d.WATER);
-  replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
+  replaceObj(CHAT, d.CHAT); replaceObj(CHATN, d.CHATN || {}); replaceArr(MM, d.MM || []); replaceArr(FB, d.FB || []); replaceArr(GCHAT, d.GCHAT || []); replaceObj(DMS, d.DMS || {}); replaceObj(RD, d.RD || {}); replaceObj(RX, d.RX || {}); replaceObj(LOADED, d.LOADED); replaceObj(PASS, d.PASS);
   replaceArr(reviews, d.reviews); replaceArr(NOTIFS, d.NOTIFS); replaceObj(AV, d.AV || {}); replaceObj(EX, d.EX || {}); replaceObj(INFO, d.INFO || {}); replaceArr(LESSONS, d.LESSONS || []); replaceObj(PROG, d.PROG || {}); LSEED = !!d.LSEED; replaceArr(MV, d.MV || []); replaceObj(WK, d.WK || {id:'', hist:[]});
   nid = d.nid; CITY = d.CITY; ingExtraApply(d.INGX); ingApply(d.INGN); if (d.DEEP) Object.assign(DEEP, d.DEEP); if (d.GSM) Object.assign(GSM, d.GSM); replaceArr(AMORT, d.AMORT || []);
   if (d.NS) { Object.assign(NS, d.NS); } if (d.NST) Object.assign(NST, d.NST);
@@ -3191,6 +3278,7 @@ function docsFromState() {
   Object.keys(CHAT).forEach(c => CHAT[c].forEach(m => { d['msg/' + c + '/' + m.id] = m; }));
   Object.keys(CHATN).forEach(c => CHATN[c].forEach(m => { d['msgn/' + c + '/' + m.id] = m; }));
   GCHAT.forEach(m => { d['gmsg/' + m.id] = m; });
+  if (SY.role === 'mgr' && mkey() === 'mgr') FB.forEach(f => { d['fb/' + f.id] = f; });
   if (SY.role === 'mgr') MM.forEach(m => { d['mmsg/' + m.id] = m; });
   Object.keys(RD).forEach(k => Object.keys(RD[k]).forEach(u => { d['rd/' + k + '/' + u] = {ts:RD[k][u]}; }));
   Object.keys(RX).forEach(k => Object.keys(RX[k]).forEach(u => { d['rx/' + k + '/' + u] = {r:RX[k][u]}; }));
@@ -3206,7 +3294,8 @@ function docsFromState() {
 // те же правила, что на сервере: сервер всё равно перепроверит
 function canWriteKey(k, v) {
   if (k.startsWith('pr/')) return k === 'pr/' + (SY.role === 'mgr' ? mkey() : SY.cid);   // свой статус пишет только сам человек
-  if (k.startsWith('geo/') || k.startsWith('nst/') || k.startsWith('gs/')) return false;   // журнал прибытий, статус уведомлений и счётчики геолокации ведёт сервер
+  if (k.startsWith('geo/') || k.startsWith('nst/') || k.startsWith('gs/')) return false;
+  if (k.startsWith('fb/')) return SY.role === 'mgr' && mkey() === 'mgr';   // обращения в Техподдержку читает и правит только основной менеджер   // журнал прибытий, статус уведомлений и счётчики геолокации ведёт сервер
   if (k.startsWith('gc/')) return SY.role === 'cour' && k === 'gc/' + SY.cid;   // согласие даёт только сам курьер
   if (SY.role === 'mgr') return k !== 'cour' && k !== 'wk' && !k.startsWith('dm/');
   const p = k.split('/'), h = p[0], me = String(SY.cid);
@@ -3280,6 +3369,8 @@ function applyDoc(k, v, dele) {
     if (!dele && v) { Object.assign(LOADED, v.L); Object.assign(PASS, v.P); }
   } else if (h === 'ntf') {
     upsert(NOTIFS, dele ? {id:p[2]} : v, dele, byTsDesc);
+  } else if (h === 'fb') {
+    upsert(FB, dele ? {id:p[1]} : v, dele, byTsDesc);
   } else if (h === 'mmsg') {
     upsert(MM, dele ? {id:p[1]} : v, dele, byTsAsc);
   } else if (h === 'msg' || h === 'msgn') {
@@ -3318,7 +3409,7 @@ function applyDoc(k, v, dele) {
 function resetFromDocs(docs) { TP_LOADING = true; try { resetFromDocs0(docs); } finally { TP_LOADING = false; } }
 function resetFromDocs0(docs) {
   replaceArr(P, []); replaceArr(NOTIFS, []); replaceArr(reviews, []);
-  [CHAT, CHATN, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(MM, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
+  [CHAT, CHATN, DMS, RD, RX, TP, PR, LOADED, PASS, sched, TEMPLATE, AV, EX, INFO, PROG].forEach(o => replaceObj(o, {})); replaceArr(GCHAT, []); replaceArr(MM, []); replaceArr(FB, []); replaceArr(LESSONS, []); replaceArr(MV, []); replaceObj(WK, {id:'', hist:[]}); LSEED = false;
   NS.off = []; NS.q = {on: false, from: 22, to: 8}; NS.ld = false; GCS.me = null; GCS.all = {}; GCS.log = []; NST.s = {}; Object.keys(GSD).forEach(k => delete GSD[k]); Object.keys(OFF).forEach(k => delete OFF[k]);
   SY.mirror = {}; SY.base = {};
   docs.slice().sort((a, b) => (a.key === 'cour' ? 0 : 1) - (b.key === 'cour' ? 0 : 1)).forEach(d => {
@@ -4289,14 +4380,15 @@ function swClose() {
 
 // ----- окна снизу с двумя положениями: половина экрана и почти весь экран (тяните за «ручку») -----
 const DET = {name: null, v: 'med'};
+let SCM_KEEP = 0;   // где было прокручено окно до перерисовки: возвращаем после того, как окну задана высота
 function sheetExtras() {
   const sh = $('sheetmain'); if (!sh) { DET.name = null; return; }
   if (S.sheet === 'gsearch' && DET.name !== 'gsearch') setTimeout(() => { const i = $('gsq'); if (i) i.focus(); }, 380);
   if (DET.name !== S.sheet) { DET.name = S.sheet; DET.v = ['geoconsent'].includes(S.sheet) ? 'large' : 'med'; }   // окно согласия сразу высокое: кнопки видны без прокрутки
-  const H = $('app').clientHeight, grab = $('grab'), skip = ['level', 'trash', 'wheel', 'afpick', 'dpick'].includes(S.sheet);   // у окон выбора нет положений «половина / весь экран»: они просто прокручиваются
+  const H = $('app').clientHeight, grab = $('grab'), skip = ['level', 'trash', 'wheel', 'afpick', 'dpick', 'fb', 'fblist'].includes(S.sheet);   // у окон выбора нет положений «половина / весь экран»: они просто прокручиваются
   const tall = !skip && sh.scrollHeight > H * 0.64;
   if (!tall || !grab) return;
-  grab.dataset.tall = '1'; sh.style.maxHeight = DET.v === 'large' ? '92%' : '58%';
+  grab.dataset.tall = '1'; sh.style.maxHeight = DET.v === 'large' ? '92%' : '58%'; if (SCM_KEEP) sh.scrollTop = SCM_KEEP;
   const web = !pushIsApp();
   const webMode = () => { if (!web) return; const big = DET.v === 'large'; sh.style.overflowY = big ? '' : 'hidden'; sh.style.touchAction = big ? '' : 'none'; if (!big) sh.scrollTop = 0; };
   const setDet = v => { DET.v = v; sh.style.transition = 'max-height .4s cubic-bezier(.22,1,.36,1)'; sh.style.maxHeight = v === 'large' ? '92%' : '58%'; webMode(); haptic(8); };
@@ -4391,6 +4483,13 @@ const skeletonScreen = () => `<div class="top"><div class="trow"><div class="sk"
 .logout span{max-width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pen{display:inline-flex;vertical-align:-2px;margin-left:6px;color:var(--g);opacity:.85;cursor:pointer;padding:2px}.pen:active{opacity:.5}
 .stb{display:inline-flex;align-items:center;gap:4px;margin-left:7px;padding:2px 9px 2px 6px;border-radius:999px;background:linear-gradient(135deg,rgba(93,255,160,.24),rgba(31,122,69,.34));border:1px solid rgba(93,255,160,.5);color:#c4f7da;font-size:11px;font-weight:700;letter-spacing:.01em;white-space:nowrap;vertical-align:middle;line-height:1.5}.stb svg{flex:none}
+.fbic{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#dcffe9;background:linear-gradient(145deg,#1f7a45,#17402a);box-shadow:0 6px 16px rgba(31,122,69,.35);flex:none}
+.fbcard{border-color:rgba(93,255,160,.3)}
+.fbh{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.fbl{font-size:12px;color:var(--mut);margin:12px 0 4px;font-weight:700;letter-spacing:.02em}
+.fbta{width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px;color:var(--tx);font-size:14px;font-family:inherit;resize:none;margin:4px 0}
+.fbsh{position:relative;width:64px;height:92px;border-radius:12px;overflow:hidden;border:1px solid var(--line);flex:none}.fbsh img{width:100%;height:100%;object-fit:cover;display:block}
+.fbsh b{position:absolute;right:3px;top:3px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .fld{display:flex;align-items:center;gap:8px;min-width:0;background:var(--card2,#16221b);border:1px solid var(--line);border-radius:12px;padding:9px 11px;cursor:pointer;transition:border-color .2s,background .2s}
 .fld:active{background:rgba(93,255,160,.08)}.fld.on{border-color:rgba(93,255,160,.55)}
@@ -5079,6 +5178,8 @@ function selfTest() {
       ? [{sheet: 'ring', rg: 'done'}, {sheet: 'ring', rg: 'photo'}, {sheet: 'ring', rg: 'shift'}, {sheet: 'cologout', clo: COUR[0].id}, {sheet: 'geolog', gl: COUR[0].id}, {sheet: 'geostat'}, {sheet: 'offcal', oc: {cid: COUR[0].id, m: Date.now()}}]
       : [{sheet: 'ring', rg: 'today'}, {sheet: 'ring', rg: 'ok'}, {sheet: 'ring', rg: 'week'}];
     common.concat(own).forEach(sp => T(role + ': окно ' + (sp.sheet || 'уведомления'), () => go(Object.assign(home(), sp))));
+    T(role + ': форма «Нашли ошибку» и «Предложение»', () => { fbOpen('bug'); render(); S.fb.areas.push('Кнопка'); S.fb.shots.push('data:image/jpeg;base64,/9j/4AAQ'); fbSet('freq', 'Иногда'); S.fb.t = 'idea'; render(); go(home()); });
+    T(role + ': окно обращений', () => { FB.push({id: 'selftest', ts: Date.now(), kind: 'bug', status: 'new', from: {name: 'Тест', role: 'cour'}, text: 'проверка', files: [], areas: ['Кнопка'], ctx: {ver: '1'}}); go(Object.assign(home(), {sheet: 'fblist', fbf: 'new'})); FB.length = 0; go(home()); });
     T(role + ': закрыть окна', () => go(home()));
     T(role + ': карточка точки', () => go({tab: 'points', view: {type: 'point', id: P[0].id}, sheet: null}));
     T(role + ': общий чат', () => go({tab: 'chat', view: null, th: 'g', sheet: null}));
