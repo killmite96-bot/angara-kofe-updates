@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 181;
+const APP_VERSION = 182;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -447,7 +447,11 @@ const backOf = (p, k) => multiU(p) ? (p.units[k] && p.units[k].back) || (k === 0
 function backSync(p) { if (!multiU(p)) return; const t = {}; ING.forEach(g => { t[g.id] = +p.units.reduce((a, u) => a + ((u.back || {})[g.id] || 0), 0).toFixed(1); }); p.back = t; }
 const arrOf = (p, k) => multiU(p) ? (p.units[k] && p.units[k].arr) || p.arr : p.arr;   // состояние при прибытии: у точки с несколькими станциями у каждой своё, p.arr хранит худшее для списков
 function arrSync(p) { if (!multiU(p)) return; p.arr = {clean: Math.max(...p.units.map(u => (u.arr || p.arr).clean)), trash: Math.max(...p.units.map(u => (u.arr || p.arr).trash))}; }
-function backEnsure() {   // станциям без своей подтоварки: у первой остаётся всё, что лежало на точке, у остальных ноль; без своего состояния при прибытии — копия прежнего
+function featEnsure() {   // у точки с несколькими станциями особенности и задачи только у станций: прежние общие уходят к станции 1
+  P.forEach(p => { if (!multiU(p)) return; if (p.feat || (p.notes || []).length) { const u0 = p.units[0]; u0.feat = [u0.feat, p.feat].filter(Boolean).join('\n'); u0.notes = (u0.notes || []).concat(p.notes || []); p.feat = ''; p.notes = []; } });
+}
+function backEnsure() {
+  featEnsure();   // станциям без своей подтоварки: у первой остаётся всё, что лежало на точке, у остальных ноль; без своего состояния при прибытии — копия прежнего
   P.forEach(p => { if (!multiU(p)) return; p.units.forEach(u => { if (!u.arr) u.arr = {clean: p.arr.clean, trash: p.arr.trash}; }); let ch = false; p.units.forEach((u, k) => { if (!u.back) { u.back = {}; ING.forEach(g => { u.back[g.id] = k === 0 ? (p.back[g.id] || 0) : 0; }); ch = true; } ING.forEach(g => { if (u.back[g.id] === undefined) u.back[g.id] = 0; }); }); if (ch) backSync(p); });
 }
 function setBack(p, k, gid, val) { backEnsure(); backOf(p, k)[gid] = val; backSync(p); }
@@ -1342,13 +1346,13 @@ function stockRows(p) {
 const PN_SHEETS = ['ptname', 'ptunit', 'ptunitdel', 'ptunotes', 'ptcoord', 'ptdel'];
 function openPtName(id) {
   const p = pt(id); if (S.role !== 'mgr' || !p) return;
-  const snap = JSON.parse(JSON.stringify({units: p.units, back: p.back, arr: p.arr, lat: p.lat, lon: p.lon, cset: p.cset, nocoord: p.nocoord}, (k, v) => k === 'loc' ? undefined : v));
+  const snap = JSON.parse(JSON.stringify({units: p.units, back: p.back, arr: p.arr, feat: p.feat, notes: p.notes, cam: p.cam, lat: p.lat, lon: p.lon, cset: p.cset, nocoord: p.nocoord}, (k, v) => k === 'loc' ? undefined : v));
   go({sheet:'ptname', pn:{id, name:p.name, addr:p.addr || '', err:'', snap}});
 }
 function ptNameRevert() {
   const f = S.pn, p = f && f.snap && pt(f.id); S.pn = null; if (!p) return;
   p.units = f.snap.units.map(u => Object.assign(u, {loc: p}));
-  p.lat = f.snap.lat; p.lon = f.snap.lon; p.back = f.snap.back; p.arr = f.snap.arr;
+  p.lat = f.snap.lat; p.lon = f.snap.lon; p.back = f.snap.back; p.arr = f.snap.arr; p.feat = f.snap.feat; p.notes = f.snap.notes; if (f.snap.cam === undefined) delete p.cam; else p.cam = f.snap.cam;
   ['cset', 'nocoord'].forEach(k => { if (f.snap[k] === undefined) delete p[k]; else p[k] = f.snap[k]; });
 }
 function ptNameCancel() { ptNameRevert(); go({sheet: null, pn: null}); }
@@ -1428,7 +1432,7 @@ function ptNotesOpen(pid) { const p = pt(pid); if (!p || S.role !== 'mgr') retur
 function ptNotesSheet() {
   const f = S.pe, p = pt(f.pid); if (!p) return `<h2>Точка не найдена</h2><button class="btn sec" onclick="go({sheet:null,pe:null})">Закрыть</button>`;
   return `<h2>Особенности точки</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)} · ${esc(p.addr)}</div>
-    <div class="fbl">ОСОБЕННОСТИ ТОЧКИ (КОММЕНТАРИЙ)</div><div class="tiny">Всё, что нужно знать курьеру о точке: свободный текст.</div><textarea class="fbta" rows="4" maxlength="1000" placeholder="Например: вход со двора, охранник просит оставлять паспорт, станция у лифта" oninput="S.pe.feat=this.value">${esc(f.feat || '')}</textarea>
+    ${multiU(p) ? '<div class="tiny" style="margin-bottom:8px">У точки несколько станций: особенности и задачи у каждой станции свои (карандаш у станции в карточке).</div>' : `<div class="fbl">ОСОБЕННОСТИ ТОЧКИ (КОММЕНТАРИЙ)</div><div class="tiny">Всё, что нужно знать курьеру о точке: свободный текст.</div><textarea class="fbta" rows="4" maxlength="1000" placeholder="Например: вход со двора, охранник просит оставлять паспорт, станция у лифта" oninput="S.pe.feat=this.value">${esc(f.feat || '')}</textarea>`}
     <div class="fbl" style="margin-top:8px">ЛУЧШЕЕ ВРЕМЯ ЗАЕЗДА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="60" placeholder="Например: 13:00–22:00" value="${esc(f.win)}" oninput="S.pe.win=this.value" style="margin:4px 0 8px">
     <button class="btn" style="margin:10px 0 8px" onclick="ptNotesSave()">Сохранить</button><button class="btn sec" onclick="go({sheet:null,pe:null})">Отмена</button>`;
 }
@@ -1582,6 +1586,8 @@ function stationBlocks(p) {
 }
 const arrTxt = r => r.arriveU && r.arriveU.length > 1 ? r.arriveU.map((a, k) => 'Ст.' + (k + 1) + ': ' + CLEAN[a.clean] + ', урна ' + Math.round(a.trash * 100) + '%').join('<br>') : 'Чистота: ' + CLEAN[r.arrive.clean] + '<br>Урна: ' + Math.round(r.arrive.trash * 100) + '%';
 const arrPillsR = r => (r.arriveU && r.arriveU.length > 1 ? r.arriveU : [r.arrive]).map((a, k, all) => `<span class="pill ${CCOL[a.clean]}">${all.length > 1 ? 'Ст.' + (k + 1) + ': ' : 'По прибытии: '}${CLEAN[a.clean]}</span><span class="pill ${a.trash >= .75 ? 'warn' : ''}">Урна ${Math.round(a.trash * 100)}%</span>`).join('');
+const baseSummary = (p, k) => { const l = ING.filter(g => g.id !== 'water').map(g => [g, needBaseU(p, g, k)]).filter(x => x[1] > 0), f = (g, n) => (g.t === 'count' ? n : +(+n).toFixed(1)) + ' ' + g.u;
+  return `<div class="tiny" style="margin:0 2px 6px">С базы для этой станции: ${l.length ? `<b style="color:var(--o)">${l.slice(0, 5).map(x => esc(gn(x[0], p).toLowerCase()) + ' ' + f(x[0], x[1])).join(', ')}${l.length > 5 ? ' и ещё ' + (l.length - 5) : ''}</b>` : '<b style="color:var(--g)">везти ничего не нужно</b>'}</div>`; };
 function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, feat: '', notes: [], uex: [{feat: '', notes: [], cam: ''}], info: {}, err: ''}}); }
 function nwUnits(d) { const u = S.nw.units, n = Math.max(1, Math.min(PT_MAX_UNITS, u.length + d)); while (u.length < n) u.push(u[u.length - 1] || 'B'); u.length = n; S.nw.uex = S.nw.uex || []; while (S.nw.uex.length < n) S.nw.uex.push({feat: '', notes: []}); S.nw.uex.length = n; render(true); }
 function nwType(i, st) { S.nw.units[i] = st; render(true); }
@@ -1645,7 +1651,7 @@ function ptUnitDelSheet() {
   return `<h2>Убрать станцию ${f.i + 1}?</h2><div class="card"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(STN[u.st])}</div></div><div class="tiny" style="margin:8px 0">Остатки этой станции исчезнут из приложения. Фото прошлых визитов в архиве останутся.</div>
     <button class="btn" style="background:#4a1a1a;color:#ffb0b0" onclick="ptUnitDel()">Убрать станцию</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:${pnB()},pu:null})">Отмена</button>`;
 }
-function ptUnitDel() { const f = S.pu, p = pt(f.pid); if (!p || p.units.length < 2 || !p.units[f.i]) return go({sheet: pnSh(), pu: null}); if (ptBusy(f.pid)) return go({sheet: pnSh(), pu: null, toast: 'Идёт визит на этой точке'}); p.units.splice(f.i, 1); p.units.forEach((u, k) => { u.name = 'Станция ' + (k + 1); }); if (p.units.length === 1) { p.back = Object.assign({}, p.units[0].back || p.back); p.arr = Object.assign({}, p.units[0].arr || p.arr); delete p.units[0].back; delete p.units[0].arr; } else { backSync(p); arrSync(p); } go({sheet: pnSh(), pu: null, toast: 'Станция убрана'}); }
+function ptUnitDel() { const f = S.pu, p = pt(f.pid); if (!p || p.units.length < 2 || !p.units[f.i]) return go({sheet: pnSh(), pu: null}); if (ptBusy(f.pid)) return go({sheet: pnSh(), pu: null, toast: 'Идёт визит на этой точке'}); p.units.splice(f.i, 1); p.units.forEach((u, k) => { u.name = 'Станция ' + (k + 1); }); if (p.units.length === 1) { const u0 = p.units[0]; p.back = Object.assign({}, u0.back || p.back); p.arr = Object.assign({}, u0.arr || p.arr); p.feat = [p.feat, u0.feat].filter(Boolean).join('\n'); p.notes = (p.notes || []).concat(u0.notes || []); if (u0.cam && !p.cam) p.cam = u0.cam; ['back', 'arr', 'feat', 'notes', 'cam'].forEach(k => { delete u0[k]; }); } else { backSync(p); arrSync(p); } go({sheet: pnSh(), pu: null, toast: 'Станция убрана'}); }
 function ptDelSheet() {
   const p = pt(S.pd); if (!p) return `<h2>Точка не найдена</h2><button class="btn sec" onclick="go({sheet:${pnB()},pd:null})">Закрыть</button>`;
   const n = Object.keys(sched).reduce((a, c) => a + [0, 1, 2, 3, 4, 5, 6].reduce((b, d) => b + ((sched[c] && sched[c][d]) || []).filter(x => x.pid === p.id).length, 0), 0);
@@ -1670,8 +1676,9 @@ function pointCard(id) {
     <div class="grow"><div class="t1" style="font-size:14px">${p.units.length > 1 ? p.units.length + ' станции' : 'Станция'}</div>${p.units.map((u, i) => `<div class="t2">${p.units.length > 1 ? (i + 1) + '. ' : ''}${STN[u.st]}</div>`).join('')}<div class="t2">${p.nv ? 'Визитов ещё не было' : 'Визит: ' + ago(p.last) + ' · мойка (тип 2): ' + ago(p.last2)}</div>
     ${needT2(p) ? '<div style="margin-top:6px"><span class="pill warn">рекомендуем тип 2</span></div>' : ''}</div></div></div>`;
   if (p.water) h += waterPanel(p, S.role === 'cour');
-  if (p.win || p.feat || S.role === 'mgr') h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особенности точки</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptNotesOpen(${p.id})" title="Изменить особенности">${ic('edit', 18)}</span>` : ''}</div>${p.feat ? `<div class="t2" style="margin-top:6px;white-space:pre-wrap;color:var(--tx)">${esc(p.feat)}</div>` : ''}${p.win ? winLine(p, 'margin-top:6px') : ''}${!p.feat && !p.win ? '<div class="t2" style="margin-top:4px">Пока ничего не добавлено. Нажмите на карандаш.</div>' : ''}</div>`;
-  h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особые задачи на визите</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptTasksOpen(${p.id})" title="Изменить особые задачи">${ic('edit', 18)}</span>` : ''}</div><div class="tiny" style="margin-top:2px">Добавляются к основному чек-листу на этой точке</div>${p.notes.map(n => `<div class="t2" style="margin-top:4px">• ${esc(n)}</div>`).join('')}${clFor(p).length ? `<div class="tiny" style="margin-top:8px">Дополнительные чек-листы: ${clFor(p).map(c => esc(c.name)).join(', ')}</div>` : ''}${!p.notes.length && !clFor(p).length ? `<div class="t2" style="margin-top:4px">${S.role === 'mgr' ? 'Пока нет. Нажмите на карандаш, чтобы добавить.' : 'Особых задач нет.'}</div>` : ''}<button class="btn sec sm" style="margin-top:8px" onclick="go({sheet:'chkvisit',cv:{pid:${p.id}}})">Все пункты визита на этой точке</button></div>`;
+  if (!multiU(p) && (p.win || p.feat || S.role === 'mgr')) h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особенности точки</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptNotesOpen(${p.id})" title="Изменить особенности">${ic('edit', 18)}</span>` : ''}</div>${p.feat ? `<div class="t2" style="margin-top:6px;white-space:pre-wrap;color:var(--tx)">${esc(p.feat)}</div>` : ''}${p.win ? winLine(p, 'margin-top:6px') : ''}${!p.feat && !p.win ? '<div class="t2" style="margin-top:4px">Пока ничего не добавлено. Нажмите на карандаш.</div>' : ''}</div>`;
+  if (!multiU(p)) h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Особые задачи на визите</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptTasksOpen(${p.id})" title="Изменить особые задачи">${ic('edit', 18)}</span>` : ''}</div><div class="tiny" style="margin-top:2px">Добавляются к основному чек-листу на этой точке</div>${p.notes.map(n => `<div class="t2" style="margin-top:4px">• ${esc(n)}</div>`).join('')}${clFor(p).length ? `<div class="tiny" style="margin-top:8px">Дополнительные чек-листы: ${clFor(p).map(c => esc(c.name)).join(', ')}</div>` : ''}${!p.notes.length && !clFor(p).length ? `<div class="t2" style="margin-top:4px">${S.role === 'mgr' ? 'Пока нет. Нажмите на карандаш, чтобы добавить.' : 'Особых задач нет.'}</div>` : ''}<button class="btn sec sm" style="margin-top:8px" onclick="go({sheet:'chkvisit',cv:{pid:${p.id}}})">Все пункты визита на этой точке</button></div>`;
+  if (multiU(p) && (p.win || clFor(p).length || S.role === 'mgr')) h += `<div class="card"><div class="row"><div class="t1 grow" style="font-size:14px">Общее для точки</div>${S.role === 'mgr' ? `<span class="pen" onclick="ptNotesOpen(${p.id})" title="Изменить время заезда">${ic('edit', 18)}</span>` : ''}</div>${p.win ? winLine(p, 'margin-top:6px') : '<div class="t2" style="margin-top:4px">Время заезда не задано.</div>'}${clFor(p).length ? `<div class="tiny" style="margin-top:8px">Дополнительные чек-листы: ${clFor(p).map(c => esc(c.name)).join(', ')}</div>` : ''}<button class="btn sec sm" style="margin-top:8px" onclick="go({sheet:'chkvisit',cv:{pid:${p.id}}})">Все пункты визита на этой точке</button></div>`;
   h += (multiU(p) ? stationBlocks(p) : '') + toolBlock(p) + camBlock(p);
   if (!multiU(p)) h += `<div class="card"><div class="t1" style="font-size:14px">При прибытии на последнем визите</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
     <span class="pill ${CCOL[p.arr.clean]}">Чистота: ${CLEAN[p.arr.clean]}</span><span class="pill ${p.arr.trash >= .75 ? 'warn' : ''}">Урна: ${Math.round(p.arr.trash * 100)}% · ${trashStatus(p.arr.trash)}</span></div></div>`;
@@ -1681,7 +1688,7 @@ function pointCard(id) {
   // у менеджера значения правятся прямо в карточке кнопками − и +
   const stp = (call, val, wk) => `<div class="step"><button onclick="${call},-1)">−</button><span${wk ? ` data-wk="${wk}"` : ''}>${val}</span><button onclick="${call},1)">+</button></div>`;
   const backRows = k => '<div class="card">' + ING.filter(g => g.id !== 'water').map(g => { const nb = multiU(p) ? needBaseU(p, g, k) : needBase(p, g), have = backOf(p, k)[g.id] || 0; return `<div class="kv"><span>${gn(g, p)}${mg ? ` <span class="pen" onclick="openIng('${g.id}')" title="Изменить название">${ic('edit', 14)}</span>` : ''}${nb > 0 ? `<div style="margin-top:5px"><span class="pill warn">с базы ${nb}</span></div>` : ''}</span><span>${mg ? stp(`mgBackU(${p.id},'${g.id}',${k}`, have + ' ' + g.u, `PB:${p.id}|${k}|${g.id}`) : `<b>${have} ${g.u}</b>`}</span></div>`; }).join('') + '</div>';
-  h += '<h3>Подтоварка на точке</h3>' + (multiU(p) ? p.units.map((u, k) => stnHead(p, k) + backRows(k)).join('') : backRows(0));
+  h += '<h3>Подтоварка на точке</h3>' + (multiU(p) ? p.units.map((u, k) => stnHead(p, k) + baseSummary(p, k) + backRows(k)).join('') : backRows(0));
   h += '<h3>Остатки на последний визит</h3>';
   p.units.forEach((u, i) => {
     if (p.units.length > 1) h += stnHead(p, i);
@@ -1744,6 +1751,8 @@ function visitScreen() {
   let h = `<div class="top"><button class="back" onclick="go({view:{type:'point',id:${p.id}}})">‹ К точке</button><h1>${v.quick ? 'Обновление остатков' : v.type === 3 ? 'Генеральная уборка' : 'Визит · тип ' + v.type}</h1><div class="sub">${esc(p.name)}${stB(p)}</div></div>`;
   if (!v.quick) h += `<div class="prog">${[0, 1, 2, 3, 4, 5].map(i => `<i class="${i <= v.step ? 'on' : ''}"></i>`).join('')}</div>`;
   h += '<div class="body">' + toolBlock(p, true);
+  const ft = multiU(p) ? (p.units[v.u] || {}).feat : p.feat;   // особенности точки (у каждой станции свои) видны на всех шагах визита
+  if (ft && !v.quick) h += `<div class="card" style="border-color:rgba(93,255,160,.4)"><div class="t1" style="font-size:14px">Особенности точки${multiU(p) ? ' · станция ' + (v.u + 1) : ''}</div><div class="t2" style="margin-top:6px;white-space:pre-wrap;color:var(--tx)">${esc(ft)}</div></div>`;
   if (v.step === 0) {
     const a = v.arrive, ok = v.ARR.every(x => x.clean !== null && x.trash !== null);
     h += `<h3>По прибытии</h3><div class="tiny">Отметьте, в каком состоянии вы застали станцию, до уборки. Это видит менеджер.</div>
@@ -6030,12 +6039,21 @@ function selfTest() {
         openPtName(p.id); ptAddUnit(p.id); go({sheet: null}); eq(p.units.length, n, 'закрытие окна без сохранения тоже возвращает');
         openPtName(p.id); ptAddUnit(p.id); savePtName(); eq(p.units.length, n + 1, 'после «Сохранить» станция остаётся'); S.pu = {pid: p.id, i: n}; ptUnitDel(); eq(p.units.length, n, 'тестовая станция убрана'); go({sheet: null, pn: null});
       });
+      T('станции: общих особенностей нет, прежние уходят к станции 1', () => {
+        const n = P.length; S.nw = {name: 'Общие в станции', addr: 'Тестовая 9', win: '10:00', units: ['A'], lat: null, lon: null, uex: [{feat: 'Общий текст', notes: ['Общая задача']}], info: {}, err: ''};
+        ptNewSave(); const p = P[P.length - 1]; eq(p.feat, 'Общий текст', 'у одной станции данные точки'); eq(p.notes.length, 1, 'задача точки');
+        ptAddUnit(p.id); eq(p.units.length, 2, 'вторая станция'); eq(p.feat, '', 'общих особенностей больше нет'); eq(p.notes.length, 0, 'общих задач больше нет'); eq(p.units[0].feat, 'Общий текст', 'особенности ушли к станции 1'); eq(p.units[0].notes[0], 'Общая задача', 'задача ушла к станции 1');
+        openPoint(p.id); const t = document.body.innerText; eq((t.match(/Особенности точки/g) || []).length, 2, 'особенности только у станций'); eq((t.match(/Особые задачи на визите/g) || []).length, 2, 'задачи только у станций'); eq(/Общее для точки/.test(t), true, 'общий блок: время заезда и чек-листы');
+        eq((document.body.innerText.match(/С базы для этой станции/g) || []).length, 2, 'строка «с базы» у каждой станции');
+        S.pu = {pid: p.id, i: 1}; ptUnitDel(); eq(p.units.length, 1, 'станция убрана'); eq(p.feat, 'Общий текст', 'особенности вернулись точке'); eq(p.notes.length, 1, 'задача вернулась точке'); eq(p.units[0].feat, undefined, 'у станции своих нет');
+        S.pd = p.id; ptDel(); eq(P.length, n, 'тестовая точка удалена'); go({view: null, sheet: null, nw: null});
+      });
       T('станции: чистота и урна у каждой, блоки в карточке', () => {
         const n = P.length; S.nw = {name: 'Блоки станций', addr: 'Тестовая 8', win: '', units: ['A', 'B'], lat: null, lon: null, uex: [{feat: 'Про первую', notes: ['Задача 1']}, {feat: '', notes: []}], info: {}, err: ''};
         ptNewSave(); const p = P[P.length - 1]; eq(typeof p.units[0].arr, 'object', 'у первой станции своё состояние'); eq(typeof p.units[1].arr, 'object', 'у второй станции своё состояние');
         p.units[0].arr = {clean: 0, trash: 0}; p.units[1].arr = {clean: 2, trash: 0.75}; arrSync(p); eq(p.arr.clean, 2, 'худшее по чистоте для списков'); eq(p.arr.trash, 0.75, 'худшее по урне');
         eq(arrOf(p, 0).clean, 0, 'станция 1'); eq(arrOf(p, 1).clean, 2, 'станция 2');
-        openPoint(p.id); const t = document.body.innerText; eq((t.match(/При прибытии на последнем визите/g) || []).length, 2, 'у каждой станции свой блок прибытия'); eq(/Про первую/.test(t), true, 'особенности станции 1 в карточке'); eq((t.match(/Особые задачи на визите/g) || []).length >= 3, true, 'особые задачи есть у каждой станции');
+        openPoint(p.id); const t = document.body.innerText; eq((t.match(/При прибытии на последнем визите/g) || []).length, 2, 'у каждой станции свой блок прибытия'); eq(/Про первую/.test(t), true, 'особенности станции 1 в карточке'); eq((t.match(/Особые задачи на визите/g) || []).length >= 2, true, 'особые задачи есть у каждой станции');
         const me0 = S.me; S.me = COUR[0].id; const day = sched[S.me][TODAY], it = {pid: p.id, type: 1, done: false, review: null}; day.push(it); startVisit(p.id, false); const v = S.visit;
         eq(v.ARR.length, 2, 'в визите чистота по станциям'); v.u = 1; v.arrive.clean = 3; eq(v.ARR[1].clean, 3, 'отмечена у второй станции'); eq(v.ARR[0].clean, null, 'первая станция не затронута');
         S.visit = null; go({view: null, visit: null}); day.splice(day.indexOf(it), 1); S.me = me0;
