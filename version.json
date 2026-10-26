@@ -1,9 +1,9 @@
 {
-    "content":  173,
+    "content":  175,
     "apk":  22,
-    "notes":  "Новая точка: особенности и особые задачи у каждой станции, подписи как раньше.",
+    "notes":  "Новая точка: поле ссылки на камеру. Станции и расположение перенесены в окно изменения точки, под адрес.",
     "contentFile":  "index.html",
-    "contentSha256":  "dc3af4e538afabb52d3e727afac7a63e8f7617b51f0bbd0f6adc78ef324b69f9",
+    "contentSha256":  "0ac7a5aa7d8a9e86d933f4be366f9036d3c12063def28c93bbd45bba117969be",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 173;
+const APP_VERSION = 175;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1373,7 +1373,7 @@ function ptCdSave() {
   if (c.t === 'new') { S.nw.lat = r.lat; S.nw.lon = r.lon; return go({sheet: 'ptnew', cd: null}); }
   const p = pt(c.t); if (!p) return go({sheet: null, cd: null});
   p.lat = r.lat; p.lon = r.lon; p.cset = true; delete p.nocoord;   // cset: свои координаты точки важнее заложенных в приложение
-  go({sheet: null, cd: null, toast: 'Координаты сохранены: ' + p.name});
+  go({sheet: c.back || null, cd: null, toast: 'Координаты сохранены: ' + p.name});
 }
 function ptCdSheet() {
   const c = S.cd, p = c.t === 'new' ? null : pt(c.t), cur = c.t === 'new' ? (S.nw.lat != null ? S.nw : null) : (p && !p.nocoord ? p : null);
@@ -1391,8 +1391,9 @@ function ptCdSheet() {
 // ----- новая точка -----
 
 // ----- особенности точки: окно визита и особые задачи (курьер отмечает их галочками на визите) -----
-const noteRows = (arr, kind) => arr.map((t, i) => `<div class="row" style="margin:6px 0;gap:6px"><input type="text" class="grow" maxlength="120" style="margin:0" placeholder="Например: контроль стаканов" value="${esc(t)}" oninput="S.${kind}.notes[${i}]=this.value"><button class="btn sec sm" style="padding:8px 12px" onclick="ptNoteDel('${kind}',${i})">✕</button></div>`).join('')
+const noteRows = (arr, kind) => arr.map((t, i) => `<div class="row" style="margin:6px 0;gap:6px"><input type="text" class="grow" maxlength="120" style="margin:0" placeholder="Например: Проверить работу подсветки" value="${esc(t)}" oninput="S.${kind}.notes[${i}]=this.value"><button class="btn sec sm" style="padding:8px 12px" onclick="ptNoteDel('${kind}',${i})">✕</button></div>`).join('')
   + `<button class="btn sec sm" style="margin-top:4px" onclick="ptNoteAdd('${kind}')">${ic('plus', 15)} Добавить задачу</button>`;
+const pnSh = () => S.pn ? 'ptname' : null, pnB = () => S.pn ? "'ptname'" : 'null';   // из окна станций, задач и удаления возвращаемся в окно изменения точки, если оно было открыто
 const kget = k => k.split(/[.\[\]]+/).filter(Boolean).reduce((o, x) => o[x], S);   // 'nw.uex[1]' -> S.nw.uex[1]
 function ptNoteAdd(kind) { const f = kget(kind); if (f.notes.length >= 12) return go({toast: 'Не больше 12 задач'}); f.notes.push(''); render(true); }
 function ptNoteDel(kind, i) { kget(kind).notes.splice(i, 1); render(true); }
@@ -1525,18 +1526,18 @@ const nwUnitExtra = i => { const u = S.nw.uex || (S.nw.uex = []), x = u[i] || (u
     <div class="fbl" style="margin-top:6px">ОСОБЫЕ ЗАДАЧИ ТОЧКИ (НЕОБЯЗАТЕЛЬНО)</div><div class="tiny">Курьер отметит каждую галочкой на визите.</div>${noteRows(x.notes, 'nw.uex[' + i + ']')}`; };
 function ptUOpen(pid, i) { const p = pt(pid), u = p && p.units[i]; if (!u || S.role !== 'mgr') return; go({sheet: 'ptunotes', pu2: {pid, i, feat: u.feat || '', notes: (u.notes || []).slice()}}); }
 function ptUSheet() {
-  const f = S.pu2, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return `<h2>Станция не найдена</h2><button class="btn sec" onclick="go({sheet:null,pu2:null})">Закрыть</button>`;
+  const f = S.pu2, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return `<h2>Станция не найдена</h2><button class="btn sec" onclick="go({sheet:${pnB()},pu2:null})">Закрыть</button>`;
   return `<h2>Станция ${f.i + 1}: особенности и задачи</h2><div class="t2" style="margin-bottom:8px">${esc(p.name)} · ${esc(STN[u.st])}</div>
     <div class="fbl">ОСОБЕННОСТИ СТАНЦИИ (КОММЕНТАРИЙ)</div><textarea class="fbta" rows="4" maxlength="1000" placeholder="Что нужно знать об этой станции" oninput="S.pu2.feat=this.value">${esc(f.feat)}</textarea>
     <div class="fbl" style="margin-top:8px">ОСОБЫЕ ЗАДАЧИ СТАНЦИИ</div><div class="tiny">Курьер отметит каждую галочкой на визите.</div>${noteRows(f.notes, 'pu2')}
-    <button class="btn" style="margin:10px 0 8px" onclick="ptUSave()">Сохранить</button><button class="btn sec" onclick="go({sheet:null,pu2:null})">Отмена</button>`;
+    <button class="btn" style="margin:10px 0 8px" onclick="ptUSave()">Сохранить</button><button class="btn sec" onclick="go({sheet:${pnB()},pu2:null})">Отмена</button>`;
 }
 function ptUSave() {
-  const f = S.pu2, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return go({sheet: null, pu2: null});
-  if (ptBusy(f.pid)) return go({sheet: null, pu2: null, toast: 'Идёт визит на этой точке: изменить можно после него'});
-  u.feat = String(f.feat || '').trim().slice(0, 1000); u.notes = ptNotesClean(f.notes); go({sheet: null, pu2: null, toast: 'Сохранено'});
+  const f = S.pu2, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return go({sheet: pnSh(), pu2: null});
+  if (ptBusy(f.pid)) return go({sheet: pnSh(), pu2: null, toast: 'Идёт визит на этой точке: изменить можно после него'});
+  u.feat = String(f.feat || '').trim().slice(0, 1000); u.notes = ptNotesClean(f.notes); go({sheet: pnSh(), pu2: null, toast: 'Сохранено'});
 }
-function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, feat: '', notes: [], uex: [{feat: '', notes: []}], info: {}, err: ''}}); }
+function ptNewOpen() { go({sheet: 'ptnew', nw: {name: '', addr: '', win: '', units: ['B'], lat: null, lon: null, cam: '', feat: '', notes: [], uex: [{feat: '', notes: []}], info: {}, err: ''}}); }
 function nwUnits(d) { const u = S.nw.units, n = Math.max(1, Math.min(PT_MAX_UNITS, u.length + d)); while (u.length < n) u.push(u[u.length - 1] || 'B'); u.length = n; S.nw.uex = S.nw.uex || []; while (S.nw.uex.length < n) S.nw.uex.push({feat: '', notes: []}); S.nw.uex.length = n; render(true); }
 function nwType(i, st) { S.nw.units[i] = st; render(true); }
 const stTiles = (cur, call) => `<div class="row" style="gap:6px;align-items:stretch">${['A', 'B', 'C', 'D'].map(st => `<div class="sttile${cur === st ? ' on' : ''}" onclick="${call.replace('@', st)}"><div class="photo" style="width:100%;height:74px">${exHTML(st)}</div><div class="tiny">${esc(STN[st])}</div></div>`).join('')}</div>`;
@@ -1553,6 +1554,7 @@ function ptNewSheet() {
     <div class="fbl" style="margin-top:12px">ПОДСКАЗКИ КУРЬЕРУ (НЕОБЯЗАТЕЛЬНО)</div>
     <div class="fgrid" style="margin-top:4px">${[['wet', 'drop', 'Мокрая точка'], ['park', 'pin', 'Парковка']].map(([k, ico, t]) => { const o = infoOf('new', k), has = o.imgs.length || (o.steps || []).length || o.text; return `<div class="fld${has ? ' on' : ''}" onclick="infoNew('${k}')"><span style="color:${has ? 'var(--g)' : 'var(--mut)'}">${ic(ico, 18)}</span><div class="grow" style="min-width:0"><span class="fl">${t}</span><b>${has ? 'заполнено' : '<span style="color:var(--mut);font-weight:500">добавить</span>'}</b></div></div>`; }).join('')}</div>
     <div class="fbl" style="margin-top:10px">КООРДИНАТЫ</div><div class="fld${has ? ' on' : ''}" style="margin:4px 0 8px" onclick="ptCdOpen('new','ptnew')"><span style="color:${has ? 'var(--g)' : 'var(--mut)'}">${ic('pin', 18)}</span><div class="grow" style="min-width:0"><span class="fl">Широта, долгота</span><b>${has ? f.lat.toFixed(5) + ', ' + f.lon.toFixed(5) : '<span style="color:var(--mut);font-weight:500">не указаны: нажмите, чтобы вставить</span>'}</b></div></div>
+    <div class="fbl" style="margin-top:10px">КАМЕРА (НЕОБЯЗАТЕЛЬНО)</div><input type="text" maxlength="300" placeholder="Ссылка на камеру: https://..." value="${esc(f.cam || '')}" oninput="S.nw.cam=this.value" style="margin:4px 0">
     ${has ? '' : '<div class="tiny" style="color:var(--o)">Без координат не работают расстояния в маршруте и отметка прибытия по геолокации. Их можно добавить позже в карточке точки.</div>'}
     ${f.err ? `<div style="color:var(--r);font-size:13px;margin:6px 0">${esc(f.err)}</div>` : ''}
     <button class="btn" style="margin:8px 0" onclick="ptNewSave()">Создать точку</button><button class="btn sec" onclick="go({sheet:null,nw:null})">Отмена</button>`;
@@ -1562,9 +1564,10 @@ function ptNewSave() {
   if (name.length < 2) { f.err = 'Введите название точки'; return render(true); }
   if (P.some(x => x.name.toLowerCase() === name.toLowerCase())) { f.err = 'Точка с таким названием уже есть'; return render(true); }
   if (addr.length < 3) { f.err = 'Введите адрес точки'; return render(true); }
+  const cam = String(f.cam || '').trim(); if (cam && !/^https?:\/\/\S+$/i.test(cam)) { f.err = 'Ссылка на камеру должна начинаться с http:// или https://'; return render(true); }
   const id = Math.max(0, ...P.map(x => x.id)) + 1, has = f.lat != null;
   const p = {id, name, addr, win: f.win.trim().slice(0, 60), feat: f.units.length > 1 ? '' : String(((f.uex || [])[0] || {}).feat || '').trim().slice(0, 1000), notes: f.units.length > 1 ? [] : ptNotesClean(((f.uex || [])[0] || {}).notes || []), lat: has ? f.lat : DEPOT.lat, lon: has ? f.lon : DEPOT.lon, cset: has, nocoord: !has, arr: {clean: 0, trash: 0}, last: 0, last2: 0, nv: true, back: {}, deep: 0, water: null, pass: ''};
-  ING.forEach(g => { p.back[g.id] = 0; });
+  ING.forEach(g => { p.back[g.id] = 0; }); if (cam) p.cam = cam.slice(0, 300);
   p.units = f.units.map((st, k) => Object.assign(newUnit(st, k), {loc: p}, f.units.length > 1 ? {feat: String(((f.uex || [])[k] || {}).feat || '').trim().slice(0, 1000), notes: ptNotesClean(((f.uex || [])[k] || {}).notes || [])} : {}));
   P.push(p); P.sort((a, b) => a.id - b.id);
   const inf = f.info || {}, hasInf = k => inf[k] && (inf[k].imgs.length || (inf[k].steps || []).length || inf[k].text);
@@ -1576,7 +1579,7 @@ function ptManage(p) {
   const nu = p.units.length;
   return `<h3>Станции и расположение</h3><div class="card">${p.units.map((u, i) => `<div class="row" style="padding:6px 0"><div class="photo" style="width:34px;height:48px;flex:none">${exHTML(u.st)}</div><div class="grow"><div class="t1" style="font-size:14px">Станция ${i + 1}</div><div class="t2">${esc(STN[u.st])}</div></div><button class="btn sec sm" onclick="go({sheet:'ptunit',pu:{pid:${p.id},i:${i}}})">Сменить вид</button>${nu > 1 ? `<button class="btn sec sm" onclick="ptUOpen(${p.id},${i})" title="Особенности и задачи станции">${ic('edit', 15)}</button>` : ''}${nu > 1 ? `<button class="btn sec sm" style="color:#ffb0b0" onclick="go({sheet:'ptunitdel',pu:{pid:${p.id},i:${i}}})">${ic('trash', 15)}</button>` : ''}</div>`).join('')}
     ${nu < PT_MAX_UNITS ? `<button class="btn sec sm" style="margin-top:6px" onclick="ptAddUnit(${p.id})">${ic('plus', 15)} Добавить станцию</button>` : ''}
-    <div class="fld${p.nocoord ? '' : ' on'}" style="margin-top:10px" onclick="ptCdOpen(${p.id})"><span style="color:${p.nocoord ? 'var(--o)' : 'var(--g)'}">${ic('pin', 18)}</span><div class="grow" style="min-width:0"><span class="fl">Координаты</span><b>${p.nocoord ? '<span style="color:var(--o);font-weight:600">не указаны: нажмите, чтобы добавить</span>' : (+p.lat).toFixed(5) + ', ' + (+p.lon).toFixed(5)}</b></div></div>
+    <div class="fld${p.nocoord ? '' : ' on'}" style="margin-top:10px" onclick="ptCdOpen(${p.id},'ptname')"><span style="color:${p.nocoord ? 'var(--o)' : 'var(--g)'}">${ic('pin', 18)}</span><div class="grow" style="min-width:0"><span class="fl">Координаты</span><b>${p.nocoord ? '<span style="color:var(--o);font-weight:600">не указаны: нажмите, чтобы добавить</span>' : (+p.lat).toFixed(5) + ', ' + (+p.lon).toFixed(5)}</b></div></div>
     <button class="btn sec sm" style="margin-top:10px;color:#ffb0b0" onclick="go({sheet:'ptdel',pd:${p.id}})">${ic('trash', 15)} Удалить точку</button></div>`;
 }
 function ptAddUnit(pid) {
@@ -1585,31 +1588,31 @@ function ptAddUnit(pid) {
   go({toast: 'Станция добавлена: заполните остатки на первом визите'});
 }
 function ptUnitSheet() {
-  const f = S.pu, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return `<h2>Станция не найдена</h2><button class="btn sec" onclick="go({sheet:null,pu:null})">Закрыть</button>`;
-  return `<h2>Вид станции ${f.i + 1}</h2><div class="tiny" style="margin-bottom:8px">${esc(p.name)}. Остатки на станции не меняются.</div>${stTiles(u.st, `ptUnitSet('@')`)}<button class="btn sec" style="margin-top:10px" onclick="go({sheet:null,pu:null})">Отмена</button>`;
+  const f = S.pu, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return `<h2>Станция не найдена</h2><button class="btn sec" onclick="go({sheet:${pnB()},pu:null})">Закрыть</button>`;
+  return `<h2>Вид станции ${f.i + 1}</h2><div class="tiny" style="margin-bottom:8px">${esc(p.name)}. Остатки на станции не меняются.</div>${stTiles(u.st, `ptUnitSet('@')`)}<button class="btn sec" style="margin-top:10px" onclick="go({sheet:${pnB()},pu:null})">Отмена</button>`;
 }
-function ptUnitSet(st) { const f = S.pu, p = pt(f.pid); if (!p || !p.units[f.i]) return go({sheet: null, pu: null}); if (ptBusy(f.pid)) return go({sheet: null, pu: null, toast: 'Идёт визит на этой точке'}); p.units[f.i].st = st; go({sheet: null, pu: null, toast: 'Вид станции изменён'}); }
+function ptUnitSet(st) { const f = S.pu, p = pt(f.pid); if (!p || !p.units[f.i]) return go({sheet: pnSh(), pu: null}); if (ptBusy(f.pid)) return go({sheet: pnSh(), pu: null, toast: 'Идёт визит на этой точке'}); p.units[f.i].st = st; go({sheet: pnSh(), pu: null, toast: 'Вид станции изменён'}); }
 function ptUnitDelSheet() {
-  const f = S.pu, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return `<h2>Станция не найдена</h2><button class="btn sec" onclick="go({sheet:null,pu:null})">Закрыть</button>`;
+  const f = S.pu, p = pt(f.pid), u = p && p.units[f.i]; if (!u) return `<h2>Станция не найдена</h2><button class="btn sec" onclick="go({sheet:${pnB()},pu:null})">Закрыть</button>`;
   return `<h2>Убрать станцию ${f.i + 1}?</h2><div class="card"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(STN[u.st])}</div></div><div class="tiny" style="margin:8px 0">Остатки этой станции исчезнут из приложения. Фото прошлых визитов в архиве останутся.</div>
-    <button class="btn" style="background:#4a1a1a;color:#ffb0b0" onclick="ptUnitDel()">Убрать станцию</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null,pu:null})">Отмена</button>`;
+    <button class="btn" style="background:#4a1a1a;color:#ffb0b0" onclick="ptUnitDel()">Убрать станцию</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:${pnB()},pu:null})">Отмена</button>`;
 }
-function ptUnitDel() { const f = S.pu, p = pt(f.pid); if (!p || p.units.length < 2 || !p.units[f.i]) return go({sheet: null, pu: null}); if (ptBusy(f.pid)) return go({sheet: null, pu: null, toast: 'Идёт визит на этой точке'}); p.units.splice(f.i, 1); p.units.forEach((u, k) => { u.name = 'Станция ' + (k + 1); }); go({sheet: null, pu: null, toast: 'Станция убрана'}); }
+function ptUnitDel() { const f = S.pu, p = pt(f.pid); if (!p || p.units.length < 2 || !p.units[f.i]) return go({sheet: pnSh(), pu: null}); if (ptBusy(f.pid)) return go({sheet: pnSh(), pu: null, toast: 'Идёт визит на этой точке'}); p.units.splice(f.i, 1); p.units.forEach((u, k) => { u.name = 'Станция ' + (k + 1); }); go({sheet: pnSh(), pu: null, toast: 'Станция убрана'}); }
 function ptDelSheet() {
-  const p = pt(S.pd); if (!p) return `<h2>Точка не найдена</h2><button class="btn sec" onclick="go({sheet:null,pd:null})">Закрыть</button>`;
+  const p = pt(S.pd); if (!p) return `<h2>Точка не найдена</h2><button class="btn sec" onclick="go({sheet:${pnB()},pd:null})">Закрыть</button>`;
   const n = Object.keys(sched).reduce((a, c) => a + [0, 1, 2, 3, 4, 5, 6].reduce((b, d) => b + ((sched[c] && sched[c][d]) || []).filter(x => x.pid === p.id).length, 0), 0);
   return `<h2>Удалить точку?</h2><div class="card"><div class="t1" style="font-size:14px">${esc(p.name)}</div><div class="t2">${esc(p.addr)}</div></div>
     <div class="tiny" style="margin:8px 0">Точка исчезнет из приложения у всех${n ? ', а из графиков курьеров на этой неделе уберутся её визиты (' + n + ')' : ''}. Фото прошлых визитов в архиве останутся. Вернуть точку можно только создав её заново.</div>
-    <button class="btn" style="background:#4a1a1a;color:#ffb0b0" onclick="ptDel()">Удалить точку</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:null,pd:null})">Отмена</button>`;
+    <button class="btn" style="background:#4a1a1a;color:#ffb0b0" onclick="ptDel()">Удалить точку</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:${pnB()},pd:null})">Отмена</button>`;
 }
 function ptDel() {
-  const id = S.pd, p = pt(id); if (!p) return go({sheet: null, pd: null});
-  if (P.length <= 1) return go({sheet: null, pd: null, toast: 'Нельзя удалить последнюю точку'});
-  if (ptBusy(id)) return go({sheet: null, pd: null, toast: 'Идёт визит на этой точке: удалить можно после него'});
+  const id = S.pd, p = pt(id); if (!p) return go({sheet: pnSh(), pd: null});
+  if (P.length <= 1) return go({sheet: pnSh(), pd: null, toast: 'Нельзя удалить последнюю точку'});
+  if (ptBusy(id)) return go({sheet: pnSh(), pd: null, toast: 'Идёт визит на этой точке: удалить можно после него'});
   [sched, TEMPLATE].forEach(T => Object.keys(T).forEach(c => { for (let d = 0; d < 7; d++) if (T[c] && T[c][d]) T[c][d] = T[c][d].filter(x => x.pid !== id); }));
   replaceArr(MV, MV.filter(m => m.pid !== id)); if (WATER.by) delete WATER.by[id]; delete INFO[id]; CL.forEach(c => { c.pids = (c.pids || []).filter(x => x !== id); });
   P.splice(P.findIndex(x => x.id === id), 1);
-  go({sheet: null, pd: null, view: null, toast: 'Точка удалена: ' + p.name});
+  go({sheet: pnSh(), pd: null, pn: null, view: null, toast: 'Точка удалена: ' + p.name});
 }
 
 function pointCard(id) {
@@ -1639,7 +1642,6 @@ function pointCard(id) {
         <div style="text-align:right">${mg ? stp(`mgCur(${p.id},${i},'${g.id}'`, fmtCur(u, g), `PC:${p.id}|${i}|${g.id}`) : `<div class="t1" style="font-size:13px">${fmtCur(u, g)}</div>`}<div class="t2" style="color:var(--o)">${r > 0 ? 'взять ' + r + ' ' + g.u : '—'}</div></div></div></div>`;
     });
   });
-  if (S.role === 'mgr') h += ptManage(p);
   if (S.role === 'cour') {
     if (item && !item.done) h += `<button class="btn" style="margin-top:10px" onclick="go({sheet:'take',tk:${id}})">Начать визит · ${item.type === 3 ? 'генеральная уборка' : 'тип ' + item.type}</button>`;
     h += `<button class="btn sec" style="margin-top:8px" onclick="startVisit(${id},true)">Обновить остатки без визита</button>`;
@@ -3080,9 +3082,10 @@ function sheet() {
   }
   if (S.sheet === 'ptname' && S.pn) {
     const f = S.pn;
-    return `<h2>Название точки</h2><div class="tiny">Новое название и адрес увидят все: менеджеры и курьеры.</div>
+    return `<h2>Изменить точку</h2><div class="tiny">Название, адрес, станции и координаты. Изменения увидят все: менеджеры и курьеры.</div>
       <div class="tiny" style="margin-top:10px">Название</div><input type="text" maxlength="60" value="${esc(f.name)}" oninput="S.pn.name=this.value" style="margin:4px 0 8px">
       <div class="tiny">Адрес</div><input type="text" maxlength="120" value="${esc(f.addr)}" oninput="S.pn.addr=this.value" style="margin:4px 0 8px">
+      ${pt(f.id) ? ptManage(pt(f.id)) : ''}
       ${f.err ? `<div style="color:var(--r);font-size:13px;margin:0 0 8px">${f.err}</div>` : ''}
       <button class="btn" style="margin-bottom:8px" onclick="savePtName()">Сохранить</button>
       <button class="btn sec" onclick="go({sheet:null,pn:null})">Отмена</button>`;
@@ -5929,7 +5932,8 @@ function selfTest() {
       });
       T('точки: особенности, мокрая точка и парковка', () => {
         const n = P.length; S.nw = {name: 'Тест с подсказками', addr: 'Тестовая 2', win: '10:00–12:00', units: ['B'], lat: null, lon: null, uex: [{feat: '  Вход со двора.\nОхранник просит паспорт  ', notes: ['Контроль стаканов', '  ', 'Проверить воду']}], info: {wet: {imgs: [], steps: ['Налево', 'К лестнице'], text: ''}, park: {imgs: [], steps: [], text: 'Во дворе слева'}}, err: ''};
-        ptNewSave(); const p = P[P.length - 1]; eq(P.length, n + 1, 'точка создана'); eq(p.notes.length, 2, 'пустая особенность отброшена'); eq(p.win, '10:00–12:00', 'окно визита'); eq(p.feat, 'Вход со двора.\nОхранник просит паспорт', 'комментарий с переносом строки'); eq(p.nocoord, true, 'без координат');
+        S.nw.cam = 'ftp://плохая'; ptNewSave(); eq(P.length, n, 'плохая ссылка на камеру отклонена'); eq(!!S.nw.err, true, 'сообщение о ссылке'); S.nw.cam = 'https://example.com/cam/1';
+        ptNewSave(); const p = P[P.length - 1]; eq(P.length, n + 1, 'точка создана'); eq(p.cam, 'https://example.com/cam/1', 'ссылка на камеру'); eq(p.notes.length, 2, 'пустая особенность отброшена'); eq(p.win, '10:00–12:00', 'окно визита'); eq(p.feat, 'Вход со двора.\nОхранник просит паспорт', 'комментарий с переносом строки'); eq(p.nocoord, true, 'без координат');
         eq(infoOf(p.id, 'wet').steps.length, 2, 'мокрая точка сохранена'); eq(infoOf(p.id, 'park').text, 'Во дворе слева', 'парковка сохранена');
         ptNotesOpen(p.id); S.pe.win = ''; S.pe.feat = 'Новый комментарий'; ptNotesSave(); eq(p.win, '', 'окно очищено'); eq(p.feat, 'Новый комментарий', 'комментарий изменён'); eq(p.notes.length, 2, 'задачи не затронуты');
         ptTasksOpen(p.id); S.pk.notes.push('Новая задача'); ptTasksSave(); eq(p.notes.length, 3, 'особые задачи изменены');
