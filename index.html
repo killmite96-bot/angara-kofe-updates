@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 194;
+const APP_VERSION = 195;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1648,7 +1648,7 @@ function passAskSheet() {
   return `<h2>Вы не отметили пропуск</h2><div class="card"><div class="row"><div style="color:var(--o)">${ic('pass', 34)}</div><div class="grow"><div class="t1" style="font-size:15px">Он у вас?</div><div class="t2">${names.length ? 'Сегодня в графике: ' + esc(names.join(', ')) + '. ' : ''}Без пропуска на точку не попасть.</div></div></div></div>
     <button class="btn" style="margin-top:10px" onclick="passYes()">Да, пропуск у меня</button><button class="btn sec" style="margin-top:8px" onclick="passNo()">Нет</button>`;
 }
-function passYes() { PASS[S.me + ':' + TODAY] = true; go({sheet: 'load'}); confirmLoad(); }   // отмечаем пропуск и подтверждаем погрузку
+function passYes() { PASS[S.me + ':' + TODAY] = true; go({sheet: 'load'}); confirmLoad(); if (LOADED[S.me + ':' + TODAY]) go({sheet: null, lq: null}); }   // отмечаем пропуск, подтверждаем погрузку и закрываем окно
 function passNo() { go({sheet: 'load', toast: 'Возьмите пропуск и отметьте его галочкой, затем подтвердите погрузку'}); }
 function loadOpen() {
   const c = S.me, done = !!LOADED[c + ':' + TODAY];
@@ -6234,7 +6234,7 @@ function selfTest() {
         const me0 = S.me, c = COUR[0].id; S.me = c; const key = c + ':' + TODAY, savedL = LOADED[key], savedP = PASS[key], day = sched[c][TODAY], ap = P.find(x => x.pass), it = {pid: ap.id, type: 1, done: false, review: null}; day.push(it); delete LOADED[key]; delete PASS[key]; S.lq = null;
         const n = LOADS.length; confirmLoad(); eq(S.sheet, 'passask', 'вопрос про пропуск'); eq(!!LOADED[key], false, 'пока не отвечено, погрузка не подтверждена'); eq(LOADS.length, n, 'записи нет');
         passNo(); eq(S.sheet, 'load', '«Нет»: возвращаемся к погрузке'); eq(!!LOADED[key], false, 'и погрузка не подтверждена');
-        S.lq = null; confirmLoad(); eq(S.sheet, 'passask', 'вопрос повторяется'); passYes(); eq(!!PASS[key], true, '«Да»: пропуск отмечен'); eq(!!LOADED[key], true, 'погрузка подтверждена'); eq(LOADS.length, n + 1, 'запись в журнале');
+        S.lq = null; confirmLoad(); eq(S.sheet, 'passask', 'вопрос повторяется'); passYes(); eq(S.sheet, null, '«Да»: окно закрылось'); eq(!!PASS[key], true, '«Да»: пропуск отмечен'); eq(!!LOADED[key], true, 'погрузка подтверждена'); eq(LOADS.length, n + 1, 'запись в журнале');
         const rec = LOADS[0]; rec.items.forEach(x => { WH[x.id] = +((WH[x.id] || 0) + x.took).toFixed(2); }); LOADS.splice(0, 1); delete LOADED[key]; if (savedP) PASS[key] = savedP; else delete PASS[key]; if (savedL) LOADED[key] = savedL; day.splice(day.indexOf(it), 1); S.me = me0; S.lq = null; go({sheet: null});
       });
       T('погрузка: курьер отменяет свою', () => {
