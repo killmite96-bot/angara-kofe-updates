@@ -1,9 +1,9 @@
 {
-    "content":  196,
+    "content":  197,
     "apk":  22,
-    "notes":  "Погрузка недоступна вне смены: кнопка серая, при нажатии окно «Вы не на смене» с кнопкой «Ок».",
+    "notes":  "Уведомления: быстрое смахивание теперь срабатывает, последнее уведомление убирается без подвисания.",
     "contentFile":  "index.html",
-    "contentSha256":  "c630a6eab4c69704a076b0e11118ee0ba8d73ae0e85a42182dac61e97717c786",
+    "contentSha256":  "d8e8ee7aed6f457b41aa760d05b2d87abce82715c094e7ab697401f4f02c24cc",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }

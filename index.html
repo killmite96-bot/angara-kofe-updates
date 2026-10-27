@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 196;
+const APP_VERSION = 197;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -736,6 +736,7 @@ function swlEnd() { SWL.on = false; if (SWL.pend) { SWL.pend = false; render(tru
 function bindNotifSwipe() {
   document.querySelectorAll('#sheetshade .ncard').forEach(el => {
     let x0 = null, y0 = 0, t0 = 0, dx = 0, on = false, dead = false;
+    el.style.touchAction = 'pan-y';   // горизонтальный жест целиком наш: браузер не перехватывает быстрый свайп и не шлёт touchcancel
     el.addEventListener('touchstart', e => {
       if (e.touches.length > 1 || (e.target.closest && e.target.closest('input,textarea,select,button,.vp,.mph'))) { x0 = null; return; }
       x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); dx = 0; on = false; dead = false;
@@ -749,7 +750,11 @@ function bindNotifSwipe() {
       }
       e.preventDefault(); e.stopPropagation(); dx = x - x0; el.style.transform = `translateX(${dx}px)`; el.style.opacity = String(Math.max(.25, 1 - Math.abs(dx) / 260));
     }, {passive: false});
-    const end = () => {
+    const end = e => {
+      if (!on && x0 !== null && !dead && e && e.type === 'touchend' && e.changedTouches && e.changedTouches.length) {   // очень быстрый щелчок: touchmove мог не успеть прийти, считаем жест по точке отпускания
+        const t = e.changedTouches[0], ax = Math.abs(t.clientX - x0), ay = Math.abs(t.clientY - y0);
+        if (ax > 40 && ax > ay * 1.2) { on = true; dx = t.clientX - x0; el.style.transition = 'none'; SWL.on = true; }
+      }
       if (!on) { x0 = null; return; }
       on = false; x0 = null;
       const speed = Math.abs(dx) / Math.max(1, Date.now() - t0), far = Math.abs(dx) > Math.min(90, el.offsetWidth * .3), flick = Math.abs(dx) > 40 && speed > .45;
@@ -758,6 +763,7 @@ function bindNotifSwipe() {
         // карточка улетает, остальные плавно съезжают на её место (высота и отступы схлопываются), и только потом запись убирается
         setTimeout(() => {
           if (!el.isConnected) { SWL.pend = false; swlEnd(); return dismissNotif(el.dataset.id); }
+          if (document.querySelectorAll('#sheetshade .ncard').length < 2) { SWL.pend = false; SWL.on = false; return dismissNotif(el.dataset.id); }   // последняя карточка: схлопывать нечего, сразу убираем (без лишнего скачка высоты окна)
           el.style.boxSizing = 'border-box'; el.style.height = el.offsetHeight + 'px'; el.style.overflow = 'hidden'; void el.offsetHeight;
           el.style.transition = 'height .32s cubic-bezier(.22,1,.36,1), margin .32s cubic-bezier(.22,1,.36,1), padding .32s cubic-bezier(.22,1,.36,1), border-width .32s ease';
           el.style.height = '0px'; el.style.marginTop = '0px'; el.style.marginBottom = '0px'; el.style.paddingTop = '0px'; el.style.paddingBottom = '0px'; el.style.borderWidth = '0px';
