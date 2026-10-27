@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 193;
+const APP_VERSION = 194;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1715,8 +1715,9 @@ function cancelAskSheet() {
     <button class="btn" style="margin-top:10px;background:#c0392b;color:#fff" onclick="ldCancelMine()">Да, отменить и вернуть на склад</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:'load'})">Нет, оставить</button>`;
 }
 function ldCancelMine() {   // курьер сам отменяет свою погрузку, пока он на базе
-  const c = S.me, r = ldRec(c); if (!r) return go({sheet: null, lq: null});
-  if (atBase() === false) return go({toast: 'Отменить погрузку можно только на базе'});
+  const c = S.me, r = ldRec(c);
+  if (atBase() === false) return go({sheet: 'load', toast: 'Отменить погрузку можно только на базе'});
+  if (!r) { delete LOADED[c + ':' + TODAY]; S.lq = null; return go({sheet: null, lq: null, toast: 'Отметка о погрузке снята (записи о ней не нашлось, склад не менялся)'}); }
   r.items.forEach(it => { WH[it.id] = +((WH[it.id] || 0) + it.took).toFixed(2); });
   r.undone = {ts: Date.now(), byName: cr(c).name}; delete LOADED[r.key]; S.lq = null;
   notify('mgr', 'warn', cr(c).name + ' отменил погрузку: остатки склада возвращены');
