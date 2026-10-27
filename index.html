@@ -227,7 +227,7 @@ html.teststand body::before{content:'ТЕСТОВЫЙ СТЕНД · данные
 <div id="app"></div>
 <script>
 // версия содержимого приложения: увеличивайте при каждом выпуске обновления (по ней приложение понимает, что вышла новая)
-const APP_VERSION = 192;
+const APP_VERSION = 193;
 /* ===================== ФИРМЕННЫЕ ИКОНКИ «АНГАРА КОФЕ» ===================== */
 // единый стиль: линия 1.8, скруглённые концы, цвет берётся из текста (currentColor), форма — от чашки, зерна и бутыли
 const ICONS = {
@@ -1681,7 +1681,7 @@ function loadSheet() {
       h += `<div class="card" style="padding:10px 12px"><div class="row" onclick="ldOpen(${p.id})" style="cursor:pointer"><div class="badge ${bcls(o.x.type)}">${i + 1}</div><div class="grow"><div class="t1" style="font-size:14px">${esc(p.name)}${stB(p)}</div><div class="t2">${esc(p.addr)}</div></div><div class="t2">${open ? '▲' : '▼'}</div></div>${open ? `<div style="margin-top:8px">${stockRows(p)}</div>` : ''}</div>`;
     });
   }
-  h += !done ? `<button class="btn" style="margin-bottom:8px" onclick="confirmLoad()">Подтвердить погрузку</button>` : edit ? `<button class="btn" style="margin-bottom:8px" onclick="confirmLoad()">Сохранить изменения</button>` : '<div class="pill ok" style="display:inline-block;margin-bottom:10px">Погрузка подтверждена, склад обновлён</div>';
+  h += !done ? `<button class="btn" style="margin-bottom:8px" onclick="confirmLoad()">Подтвердить погрузку</button>` : edit ? `<button class="btn" style="margin-bottom:8px" onclick="confirmLoad()">Сохранить изменения</button><button class="btn sec" style="margin-bottom:8px;color:#ffb0b0" onclick="go({sheet:'cancelask'})">Отменить погрузку</button>` : '<div class="pill ok" style="display:inline-block;margin-bottom:10px">Погрузка подтверждена, склад обновлён</div>';
   return h + '<button class="btn sec" onclick="go({sheet:null,lq:null})">Закрыть</button>';
 }
 function confirmLoad() {
@@ -1710,6 +1710,18 @@ function confirmLoad() {
   if (passNeed(c).length && !PASS[key]) go({toast: 'Погрузка подтверждена. Не забудьте пропуск: ' + passNeed(c).map(p => p.name).join(', ')}); else render(true);
 }
 const ldLast = () => LOADS.find(r => !r.undone) || null;
+function cancelAskSheet() {
+  return `<h2>Отменить погрузку?</h2><div class="card"><div class="t1" style="font-size:15px">Вы уверены?</div><div class="t2">Погрузка будет отменена, всё взятое вернётся на склад. Потом можно подтвердить погрузку заново.</div></div>
+    <button class="btn" style="margin-top:10px;background:#c0392b;color:#fff" onclick="ldCancelMine()">Да, отменить и вернуть на склад</button><button class="btn sec" style="margin-top:8px" onclick="go({sheet:'load'})">Нет, оставить</button>`;
+}
+function ldCancelMine() {   // курьер сам отменяет свою погрузку, пока он на базе
+  const c = S.me, r = ldRec(c); if (!r) return go({sheet: null, lq: null});
+  if (atBase() === false) return go({toast: 'Отменить погрузку можно только на базе'});
+  r.items.forEach(it => { WH[it.id] = +((WH[it.id] || 0) + it.took).toFixed(2); });
+  r.undone = {ts: Date.now(), byName: cr(c).name}; delete LOADED[r.key]; S.lq = null;
+  notify('mgr', 'warn', cr(c).name + ' отменил погрузку: остатки склада возвращены');
+  go({sheet: null, lq: null, toast: 'Погрузка отменена, склад восстановлен'});
+}
 function ldUndo(id) {
   const r = LOADS.find(x => sameId(x.id, id)), last = ldLast(); if (!r || r.undone || !last || !sameId(last.id, id)) return go({sheet: 'loadhist', toast: 'Отменить можно только последнюю погрузку'});
   r.items.forEach(it => { WH[it.id] = +((WH[it.id] || 0) + it.took).toFixed(2); });
@@ -3243,6 +3255,7 @@ function sheet() {
   const c = S.me;
   if (S.sheet === 'load') return loadSheet();
   if (S.sheet === 'passask') return passAskSheet();
+  if (S.sheet === 'cancelask') return cancelAskSheet();
   if (S.sheet === 'loadhist') return loadHistSheet();
   if (S.sheet === 'chatpt') {
     return `<h2>Привязать точку</h2><div class="tiny">Выберите точку: в сообщении появится метка, по которой собеседник сразу откроет её.</div>
@@ -6222,6 +6235,14 @@ function selfTest() {
         passNo(); eq(S.sheet, 'load', '«Нет»: возвращаемся к погрузке'); eq(!!LOADED[key], false, 'и погрузка не подтверждена');
         S.lq = null; confirmLoad(); eq(S.sheet, 'passask', 'вопрос повторяется'); passYes(); eq(!!PASS[key], true, '«Да»: пропуск отмечен'); eq(!!LOADED[key], true, 'погрузка подтверждена'); eq(LOADS.length, n + 1, 'запись в журнале');
         const rec = LOADS[0]; rec.items.forEach(x => { WH[x.id] = +((WH[x.id] || 0) + x.took).toFixed(2); }); LOADS.splice(0, 1); delete LOADED[key]; if (savedP) PASS[key] = savedP; else delete PASS[key]; if (savedL) LOADED[key] = savedL; day.splice(day.indexOf(it), 1); S.me = me0; S.lq = null; go({sheet: null});
+      });
+      T('погрузка: курьер отменяет свою', () => {
+        const me0 = S.me, c = COUR[0].id; S.me = c; const key = c + ':' + TODAY, savedL = LOADED[key], savedP = PASS[key]; delete LOADED[key]; PASS[key] = true; S.lq = null;
+        const wh0 = JSON.stringify(WH), n = LOADS.length; confirmLoad(); eq(!!LOADED[key], true, 'подтверждена');
+        S.lq = null; go({sheet: 'load'}); const bt = [...document.querySelectorAll('#sheetmain button')].map(b => b.textContent.trim()); eq(bt.includes('Отменить погрузку'), true, 'кнопка отмены в окне подтверждённой погрузки');
+        go({sheet: 'cancelask'}); eq(/Вы уверены/.test(document.querySelector('#sheetmain').innerText), true, 'вопрос перед отменой'); eq(!!LOADED[key], true, 'пока не подтверждено, погрузка на месте');
+        ldCancelMine(); eq(!!LOADED[key], false, 'курьер снова может подтвердить'); eq(JSON.stringify(WH), wh0, 'склад вернулся'); eq(!!LOADS[0].undone, true, 'пометка отмены');
+        LOADS.splice(0, LOADS.length - n); if (savedP) PASS[key] = savedP; else delete PASS[key]; if (savedL) LOADED[key] = savedL; S.me = me0; S.lq = null; go({sheet: null});
       });
       [{sheet: 'loadhist'}].forEach(sp => T('погрузка: окно ' + sp.sheet, () => go(Object.assign(home(), {tab: 'wh'}, sp))));
       T('резерв подтоварки: норма, «с базы» и визит', () => {
