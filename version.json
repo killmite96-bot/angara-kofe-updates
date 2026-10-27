@@ -1,9 +1,9 @@
 {
-    "content":  195,
+    "content":  196,
     "apk":  22,
-    "notes":  "Погрузка: после ответа «Да, пропуск у меня» погрузка подтверждается и окно закрывается.",
+    "notes":  "Погрузка недоступна вне смены: кнопка серая, при нажатии окно «Вы не на смене» с кнопкой «Ок».",
     "contentFile":  "index.html",
-    "contentSha256":  "34218cb4ec06b8b27951f9ab00310e30da1ab342b07edf6debcbcd166194fe6f",
+    "contentSha256":  "c630a6eab4c69704a076b0e11118ee0ba8d73ae0e85a42182dac61e97717c786",
     "apkFile":  "AngaraKofe-beta.apk",
     "apkSha256":  "68359bc1127cf39973277ae28074d345b4006033bec8ac46506d27c54aea2ea0"
 }
